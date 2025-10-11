@@ -1,0 +1,2686 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb } from 'lucide-react';
+import './styles/global.css';
+import RealtimeServiceFactory, { ServiceType } from './services/RealtimeServiceFactory';
+import usePresence from './hooks/usePresence';
+import useFocusRoom from './hooks/useFocusRoom';
+import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
+import FeedbackModal from './components/FeedbackModal';
+
+const DEFAULT_THEMES = [
+  { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isDefault: true },
+  { name: "Ocean", bg: "#0a1929", card: "#1e3a5f", accent: "#06b6d4", text: "#ffffff", isDefault: true },
+  { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981", text: "#ffffff", isDefault: true },
+  { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", text: "#ffffff", isDefault: true },
+  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true }
+];
+
+// Immersive scenes for different timer types
+const SCENES = {
+  none: { name: "None", bg: null, card: null, emoji: "🚫" },
+  coffee: {
+    name: "Coffee Break",
+    bg: "linear-gradient(135deg, #6F4E37 0%, #4A342B 50%, #2D1F1A 100%)",
+    card: "rgba(111, 78, 55, 0.3)",
+    accent: "#D2691E",
+    emoji: "☕",
+    description: "Warm brown tones for your coffee break"
+  },
+  deepWork: {
+    name: "Deep Work",
+    bg: "linear-gradient(135deg, #1a0033 0%, #0a001a 50%, #000000 100%)",
+    card: "rgba(74, 0, 128, 0.3)",
+    accent: "#9333ea",
+    emoji: "🧠",
+    description: "Deep purple focus environment"
+  },
+  exercise: {
+    name: "Exercise",
+    bg: "linear-gradient(135deg, #DC143C 0%, #8B0000 50%, #4B0000 100%)",
+    card: "rgba(220, 20, 60, 0.3)",
+    accent: "#FF6B6B",
+    emoji: "💪",
+    description: "Energizing red for physical activity"
+  },
+  reading: {
+    name: "Reading",
+    bg: "linear-gradient(135deg, #2C5F2D 0%, #1B4332 50%, #081C15 100%)",
+    card: "rgba(44, 95, 45, 0.3)",
+    accent: "#52B788",
+    emoji: "📚",
+    description: "Calm green for focused reading"
+  },
+  meditation: {
+    name: "Meditation",
+    bg: "linear-gradient(135deg, #4A5568 0%, #2D3748 50%, #1A202C 100%)",
+    card: "rgba(74, 85, 104, 0.3)",
+    accent: "#90CDF4",
+    emoji: "🧘",
+    description: "Peaceful grey for mindfulness"
+  },
+  creative: {
+    name: "Creative Work",
+    bg: "linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FDC830 100%)",
+    card: "rgba(255, 107, 53, 0.3)",
+    accent: "#F7931E",
+    emoji: "🎨",
+    description: "Vibrant orange for creativity"
+  },
+  study: {
+    name: "Study Session",
+    bg: "linear-gradient(135deg, #1E3A8A 0%, #1E40AF 50%, #3B82F6 100%)",
+    card: "rgba(30, 58, 138, 0.3)",
+    accent: "#60A5FA",
+    emoji: "📖",
+    description: "Blue tones for concentration"
+  },
+  meeting: {
+    name: "Meeting",
+    bg: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)",
+    card: "rgba(124, 58, 237, 0.3)",
+    accent: "#A78BFA",
+    emoji: "👥",
+    description: "Professional purple for meetings"
+  }
+};
+
+// Initial default timers for local storage
+const defaultSavedTimers = [
+  { name: "Pomodoro", duration: 25, unit: "min", min: 25, color: "#ef4444", group: "Work", scene: "deepWork" },
+  { name: "Short Break", duration: 5, unit: "min", min: 5, color: "#10b981", group: "Work", scene: "coffee" },
+  { name: "Deep Work", duration: 50, unit: "min", min: 50, color: "#8b5cf6", group: "Work", scene: "deepWork" },
+  { name: "Workout", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
+];
+
+// Centralized styles for inputs for consistency and easier modification
+const inputStyle = (accentColor) => ({
+    width: '100%',
+    background: 'rgba(255,255,255,0.05)',
+    border: `1px solid rgba(255,255,255,0.1)`,
+    borderRadius: 8,
+    padding: 12,
+    color: 'white',
+    fontSize: 14,
+    boxSizing: 'border-box', // Ensure padding doesn't add to total width
+});
+
+const accentInputStyle = (accentColor) => ({
+    ...inputStyle(accentColor),
+    border: `2px solid ${accentColor}`,
+    fontSize: 18,
+    fontWeight: 600,
+});
+
+
+export default function TimerApp() {
+  // Track if service is ready
+  const [serviceReady, setServiceReady] = useState(false);
+
+  // Initialize realtime service (MOCK for now, change to FIREBASE later)
+  useEffect(() => {
+    const initService = async () => {
+      try {
+        await RealtimeServiceFactory.createService(ServiceType.MOCK);
+        console.log('✅ Realtime service initialized (using MOCK data)');
+        setServiceReady(true);
+      } catch (error) {
+        console.error('Failed to initialize service:', error);
+      }
+    };
+
+    initService();
+
+    return () => {
+      RealtimeServiceFactory.resetService();
+      setServiceReady(false);
+    };
+  }, []);
+
+  // Use real presence hook (only when service is ready)
+  const { activeUsers: realActiveUsers } = usePresence({
+    enableHeartbeat: serviceReady,
+    heartbeatInterval: 60000,
+    pollInterval: 30000
+  });
+
+  // Use focus room hook
+  const {
+    rooms,
+    currentRoom,
+    messages,
+    loading: roomsLoading,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    sendMessage,
+    startTimer: startRoomTimer,
+    getParticipantCount,
+    isRoomFull,
+    getRemainingTime
+  } = useFocusRoom();
+
+  // Force re-render for room timer countdown
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    if (currentRoom?.timer) {
+      const interval = setInterval(() => {
+        forceUpdate(n => n + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [currentRoom?.timer]);
+
+  // Load themes from localStorage (default + custom)
+  const [themes, setThemes] = useState(() => {
+    try {
+      const storedCustomThemes = localStorage.getItem('customThemes');
+      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
+      return [...DEFAULT_THEMES, ...customThemes];
+    } catch (error) {
+      console.error("Failed to load custom themes:", error);
+      return DEFAULT_THEMES;
+    }
+  });
+
+  // Load initial theme from localStorage
+  const [theme, setTheme] = useState(() => {
+    try {
+      const storedThemeName = localStorage.getItem('selectedThemeName');
+      return storedThemeName ? themes.find(t => t.name === storedThemeName) || themes[0] : themes[0];
+    } catch (error) {
+      console.error("Failed to load theme from localStorage:", error);
+      return themes[0];
+    }
+  });
+  const [showThemes, setShowThemes] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
+  // Color picker states
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const [newThemeBg, setNewThemeBg] = useState('#000000');
+  const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
+  const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
+  const [newThemeText, setNewThemeText] = useState('#ffffff');
+
+  // Accordion state for timer groups
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+
+  // Navigation states
+  const [activeMainTab, setActiveMainTab] = useState('timer'); // timer, interval, stopwatch, composite
+  const [activeFeatureTab, setActiveFeatureTab] = useState(null); // stats, achievements, scenes, or null for main view
+
+  const [mode, setMode] = useState('timer');
+  const [isRunning, setIsRunning] = useState(false);
+  const [time, setTime] = useState(0);
+
+  // Sync mode with activeMainTab when not running
+  useEffect(() => {
+    if (!isRunning && time === 0) {
+      if (activeMainTab === 'composite') {
+        setMode('sequence');
+      } else if (activeMainTab !== 'stopwatch') {
+        setMode(activeMainTab);
+      }
+    }
+  }, [activeMainTab, isRunning, time]);
+
+  // HH:MM:SS input states
+  const [inputHours, setInputHours] = useState('');
+  const [inputMinutes, setInputMinutes] = useState('');
+  const [inputSeconds, setInputSeconds] = useState('');
+
+  const [initialTime, setInitialTime] = useState(0);
+  const [work, setWork] = useState(40);
+  const [rest, setRest] = useState(20);
+  const [rounds, setRounds] = useState(8);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [isWork, setIsWork] = useState(true);
+  const [sequence, setSequence] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [seqName, setSeqName] = useState('');
+
+  // Load saved timers from localStorage
+  const [saved, setSaved] = useState(() => {
+    try {
+      const storedSaved = localStorage.getItem('savedTimers');
+      return storedSaved ? JSON.parse(storedSaved) : defaultSavedTimers;
+    } catch (error) {
+      console.error("Failed to load saved timers from localStorage:", error);
+      return defaultSavedTimers;
+    }
+  });
+
+  // Load history from localStorage
+  const [history, setHistory] = useState(() => {
+      try {
+          const storedHistory = localStorage.getItem('timerHistory');
+          return storedHistory ? JSON.parse(storedHistory) : [];
+      } catch (error) {
+          console.error("Failed to load history from localStorage:", error);
+          return [];
+      }
+  });
+
+  const [showCreateTimer, setShowCreateTimer] = useState(false);
+  const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
+  const [newTimerName, setNewTimerName] = useState('');
+  const [newTimerMin, setNewTimerMin] = useState('');
+  const [newTimerUnit, setNewTimerUnit] = useState('min');
+  const [newTimerColor, setNewTimerColor] = useState('#3b82f6');
+  const [newTimerGroup, setNewTimerGroup] = useState('');
+  const [newTimerScene, setNewTimerScene] = useState('none');
+  const [showGroupDropdown, setShowGroupDropdown] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [timerToDelete, setTimerToDelete] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  
+  // Load repeat preference from localStorage
+  const [repeatEnabled, setRepeatEnabled] = useState(() => {
+      try {
+          return localStorage.getItem('repeatEnabled') === 'true';
+      } catch (error) {
+          console.error("Failed to load repeatEnabled from localStorage:", error);
+          return false;
+      }
+  });
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [completedSession, setCompletedSession] = useState(null);
+
+  const [alarmSoundType, setAlarmSoundType] = useState(() => {
+    try { return localStorage.getItem('alarmSoundType') || 'bell'; }
+    catch (error) { return 'bell'; }
+  });
+  const [alarmVolume, setAlarmVolume] = useState(() => {
+    try { return parseFloat(localStorage.getItem('alarmVolume')) || 0.5; }
+    catch (error) { return 0.5; }
+  });
+  const [showSoundSettings, setShowSoundSettings] = useState(false);
+
+  const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
+
+  // Use real active users from presence hook
+  const activeUsers = realActiveUsers;
+
+  // Gamification states
+  const [currentStreak, setCurrentStreak] = useState(() => parseInt(localStorage.getItem('currentStreak')) || 0);
+  const [lastCompletionDate, setLastCompletionDate] = useState(() => localStorage.getItem('lastCompletionDate') || null);
+  const [totalCompletions, setTotalCompletions] = useState(() => parseInt(localStorage.getItem('totalCompletions')) || 0);
+  const [achievements, setAchievements] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('achievements')) || [];
+    } catch { return []; }
+  });
+  const [showAchievement, setShowAchievement] = useState(null);
+  const [firstTimerDate, setFirstTimerDate] = useState(() => localStorage.getItem('firstTimerDate') || null);
+  const [monthlyStats, setMonthlyStats] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('monthlyStats')) || {};
+    } catch { return {}; }
+  });
+
+  // Daily challenges
+  const [dailyChallenge, setDailyChallenge] = useState(() => {
+    try {
+      const stored = localStorage.getItem('dailyChallenge');
+      if (stored) {
+        const challenge = JSON.parse(stored);
+        const today = new Date().toDateString();
+        if (challenge.date === today) return challenge;
+      }
+    } catch {}
+
+    // Generate new daily challenge
+    const challenges = [
+      { type: 'completions', target: 5, text: 'Complete 5 timers today', icon: '🎯' },
+      { type: 'time', target: 120, text: 'Focus for 2 hours total', icon: '⏱️' },
+      { type: 'streak', target: 1, text: 'Maintain your streak', icon: '🔥' },
+      { type: 'morning', target: 1, text: 'Complete a timer before 10 AM', icon: '🌅' },
+      { type: 'pomodoro', target: 4, text: 'Complete 4 Pomodoros (25min each)', icon: '🍅' },
+    ];
+    const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
+    return { ...randomChallenge, date: new Date().toDateString(), progress: 0 };
+  });
+
+  // Time capsule messages
+  const [timeCapsules, setTimeCapsules] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('timeCapsules')) || [];
+    } catch { return []; }
+  });
+  const [showCapsuleInput, setShowCapsuleInput] = useState(false);
+  const [capsuleMessage, setCapsuleMessage] = useState('');
+  const [showCapsuleNotification, setShowCapsuleNotification] = useState(null);
+
+  // Active scene state
+  const [activeScene, setActiveScene] = useState('none');
+  const [currentTimerScene, setCurrentTimerScene] = useState('none');
+
+  const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
+  const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
+  const filteredGroups = groups.filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
+  const intervalRef = useRef(null);
+  const lastActiveTimeRef = useRef(null);
+  const chatInputRef = useRef(null);
+
+  // Persistence Effects
+  useEffect(() => localStorage.setItem('selectedThemeName', theme.name), [theme]);
+  useEffect(() => localStorage.setItem('savedTimers', JSON.stringify(saved)), [saved]);
+  useEffect(() => localStorage.setItem('timerHistory', JSON.stringify(history)), [history]);
+  useEffect(() => localStorage.setItem('repeatEnabled', repeatEnabled), [repeatEnabled]);
+  useEffect(() => localStorage.setItem('alarmSoundType', alarmSoundType), [alarmSoundType]);
+  useEffect(() => localStorage.setItem('alarmVolume', alarmVolume.toString()), [alarmVolume]);
+  useEffect(() => localStorage.setItem('currentStreak', currentStreak.toString()), [currentStreak]);
+  useEffect(() => localStorage.setItem('lastCompletionDate', lastCompletionDate), [lastCompletionDate]);
+  useEffect(() => localStorage.setItem('totalCompletions', totalCompletions.toString()), [totalCompletions]);
+  useEffect(() => localStorage.setItem('achievements', JSON.stringify(achievements)), [achievements]);
+  useEffect(() => localStorage.setItem('monthlyStats', JSON.stringify(monthlyStats)), [monthlyStats]);
+  useEffect(() => { if (firstTimerDate) localStorage.setItem('firstTimerDate', firstTimerDate); }, [firstTimerDate]);
+  useEffect(() => localStorage.setItem('dailyChallenge', JSON.stringify(dailyChallenge)), [dailyChallenge]);
+  useEffect(() => localStorage.setItem('timeCapsules', JSON.stringify(timeCapsules)), [timeCapsules]);
+
+  // Update active users count every 30 seconds with realistic variation
+  // Active users now managed by usePresence hook
+
+  // Parse URL parameters for shared timers
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedTimer = params.get('timer');
+
+    if (sharedTimer) {
+      try {
+        const decoded = JSON.parse(atob(sharedTimer));
+        if (decoded.type === 'quick') {
+          // Quick timer from URL
+          setMode('timer');
+          const totalSeconds = (decoded.h || 0) * 3600 + (decoded.m || 0) * 60 + (decoded.s || 0);
+          if (totalSeconds > 0) {
+            setTime(totalSeconds);
+            setInitialTime(totalSeconds);
+            setToastMessage(`Timer loaded: ${formatTime(totalSeconds)}`);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+          }
+        } else if (decoded.type === 'interval') {
+          // Interval timer from URL
+          setMode('interval');
+          setWork(decoded.work || 40);
+          setRest(decoded.rest || 20);
+          setRounds(decoded.rounds || 8);
+          setToastMessage(`Interval loaded: ${decoded.work}s / ${decoded.rest}s × ${decoded.rounds}`);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        }
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('Failed to parse shared timer:', error);
+      }
+    }
+
+    // Check for ready time capsules
+    const now = Date.now();
+    timeCapsules.forEach(capsule => {
+      if (capsule.openAt <= now && !capsule.opened) {
+        setShowCapsuleNotification(capsule);
+        setTimeCapsules(prev => prev.map(c => c.id === capsule.id ? { ...c, opened: true } : c));
+      }
+    });
+  }, []);
+
+  // Page Visibility API - Handle tab switching correctly
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Store timestamp when tab becomes hidden
+        lastActiveTimeRef.current = Date.now();
+      } else if (isRunning && lastActiveTimeRef.current) {
+        // Calculate elapsed time while tab was hidden
+        const elapsed = Math.floor((Date.now() - lastActiveTimeRef.current) / 1000);
+
+        if (mode === 'stopwatch') {
+          // For stopwatch, add elapsed time
+          setTime(prev => prev + elapsed);
+        } else {
+          // For countdown timers, subtract elapsed time
+          setTime(prev => Math.max(0, prev - elapsed));
+        }
+
+        lastActiveTimeRef.current = null;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isRunning, mode]);
+
+  useEffect(() => {
+    if (isRunning) {
+      intervalRef.current = setInterval(() => {
+        setTime(prev => {
+          if (mode === 'stopwatch') return prev + 1;
+          if (prev <= 0) {
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, mode]);
+
+  useEffect(() => {
+    if (time === 0 && isRunning && mode !== 'stopwatch') {
+      handleComplete();
+    }
+  }, [time, isRunning, mode]);
+
+  // useEffect to manage confetti visibility based on duration
+  useEffect(() => {
+    if (showCelebration && confettiActiveDuration > 0) {
+        const timer = setTimeout(() => {
+            setConfettiActiveDuration(0); // Stop confetti after its duration
+        }, confettiActiveDuration * 1000);
+        return () => clearTimeout(timer);
+    }
+  }, [showCelebration, confettiActiveDuration]);
+
+  // Handle scene changes for Focus Room composite timers
+  useEffect(() => {
+    if (currentRoom && currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps) {
+      const currentStepData = currentRoom.compositeTimer.steps[currentRoom.currentStep || 0];
+      if (currentStepData && currentStepData.scene && currentStepData.scene !== 'none') {
+        setActiveScene(currentStepData.scene);
+        setCurrentTimerScene(currentStepData.scene);
+      } else {
+        setActiveScene('none');
+        setCurrentTimerScene('none');
+      }
+    }
+  }, [currentRoom, currentRoom?.currentStep, currentRoom?.timerType]);
+
+  // Achievement definitions
+  const ACHIEVEMENTS = [
+    { id: 'first_timer', name: 'First Steps', description: 'Complete your first timer', icon: '🎯', requirement: 1 },
+    { id: 'early_bird', name: 'Early Bird', description: 'Complete a timer before 7 AM', icon: '🌅', checkTime: true },
+    { id: 'night_owl', name: 'Night Owl', description: 'Complete a timer after 10 PM', icon: '🦉', checkTime: true },
+    { id: 'century_club', name: 'Century Club', description: 'Complete 100 timers', icon: '💯', requirement: 100 },
+    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon: '🔥', streak: 7 },
+    { id: 'streak_30', name: 'Month Master', description: '30-day streak', icon: '👑', streak: 30 },
+    { id: 'speed_demon', name: 'Speed Demon', description: 'Complete 10 timers in one day', icon: '⚡', dailyCount: 10 },
+    { id: 'dedicated', name: 'Dedicated', description: 'Complete 500 timers', icon: '🏆', requirement: 500 },
+  ];
+
+  const checkAchievements = useCallback((completionData) => {
+    const newAchievements = [];
+    const currentHour = new Date().getHours();
+
+    // Check each achievement
+    ACHIEVEMENTS.forEach(ach => {
+      if (achievements.includes(ach.id)) return; // Already unlocked
+
+      let unlocked = false;
+
+      if (ach.requirement && totalCompletions + 1 >= ach.requirement) {
+        unlocked = true;
+      }
+
+      if (ach.streak && currentStreak >= ach.streak) {
+        unlocked = true;
+      }
+
+      if (ach.checkTime) {
+        if (ach.id === 'early_bird' && currentHour < 7) unlocked = true;
+        if (ach.id === 'night_owl' && currentHour >= 22) unlocked = true;
+      }
+
+      if (ach.dailyCount) {
+        const today = new Date().toDateString();
+        const todayCompletions = history.filter(h => new Date(h.completedAt).toDateString() === today).length + 1;
+        if (todayCompletions >= ach.dailyCount) unlocked = true;
+      }
+
+      if (unlocked) {
+        newAchievements.push(ach.id);
+        setShowAchievement(ach);
+        setTimeout(() => setShowAchievement(null), 5000);
+      }
+    });
+
+    if (newAchievements.length > 0) {
+      setAchievements(prev => [...prev, ...newAchievements]);
+    }
+  }, [achievements, totalCompletions, currentStreak, history]);
+
+  const playAlarmSound = useCallback(() => {
+    if (alarmSoundType === 'silent') return;
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    gain.gain.setValueAtTime(alarmVolume, ctx.currentTime);
+
+    if (alarmSoundType === 'bell') {
+      osc.frequency.value = 800;
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } else if (alarmSoundType === 'chime') {
+      osc.frequency.value = 600;
+      gain.gain.setValueAtTime(alarmVolume * 0.7, ctx.currentTime);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 900;
+      gain2.gain.setValueAtTime(alarmVolume, ctx.currentTime + 0.2);
+      osc2.start(ctx.currentTime + 0.2);
+      osc2.stop(ctx.currentTime + 0.5);
+    }
+  }, [alarmSoundType, alarmVolume]);
+
+    const addToHistory = (entry) => {
+        setHistory(prev => [
+            { ...entry, completedAt: new Date().toISOString(), id: Date.now() },
+            ...prev
+        ].slice(0, 10)); // Keep only last 10 entries
+
+        // Track first timer date
+        if (!firstTimerDate) {
+            setFirstTimerDate(new Date().toISOString());
+        }
+
+        // Update monthly stats
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        setMonthlyStats(prev => ({
+            ...prev,
+            [currentMonth]: {
+                completions: (prev[currentMonth]?.completions || 0) + 1,
+                totalSeconds: (prev[currentMonth]?.totalSeconds || 0) + (entry.totalSeconds || 0),
+                bestStreak: Math.max(prev[currentMonth]?.bestStreak || 0, currentStreak),
+            }
+        }));
+
+        // Update streak and completions
+        const today = new Date().toDateString();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayString = yesterday.toDateString();
+
+        setTotalCompletions(prev => {
+            const newTotal = prev + 1;
+            // Check achievements after updating total
+            setTimeout(() => checkAchievements(entry), 100);
+            return newTotal;
+        });
+
+        if (lastCompletionDate === today) {
+            // Already completed today, no streak change
+        } else if (lastCompletionDate === yesterdayString) {
+            // Consecutive day
+            setCurrentStreak(prev => prev + 1);
+            setToastMessage(`🔥 ${currentStreak + 1} day streak!`);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+        } else if (!lastCompletionDate) {
+            // First ever completion
+            setCurrentStreak(1);
+        } else {
+            // Streak broken
+            setCurrentStreak(1);
+        }
+        setLastCompletionDate(today);
+
+        // Update daily challenge progress
+        if (dailyChallenge && dailyChallenge.date === today) {
+            let newProgress = dailyChallenge.progress;
+
+            if (dailyChallenge.type === 'completions') {
+                newProgress = dailyChallenge.progress + 1;
+            } else if (dailyChallenge.type === 'time') {
+                newProgress = dailyChallenge.progress + Math.floor((entry.totalSeconds || 0) / 60);
+            } else if (dailyChallenge.type === 'morning') {
+                const hour = new Date().getHours();
+                if (hour < 10) newProgress = 1;
+            } else if (dailyChallenge.type === 'pomodoro') {
+                // Check if this was a ~25 min timer
+                if (entry.totalSeconds >= 1400 && entry.totalSeconds <= 1600) {
+                    newProgress = dailyChallenge.progress + 1;
+                }
+            }
+
+            setDailyChallenge(prev => ({ ...prev, progress: newProgress }));
+
+            // Check if challenge completed
+            if (newProgress >= dailyChallenge.target && dailyChallenge.progress < dailyChallenge.target) {
+                setToastMessage(`🎯 Daily Challenge Complete!`);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+            }
+        }
+    };
+
+  const handleComplete = () => {
+    setIsTransitioning(true);
+    setIsRunning(false);
+    setActiveScene('none'); // Clear active scene on completion
+
+    playAlarmSound();
+
+    let sessionConfettiDuration = 5; // Default for Timer/Interval
+    if (mode === 'sequence') {
+        sessionConfettiDuration = 8; // Longer for sequences
+    }
+    setConfettiActiveDuration(sessionConfettiDuration);
+
+
+    setTimeout(() => {
+      if (mode === 'interval') {
+        if (isWork) {
+          setIsWork(false);
+          setTime(rest);
+          setIsRunning(true);
+          setIsTransitioning(false);
+        } else if (currentRound < rounds) {
+          setCurrentRound(prev => prev + 1);
+          setIsWork(true);
+          setTime(work);
+          setIsRunning(true);
+          setIsTransitioning(false);
+        } else {
+            // Interval Session Completed
+            const totalTime = work * rounds + rest * rounds;
+            const completionData = {
+                type: 'Interval',
+                name: `Interval: ${work}s work / ${rest}s rest`, // More descriptive name
+                totalSeconds: totalTime,
+                details: `${rounds} rounds (${work}s work / ${rest}s rest})`
+            };
+            addToHistory(completionData);
+
+          if (repeatEnabled) {
+            setCurrentRound(1);
+            setIsWork(true);
+            setTime(work);
+            setIsRunning(true);
+            setIsTransitioning(false);
+          } else {
+            setCompletedSession(completionData);
+            setShowCelebration(true);
+            setIsTransitioning(false);
+          }
+        }
+      } else if (mode === 'sequence') {
+        if (currentStep < sequence.length - 1) {
+          const nextStep = currentStep + 1;
+          setCurrentStep(nextStep);
+          const nextTimer = sequence[nextStep];
+          const nextDuration = nextTimer.unit === 'sec' ? nextTimer.duration : nextTimer.duration * 60;
+          setTime(nextDuration);
+          setIsRunning(true);
+          setIsTransitioning(false);
+          // Apply scene for next step in sequence
+          if (nextTimer.scene) {
+            setActiveScene(nextTimer.scene);
+            setCurrentTimerScene(nextTimer.scene);
+          }
+        } else {
+            // Sequence Completed
+            const totalSeconds = sequence.reduce((sum, t) => {
+              return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
+            }, 0);
+            const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
+            const completionData = {
+                type: 'Sequence',
+                name: sequenceName,
+                totalSeconds: totalSeconds,
+                details: `${sequence.length} steps`
+            };
+            addToHistory(completionData);
+
+          if (repeatEnabled) {
+            setCurrentStep(0);
+            const firstTimer = sequence[0];
+            const firstDuration = firstTimer.unit === 'sec' ? firstTimer.duration : firstTimer.duration * 60;
+            setTime(firstDuration);
+            setIsRunning(true);
+            setIsTransitioning(false);
+          } else {
+            setCompletedSession(completionData);
+            setShowCelebration(true);
+            setIsTransitioning(false);
+          }
+        }
+      } else if (mode === 'timer') {
+          // Timer Completed
+          const timerName = saved.find(t => t.isSequence === false && t.duration * (t.unit === 'min' ? 60 : 1) === initialTime)?.name || `Quick Timer`; // Try to find name if it was a saved timer
+          const completionData = {
+              type: 'Timer',
+              name: timerName,
+              totalSeconds: initialTime,
+              details: formatTime(initialTime)
+          };
+          addToHistory(completionData);
+          
+        if (repeatEnabled) {
+          setTime(initialTime);
+          setIsRunning(true);
+          setIsTransitioning(false);
+        } else {
+          setCompletedSession(completionData);
+          setShowCelebration(true);
+          setIsTransitioning(false);
+        }
+      } else {
+        setIsTransitioning(false);
+      }
+    }, 500);
+  };
+
+  const startTimer = (totalSeconds, scene = 'none') => {
+    setMode('timer');
+    setTime(totalSeconds);
+    setInitialTime(totalSeconds);
+    setIsRunning(true);
+    setCurrentTimerScene(scene);
+    setActiveScene(scene);
+    if (inputHours || inputMinutes || inputSeconds) {
+      setInputHours('');
+      setInputMinutes('');
+      setInputSeconds('');
+    }
+  };
+
+  const startStopwatch = () => {
+    setMode('stopwatch');
+    setTime(0);
+    setIsRunning(true);
+    setActiveScene('none');
+    setCurrentTimerScene('none');
+  };
+  const startInterval = () => { setMode('interval'); setTime(work); setCurrentRound(1); setIsWork(true); setIsRunning(true); };
+
+  // Theme management functions
+  const createCustomTheme = () => {
+    if (!newThemeName.trim()) return;
+
+    const newTheme = {
+      name: newThemeName.trim(),
+      bg: newThemeBg,
+      card: newThemeCard,
+      accent: newThemeAccent,
+      text: newThemeText,
+      isDefault: false
+    };
+
+    const updatedThemes = [...themes, newTheme];
+    setThemes(updatedThemes);
+
+    // Save custom themes to localStorage
+    const customThemes = updatedThemes.filter(t => !t.isDefault);
+    localStorage.setItem('customThemes', JSON.stringify(customThemes));
+
+    // Reset form
+    setNewThemeName('');
+    setNewThemeBg('#000000');
+    setNewThemeCard('#1a1a1a');
+    setNewThemeAccent('#3b82f6');
+    setNewThemeText('#ffffff');
+    setShowColorPicker(false);
+  };
+
+  const deleteCustomTheme = (themeName) => {
+    const updatedThemes = themes.filter(t => t.name !== themeName);
+    setThemes(updatedThemes);
+
+    // If deleted theme was active, switch to first theme
+    if (theme.name === themeName) {
+      setTheme(updatedThemes[0]);
+      localStorage.setItem('selectedThemeName', updatedThemes[0].name);
+    }
+
+    // Save custom themes to localStorage
+    const customThemes = updatedThemes.filter(t => !t.isDefault);
+    localStorage.setItem('customThemes', JSON.stringify(customThemes));
+  };
+  const startSequence = () => {
+    if (sequence.length === 0) return;
+    setMode('sequence');
+    setCurrentStep(0);
+    const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+    setTime(firstDuration);
+    setIsRunning(true);
+    // Apply scene from first step
+    if (sequence[0].scene) {
+      setActiveScene(sequence[0].scene);
+      setCurrentTimerScene(sequence[0].scene);
+    }
+  };
+
+    const moveSequenceStep = (index, direction) => {
+        const newSequence = [...sequence];
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= newSequence.length) return;
+        
+        [newSequence[index], newSequence[targetIndex]] = [newSequence[targetIndex], newSequence[index]];
+        setSequence(newSequence);
+    };
+
+  const saveSequence = () => {
+    if (sequence.length > 0 && seqName) {
+      const totalMinutes = sequence.reduce((sum, t) => {
+        const mins = t.unit === 'sec' ? t.duration / 60 : t.duration;
+        return sum + mins;
+      }, 0);
+
+      setSaved(prev => [{
+        name: seqName,
+        duration: Math.ceil(totalMinutes),
+        unit: 'min',
+        min: Math.ceil(totalMinutes),
+        color: sequence[0].color,
+        group: 'Sequences',
+        isSequence: true,
+        steps: sequence
+      }, ...prev]);
+      setSequence([]);
+      setSeqName('');
+      setShowBuilder(false);
+    }
+  };
+
+  const createTimer = () => {
+    if (newTimerName && newTimerMin) {
+      const durationValue = parseInt(newTimerMin);
+      if (isNaN(durationValue) || durationValue < 0) return;
+
+      setSaved(prev => [{
+        name: newTimerName,
+        duration: durationValue,
+        unit: newTimerUnit,
+        min: newTimerUnit === 'min' ? durationValue : Math.ceil(durationValue / 60),
+        color: newTimerColor,
+        group: newTimerGroup || 'Custom',
+        scene: newTimerScene
+      }, ...prev]);
+      setNewTimerName('');
+      setNewTimerMin('');
+      setNewTimerUnit('min');
+      setNewTimerColor('#3b82f6');
+      setNewTimerGroup('');
+      setNewTimerScene('none');
+      setShowCreateTimer(false);
+    }
+  };
+
+  // Export all data
+  const exportData = () => {
+    const allData = {
+      version: '2.0',
+      exportDate: new Date().toISOString(),
+      saved,
+      history,
+      currentStreak,
+      lastCompletionDate,
+      totalCompletions,
+      achievements,
+      monthlyStats,
+      firstTimerDate,
+      timeCapsules: timeCapsules.filter(c => !c.opened), // Only export unopened capsules
+      theme: theme.name
+    };
+
+    const dataStr = JSON.stringify(allData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `timer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    setToastMessage('✅ Data exported successfully!');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Import data
+  const importData = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+
+        // Validate and import
+        if (imported.version && imported.exportDate) {
+          if (imported.saved) setSaved(imported.saved);
+          if (imported.history) setHistory(imported.history);
+          if (imported.currentStreak !== undefined) setCurrentStreak(imported.currentStreak);
+          if (imported.lastCompletionDate) setLastCompletionDate(imported.lastCompletionDate);
+          if (imported.totalCompletions !== undefined) setTotalCompletions(imported.totalCompletions);
+          if (imported.achievements) setAchievements(imported.achievements);
+          if (imported.monthlyStats) setMonthlyStats(imported.monthlyStats);
+          if (imported.firstTimerDate) setFirstTimerDate(imported.firstTimerDate);
+          if (imported.timeCapsules) setTimeCapsules(imported.timeCapsules);
+          if (imported.theme) {
+            const importedTheme = themes.find(t => t.name === imported.theme);
+            if (importedTheme) setTheme(importedTheme);
+          }
+
+          setToastMessage('✅ Data imported successfully!');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          throw new Error('Invalid backup file');
+        }
+      } catch (error) {
+        setToastMessage('❌ Failed to import data');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
+
+  const shareCurrentTimer = () => {
+    let timerData = {};
+    if (mode === 'timer' && (inputHours || inputMinutes || inputSeconds)) {
+      timerData = {
+        type: 'quick',
+        h: parseInt(inputHours) || 0,
+        m: parseInt(inputMinutes) || 0,
+        s: parseInt(inputSeconds) || 0
+      };
+    } else if (mode === 'interval') {
+      timerData = {
+        type: 'interval',
+        work: work,
+        rest: rest,
+        rounds: rounds
+      };
+    } else {
+      setToastMessage('Set up a timer first to share it!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    const encoded = btoa(JSON.stringify(timerData));
+    const url = `${window.location.origin}${window.location.pathname}?timer=${encoded}`;
+    navigator.clipboard.writeText(url);
+    setShareLink(url);
+    setShowShareModal(true);
+    setToastMessage('Timer link copied to clipboard!');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const shareTimerGroup = (groupName) => {
+    const groupTimers = saved.filter(t => t.group === groupName && !t.isSequence);
+    const encoded = btoa(JSON.stringify({ group: groupName, timers: groupTimers }));
+    const url = `${window.location.origin}${window.location.pathname}?import=${encoded}`;
+    setShareLink(url); setShowShareModal(true); navigator.clipboard.writeText(url);
+    setToastMessage('Share link copied to clipboard!');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Time capsule functions
+  const createTimeCapsule = () => {
+    if (!capsuleMessage.trim()) return;
+
+    const newCapsule = {
+      id: Date.now(),
+      message: capsuleMessage,
+      createdAt: Date.now(),
+      openAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days from now
+      opened: false
+    };
+
+    setTimeCapsules(prev => [...prev, newCapsule]);
+    setCapsuleMessage('');
+    setShowCapsuleInput(false);
+    setToastMessage('📩 Time capsule created! You\'ll see it in 30 days');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const confirmDelete = (timer) => { setTimerToDelete(timer); setShowDeleteModal(true); };
+  const executeDelete = () => { if (timerToDelete) { setSaved(prev => prev.filter(t => t !== timerToDelete)); setTimerToDelete(null); setShowDeleteModal(false); } };
+  const formatTime = (sec) => { const m = Math.floor(sec / 60); const s = sec % 60; const h = Math.floor(m / 60); const remM = m % 60; return `${h > 0 ? h.toString().padStart(2, '0') + ':' : ''}${remM.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
+    const formatDate = (isoString) => {
+        return new Date(isoString).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    // Smart suggestions based on history
+    const getSmartSuggestions = useCallback(() => {
+        if (history.length < 3) return [];
+
+        const suggestions = [];
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        // Analyze completion times
+        const morningCompletions = history.filter(h => {
+            const hour = new Date(h.completedAt).getHours();
+            return hour >= 6 && hour < 12;
+        }).length;
+
+        const afternoonCompletions = history.filter(h => {
+            const hour = new Date(h.completedAt).getHours();
+            return hour >= 12 && hour < 18;
+        }).length;
+
+        const eveningCompletions = history.filter(h => {
+            const hour = new Date(h.completedAt).getHours();
+            return hour >= 18 && hour < 24;
+        }).length;
+
+        // Time of day suggestion
+        if (morningCompletions > afternoonCompletions && morningCompletions > eveningCompletions) {
+            suggestions.push({ icon: '🌅', text: `You're ${Math.round((morningCompletions / history.length) * 100)}% more productive in the morning` });
+        } else if (eveningCompletions > morningCompletions && eveningCompletions > afternoonCompletions) {
+            suggestions.push({ icon: '🌙', text: `You focus best in the evening (${Math.round((eveningCompletions / history.length) * 100)}% of completions)` });
+        }
+
+        // Average session length
+        const avgSeconds = history.reduce((sum, h) => sum + (h.totalSeconds || 0), 0) / history.length;
+        const avgMins = Math.round(avgSeconds / 60);
+        if (avgMins > 0) {
+            suggestions.push({ icon: '⏱️', text: `Your average session is ${avgMins} minutes` });
+        }
+
+        // Day of week pattern
+        const dayCompletions = {};
+        history.forEach(h => {
+            const day = new Date(h.completedAt).getDay();
+            dayCompletions[day] = (dayCompletions[day] || 0) + 1;
+        });
+        const bestDay = Object.entries(dayCompletions).sort((a, b) => b[1] - a[1])[0];
+        if (bestDay) {
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            suggestions.push({ icon: '📅', text: `${dayNames[bestDay[0]]} is your most productive day` });
+        }
+
+        // Motivational based on streak
+        if (currentStreak >= 3) {
+            suggestions.push({ icon: '🔥', text: `Keep it up! ${currentStreak} day streak is impressive` });
+        }
+
+        return suggestions.slice(0, 3); // Max 3 suggestions
+    }, [history, currentStreak]);
+
+    const calculateTotalRemaining = useCallback(() => {
+        if (!isRunning && !isTransitioning && time === 0) return 0; // If not running and time is 0, nothing left
+
+        if (mode === 'interval') {
+            let total = 0;
+            // Add current time
+            total += time;
+            // Add remaining rest for current round if currently working
+            if (isWork) {
+                 total += rest;
+            }
+            // Add full durations for remaining rounds
+            const remainingRounds = rounds - currentRound - (isWork ? 0 : 1); // Subtract 1 if rest has finished but round not incremented
+            total += Math.max(0, remainingRounds) * (work + rest);
+
+            return total;
+        } else if (mode === 'sequence') {
+            let total = time;
+            for (let i = currentStep + 1; i < sequence.length; i++) {
+                 const step = sequence[i];
+                 total += step.unit === 'min' ? step.duration * 60 : step.duration;
+            }
+            return total;
+        }
+        return 0;
+      }, [mode, isRunning, isTransitioning, time, rounds, currentRound, work, rest, isWork, sequence, currentStep]);
+
+  const showWarning = time <= 10 && time >= 0 && (isRunning || isTransitioning) && mode !== 'stopwatch';
+  const showCritical = time <= 5 && time >= 0 && (isRunning || isTransitioning) && mode !== 'stopwatch';
+
+  // Determine which background to use (scene takes priority when timer is running)
+  // Determine if we should show a scene background
+  const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
+  const activeBackground = shouldShowScene
+    ? SCENES[activeScene].bg
+    : (previewTheme || theme).bg;
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: activeBackground,
+        color: (previewTheme || theme).text || 'white',
+        padding: '20px',
+        fontFamily: 'system-ui',
+        transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
+        // Responsive adjustments for the main container
+        '@media (max-width: 600px)': {
+          padding: '10px',
+        }
+      }}
+    >
+      <style>{`
+        @keyframes pulseTimer {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        @keyframes confetti {
+          0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes slideDown {
+          0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+          100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .confetti {
+          position: fixed;
+          width: 10px;
+          height: 10px;
+          z-index: 9999;
+          /* Use a dynamic animation duration via CSS variable */
+          animation: confetti var(--confetti-animation-duration) ease-out forwards;
+        }
+
+        /* Basic responsive adjustments for inputs and buttons */
+        @media (max-width: 480px) {
+          input[type="number"], select, button {
+            font-size: 14px !important;
+            padding: 12px !important;
+          }
+          .flex-wrap-sm {
+            flex-wrap: wrap;
+          }
+          .grid-col-sm-3-to-1 { /* For 3-column grids collapsing to 1 */
+            grid-template-columns: 1fr !important;
+            gap: 8px !important; /* Adjust gap for stacked elements */
+          }
+          .grid-col-sm-3-to-1 > div {
+             grid-column: span 1 / span 1 !important;
+             width: 100% !important;
+             /* margin-bottom handled by gap */
+          }
+          /* Adjustments for the HH:MM:SS inputs, ensuring they stack but stay small */
+          .hh-mm-ss-input-group > input {
+            width: 70px !important; /* Slightly smaller for very small screens */
+            padding: 10px 4px !important;
+            font-size: 16px !important;
+          }
+           .hh-mm-ss-input-group {
+             justify-content: space-between !important; /* Spread them out a bit */
+             gap: 4px !important;
+           }
+        }
+         /* Remove Arrows/Spinners from number input */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
+
+      {showToast && <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: theme.accent, color: 'white', padding: '16px 24px', borderRadius: 12, zIndex: 1000, fontSize: 14, fontWeight: 600 }}>{toastMessage}</div>}
+
+      {/* Achievement Unlock Popup */}
+      {showAchievement && (
+        <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px 32px', borderRadius: 16, zIndex: 1001, fontSize: 14, fontWeight: 600, boxShadow: '0 12px 40px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.2)', animation: 'slideDown 0.5s ease-out' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontSize: 40 }}>{showAchievement.icon}</div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>🎉 Achievement Unlocked!</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{showAchievement.name}</div>
+              <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>{showAchievement.description}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Time Capsule Notification */}
+      {showCapsuleNotification && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001 }}>
+          <div style={{ background: theme.card, borderRadius: 32, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>📬</div>
+            <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16, margin: 0 }}>
+              Time Capsule Opened!
+            </h2>
+            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 32 }}>
+              A message from your past self, {Math.floor((Date.now() - showCapsuleNotification.createdAt) / (1000 * 60 * 60 * 24))} days ago:
+            </p>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
+              "{showCapsuleNotification.message}"
+            </div>
+            <button
+              onClick={() => setShowCapsuleNotification(null)}
+              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 16, padding: 20, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Celebration Screen */}
+      {showCelebration && confettiActiveDuration > 0 && (
+        <>
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                background: ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 7)],
+                animationDelay: `${Math.random() * 0.5}s`,
+                '--confetti-animation-duration': `${confettiActiveDuration + Math.random() * 2}s`
+              }}
+            />
+          ))}
+
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+            <div style={{ background: theme.card, borderRadius: 32, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
+              <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+              <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, margin: 0 }}>
+                Well Done!
+              </h2>
+              <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)', marginBottom: 32 }}>
+                You completed your {completedSession?.type}!
+              </p>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
+                <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent }}>
+                  {formatTime(completedSession?.totalSeconds || 0)}
+                </div>
+                {completedSession?.details && (
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>
+                    {completedSession.details}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => {
+                    setShowCelebration(false);
+                    setCompletedSession(null);
+                    setTime(0);
+                    setCurrentStep(0);
+                    setCurrentRound(1);
+                    setMode('timer');
+                  }}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: 20, color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                >
+                  Done
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCelebration(false);
+                    if (completedSession?.type === 'Sequence' && sequence.length > 0) {
+                      startSequence();
+                    } else if (completedSession?.type === 'Interval') {
+                      startInterval();
+                    } else if (completedSession?.type === 'Timer') {
+                      startTimer(initialTime);
+                    }
+                  }}
+                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: 20, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                >
+                  Start Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
+      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
+      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={createRoom} savedTimers={saved} />}
+      {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
+
+      {/* Top Control Bar */}
+      <div style={{ position: 'fixed', top: 20, right: 20, display: 'flex', gap: 8, zIndex: 50 }}>
+        <button
+          onClick={() => setShowFeedbackModal(true)}
+          style={{
+            background: theme.card,
+            border: 'none',
+            borderRadius: 12,
+            padding: 12,
+            color: theme.accent,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = `${theme.accent}20`;
+            e.target.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = theme.card;
+            e.target.style.transform = 'scale(1)';
+          }}
+          title="Send Feedback"
+        >
+          <Lightbulb size={20} />
+        </button>
+        <button onClick={() => setShowThemes(!showThemes)} style={{ background: theme.card, border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer' }}><Palette size={20} /></button>
+        <button onClick={() => setShowSoundSettings(!showSoundSettings)} style={{ background: theme.card, border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer' }}>
+          {alarmVolume > 0 ? <Volume2 size={20} /> : <VolumeX size={20} />}
+        </button>
+      </div>
+
+      {/* Theme Dropdown */}
+      {showThemes && (
+        <div style={{ position: 'fixed', top: 70, right: 20, background: theme.card, borderRadius: 16, padding: 16, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', minWidth: 220 }}>
+          {themes.map(t =>
+            <div
+              key={t.name}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}
+            >
+              <button
+                onClick={() => { setTheme(t); setShowThemes(false); setPreviewTheme(null); }}
+                onMouseEnter={() => setPreviewTheme(t)}
+                onMouseLeave={() => setPreviewTheme(null)}
+                style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+              >
+                <div style={{ width: 20, height: 20, borderRadius: 4, background: t.accent }} />
+                {t.name}
+              </button>
+              {!t.isDefault && (
+                <button
+                  onClick={() => deleteCustomTheme(t.name)}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 6, padding: 8, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  title="Delete theme"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            onClick={() => { setShowColorPicker(true); setShowThemes(false); }}
+            style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 8, padding: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}
+          >
+            <Plus size={16} /> Add Theme
+          </button>
+        </div>
+      )}
+
+      {/* Color Picker Modal */}
+      {showColorPicker && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowColorPicker(false)}>
+          <div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Palette size={24} /> Create Custom Theme
+            </h3>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Theme Name</label>
+              <input
+                type="text"
+                value={newThemeName}
+                onChange={(e) => setNewThemeName(e.target.value)}
+                placeholder="My Custom Theme"
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14 }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Background Color</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={newThemeBg}
+                  onChange={(e) => setNewThemeBg(e.target.value)}
+                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={newThemeBg}
+                  onChange={(e) => setNewThemeBg(e.target.value)}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Card Color</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={newThemeCard}
+                  onChange={(e) => setNewThemeCard(e.target.value)}
+                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={newThemeCard}
+                  onChange={(e) => setNewThemeCard(e.target.value)}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Accent Color</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={newThemeAccent}
+                  onChange={(e) => setNewThemeAccent(e.target.value)}
+                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={newThemeAccent}
+                  onChange={(e) => setNewThemeAccent(e.target.value)}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Text Color</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={newThemeText}
+                  onChange={(e) => setNewThemeText(e.target.value)}
+                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={newThemeText}
+                  onChange={(e) => setNewThemeText(e.target.value)}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ background: newThemeBg, borderRadius: 12, padding: 16, marginBottom: 24 }}>
+              <div style={{ background: newThemeCard, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: newThemeText, marginBottom: 8 }}>Preview</div>
+                <div style={{ width: 60, height: 8, background: newThemeAccent, borderRadius: 4 }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowColorPicker(false)}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createCustomTheme}
+                disabled={!newThemeName.trim()}
+                style={{ flex: 1, background: newThemeName.trim() ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: newThemeName.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newThemeName.trim() ? 1 : 0.5 }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sound Settings Dropdown */}
+      {showSoundSettings && (
+        <div style={{ position: 'fixed', top: 70, right: 20, background: theme.card, borderRadius: 16, padding: 16, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', minWidth: 200 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 8 }}>Sound Type</label>
+            <select
+              value={alarmSoundType}
+              onChange={(e) => setAlarmSoundType(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 10, color: theme.text, fontSize: 14, cursor: 'pointer' }}
+            >
+              <option value="bell" style={{ background: theme.card }}>🔔 Bell</option>
+              <option value="chime" style={{ background: theme.card }}>🎵 Chime</option>
+              <option value="silent" style={{ background: theme.card }}>🔇 Silent</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 8 }}>Volume: {Math.round(alarmVolume * 100)}%</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={alarmVolume}
+              onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer' }}
+            />
+          </div>
+        </div>
+      )}
+
+
+      <div style={{ maxWidth: 600, margin: '60px auto 0' }}>
+        <h1 style={{
+          textAlign: 'center',
+          fontSize: 42,
+          fontWeight: 800,
+          marginBottom: 24,
+          color: theme.accent,
+          fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+          letterSpacing: '-0.02em',
+          textShadow: `0 0 30px ${theme.accent}40`
+        }}>
+          T2Get
+        </h1>
+
+        {/* Primary Navigation Tabs */}
+        {!isRunning && time === 0 && !isTransitioning && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: theme.card, borderRadius: 16, padding: 8 }}>
+            {[
+              { label: 'Timer', value: 'timer', icon: Clock },
+              { label: 'Interval', value: 'interval', icon: Zap },
+              { label: 'Stopwatch', value: 'stopwatch', icon: Clock },
+              { label: 'Composite', value: 'composite', icon: ChevronRight }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setActiveMainTab(tab.value);
+                  if (tab.value === 'stopwatch') {
+                    startStopwatch();
+                  } else if (tab.value === 'composite') {
+                    setMode('sequence');
+                    setShowBuilder(true);
+                  } else {
+                    setMode(tab.value);
+                  }
+                  setActiveFeatureTab(null);
+                }}
+                style={{
+                  flex: 1,
+                  background: activeMainTab === tab.value ? theme.accent : 'transparent',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px 8px',
+                  color: theme.text,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <tab.icon size={18} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Secondary Navigation Tabs */}
+        {!isRunning && time === 0 && !isTransitioning && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto' }}>
+            {[
+              { label: 'Focus Rooms', value: 'rooms', icon: Users },
+              { label: 'Stats & History', value: 'stats', icon: TrendingUp },
+              { label: 'Achievements', value: 'achievements', icon: Award }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveFeatureTab(activeFeatureTab === tab.value ? null : tab.value)}
+                style={{
+                  flex: 1,
+                  background: activeFeatureTab === tab.value ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <tab.icon size={14} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Active Now Indicator */}
+        <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s ease-in-out infinite' }} />
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+            <span style={{ fontWeight: 600, color: theme.accent }}>{activeUsers}</span> people getting focused right now
+          </div>
+        </div>
+
+        {(isRunning || time > 0 || isTransitioning) && (
+          <>
+            {activeScene !== 'none' && SCENES[activeScene] && (
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 12,
+                padding: '12px 20px',
+                marginBottom: 16,
+                textAlign: 'center',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                margin: '0 auto 16px',
+                border: `1px solid ${SCENES[activeScene].accent}40`
+              }}>
+                <span style={{ fontSize: 24 }}>{SCENES[activeScene].emoji}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: SCENES[activeScene].accent }}>
+                    {SCENES[activeScene].name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    Immersive scene active
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{ background: theme.card, borderRadius: 24, padding: '48px 32px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'center', flexDirection: 'column' }}>
+            {mode === 'sequence' && sequence.length > 0 && (
+              <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {sequence.map((step, idx) => (
+                  <React.Fragment key={idx}>
+                    <div style={{ width: idx === currentStep ? 16 : 12, height: idx === currentStep ? 16 : 12, borderRadius: '50%', background: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === currentStep ? `3px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === currentStep ? `0 0 20px ${step.color}60` : 'none', margin: '0 auto' }} />
+                    {idx < sequence.length - 1 && <div style={{ width: 2, height: 16, background: idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+            <div style={{ flex: 1, marginLeft: mode === 'sequence' ? 40 : 0, marginRight: mode === 'sequence' ? 40 : 0, width: '100%' }}>
+              {mode === 'sequence' && sequence[currentStep] && <div style={{ fontSize: 16, color: sequence[currentStep].color, marginBottom: 12, fontWeight: 600 }}>{sequence[currentStep].name}</div>}
+              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+              
+              {(mode === 'interval' || mode === 'sequence') && calculateTotalRemaining() > 0 && (
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 24, marginTop: 4 }}>
+                      Total Remaining: {formatTime(calculateTotalRemaining())}
+                  </div>
+              )}
+
+              {mode === 'interval' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Round {currentRound}/{rounds} • {isWork ? '💪 Work' : '😌 Rest'}</div>}
+              {mode === 'sequence' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Step {currentStep + 1} of {sequence.length}{currentStep < sequence.length - 1 && <div style={{ marginTop: 8 }}>Next: {sequence[currentStep + 1].name}</div>}</div>}
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                <button onClick={() => { setIsRunning(false); setTime(0); setCurrentStep(0); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
+                {mode !== 'stopwatch' && (
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
+                )}
+              </div>
+            </div>
+            {mode === 'sequence' && sequence.length > 0 && (
+              <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 120 }}>
+                {sequence.map((step, idx) => <div key={idx} style={{ fontSize: 11, color: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === currentStep ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>)}
+              </div>
+            )}
+          </div>
+          </>
+        )}
+
+        {!isRunning && time === 0 && !isTransitioning && (
+          <>
+            {/* Timer Tab Content */}
+            {activeMainTab === 'timer' && !activeFeatureTab && (
+              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 18, margin: 0 }}>Quick Start</h2>
+                  {(inputHours || inputMinutes || inputSeconds) && (
+                    <button onClick={shareCurrentTimer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <Share size={14} /> Share
+                    </button>
+                  )}
+                </div>
+                {/* HH:MM:SS Input Fields - Fixed Size and Centered */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }} className="flex-wrap-sm hh-mm-ss-input-group">
+                  <input
+                    type="number"
+                    placeholder="HH"
+                    value={inputHours}
+                    onChange={(e) => setInputHours(Math.max(0, parseInt(e.target.value) || 0))}
+                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="MM"
+                    value={inputMinutes}
+                    onChange={(e) => setInputMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="SS"
+                    value={inputSeconds}
+                    onChange={(e) => setInputSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
+                  />
+                  <button
+                    onClick={() => {
+                      const h = parseInt(inputHours) || 0;
+                      const m = parseInt(inputMinutes) || 0;
+                      const s = parseInt(inputSeconds) || 0;
+                      const totalSeconds = h * 3600 + m * 60 + s;
+                      if (totalSeconds > 0) startTimer(totalSeconds);
+                    }}
+                    style={{ background: theme.accent, border: 'none', borderRadius: 12, padding: '16px 24px', color: 'white', cursor: 'pointer' }}
+                  >
+                    <Play size={20} />
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Quick presets:</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
+                  {[{ label: '10s', val: 10, unit: 'sec' }, { label: '30s', val: 30, unit: 'sec' }, { label: '1m', val: 1, unit: 'min' }, { label: '5m', val: 5, unit: 'min' }].map(p => <button key={p.label} onClick={() => startTimer(p.val * (p.unit === 'min' ? 60 : 1))} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14 }}>{p.label}</button>)}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {[10, 15, 25, 45].map(m => <button key={m} onClick={() => startTimer(m * 60)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14 }}>{m}m</button>)}
+                </div>
+              </div>
+            )}
+
+            {/* Interval Tab Content */}
+            {activeMainTab === 'interval' && !activeFeatureTab && (
+              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 18, margin: 0 }}>Interval Timer</h2>
+                  <button onClick={shareCurrentTimer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <Share size={14} /> Share
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }} className="grid-col-sm-3-to-1"> {/* Apply new responsive class */}
+                  <div style={{display: 'flex', flexDirection: 'column'}}>
+                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Work (sec)</label>
+                    <input type="number" value={work} onChange={(e) => setWork(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
+                  </div>
+                  <div style={{display: 'flex', flexDirection: 'column'}}>
+                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Rest (sec)</label>
+                    <input type="number" value={rest} onChange={(e) => setRest(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
+                  </div>
+                  <div style={{display: 'flex', flexDirection: 'column'}}>
+                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Rounds</label>
+                    <input type="number" value={rounds} onChange={(e) => setRounds(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
+                  </div>
+                </div>
+                <button onClick={startInterval} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Zap size={20} />Start Interval</button>
+              </div>
+            )}
+
+            {/* Composite Tab Content */}
+            {activeMainTab === 'composite' && !activeFeatureTab && (
+              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 18, margin: 0 }}>Composite Timers</h2>
+                  <button onClick={() => setShowBuilder(!showBuilder)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>{showBuilder ? 'Close' : 'Build'}</button>
+                </div>
+              {showBuilder && (
+                <>
+                  <input type="text" placeholder="Sequence name" value={seqName} onChange={(e) => setSeqName(e.target.value)} style={inputStyle(theme.accent)} />
+                  {sequence.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      {sequence.map((timer, idx) => (
+                        <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <button onClick={() => moveSequenceStep(idx, -1)} disabled={idx === 0} style={{ background: 'transparent', border: 'none', color: idx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)', cursor: idx === 0 ? 'default' : 'pointer', padding: 0 }}><ChevronUp size={16} /></button>
+                                <button onClick={() => moveSequenceStep(idx, 1)} disabled={idx === sequence.length - 1} style={{ background: 'transparent', border: 'none', color: idx === sequence.length - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)', cursor: idx === sequence.length - 1 ? 'default' : 'pointer', padding: 0 }}><ChevronDown size={16} /></button>
+                          </div>
+                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>{idx + 1}.</div>
+                          <div style={{ width: 4, height: 24, borderRadius: 2, background: timer.color }} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>{timer.name}</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{timer.duration} {timer.unit}</div>
+                          </div>
+                          {idx < sequence.length - 1 && <ChevronRight size={16} style={{ color: 'rgba(255,255,255,0.3)' }} />}
+                          <button onClick={() => setSequence(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 4 }}><X size={16} /></button>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={startSequence} style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 8, padding: 12, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}><Play size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Start</button>
+                        <button onClick={saveSequence} disabled={!seqName} style={{ flex: 1, background: seqName ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: seqName ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: seqName ? 1 : 0.5 }}><Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Save</button>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>💡 Click + on timers below to build sequence</div>
+                </>
+              )}
+              </div>
+            )}
+
+            {/* Your Timers Section - Shows on both Timer and Composite tabs */}
+            {!activeFeatureTab && (activeMainTab === 'timer' || activeMainTab === 'composite') && (
+              <div style={{ background: theme.card, borderRadius: 24, padding: 32 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                  <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setCollapsedGroups({})}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        color: 'rgba(255,255,255,0.6)',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 600
+                      }}
+                      title="Expand All"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const allGroups = {};
+                        groups.forEach(g => { allGroups[g] = true; });
+                        setCollapsedGroups(allGroups);
+                      }}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        color: 'rgba(255,255,255,0.6)',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 600
+                      }}
+                      title="Collapse All"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    {activeMainTab === 'timer' && (
+                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
+                    )}
+                  </div>
+                </div>
+
+              {showCreateTimer && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent), marginBottom: 12 }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="number"
+                        placeholder={newTimerUnit === 'min' ? 'Minutes' : 'Seconds'}
+                        value={newTimerMin}
+                        onChange={(e) => setNewTimerMin(Math.max(0, parseInt(e.target.value) || 0))}
+                        style={inputStyle(theme.accent)}
+                      />
+                      <select
+                        value={newTimerUnit}
+                        onChange={(e) => setNewTimerUnit(e.target.value)}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
+                      >
+                        <option value="min" style={{ background: theme.card }}>Min</option>
+                        <option value="sec" style={{ background: theme.card }}>Sec</option>
+                      </select>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent)} />
+                      {showGroupDropdown && groups.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                          {filteredGroups.map(g => (
+                            <button key={g} onClick={() => { setNewTimerGroup(g); setShowGroupDropdown(false); }} style={{ width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', color: theme.text, textAlign: 'left', cursor: 'pointer', fontSize: 14 }} onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>{g}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto', paddingBottom: 8 }}>
+                    {colorOptions.map(color => <button key={color} onClick={() => setNewTimerColor(color)} style={{ minWidth: 40, height: 40, borderRadius: 8, background: color, border: newTimerColor === color ? '3px solid white' : 'none', cursor: 'pointer', flexShrink: 0 }} />)}
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8, display: 'block' }}>Immersive Scene (Optional)</label>
+                    <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
+                      {Object.entries(SCENES).map(([key, scene]) => (
+                        <option key={key} value={key} style={{ background: theme.card }}>
+                          {scene.emoji} {scene.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                      {SCENES[newTimerScene].description || 'No immersive background'}
+                    </div>
+                  </div>
+                  <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ width: '100%', background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
+                    <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
+                  </button>
+                </div>
+              )}
+
+              {groups.map(group => {
+                const groupTimers = saved.filter(t => t.group === group);
+                if (groupTimers.length === 0) return null;
+                const isCollapsed = collapsedGroups[group];
+                return (
+                  <div key={group} style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: isCollapsed ? 0 : 12,
+                        padding: '8px 12px',
+                        background: 'rgba(255,255,255,0.03)',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onClick={() => setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }))}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {group} ({groupTimers.length})
+                        </div>
+                      </div>
+                      {group !== 'Sequences' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            shareTimerGroup(group);
+                          }}
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '4px 12px',
+                            color: 'rgba(255,255,255,0.6)',
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            display: 'flex',
+                            gap: 4
+                          }}
+                        >
+                          <Share size={12} />Share
+                        </button>
+                      )}
+                    </div>
+                    {!isCollapsed && groupTimers.map((timer) => (
+                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ width: 6, height: 40, borderRadius: 3, background: timer.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: '120px' }}>
+                          <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {timer.name}
+                            {timer.scene && timer.scene !== 'none' && SCENES[timer.scene] && (
+                              <span style={{ fontSize: 16 }} title={SCENES[timer.scene].name}>{SCENES[timer.scene].emoji}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+                            {timer.isSequence ? `${timer.min} min • ${timer.steps.length} steps` : `${timer.duration} ${timer.unit}`}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
+                          {activeMainTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
+                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: 'white', cursor: 'pointer' }}><Play size={16} /></button>
+                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            )}
+
+            {/* Focus Rooms Tab Content */}
+            {activeFeatureTab === 'rooms' && (
+              <>
+                {!currentRoom ? (
+                  <>
+                    {/* Room List */}
+                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Users size={18} /> Focus Rooms
+                        </h2>
+                        <button
+                          onClick={() => setShowCreateRoomModal(true)}
+                          style={{
+                            background: theme.accent,
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 16px',
+                            color: theme.text,
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            display: 'flex',
+                            gap: 6,
+                            alignItems: 'center'
+                          }}
+                        >
+                          <Plus size={16} /> Create Room
+                        </button>
+                      </div>
+
+                      {roomsLoading ? (
+                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
+                          Loading rooms...
+                        </div>
+                      ) : rooms.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
+                          No active rooms. Create one to get started!
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 12 }}>
+                          {rooms.map(room => (
+                            <div
+                              key={room.id}
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                borderRadius: 16,
+                                padding: 20,
+                                border: `1px solid rgba(255,255,255,0.1)`,
+                                transition: 'all 0.3s'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+                                    {room.name}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <Users size={14} />
+                                      {getParticipantCount(room)}/{room.maxParticipants}
+                                    </div>
+                                    {room.timer && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Clock size={14} />
+                                        {formatTime(Math.max(0, Math.floor((room.timer.endsAt - Date.now()) / 1000)))} remaining
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => joinRoom(room.id, { displayName: 'You' })}
+                                  disabled={isRoomFull(room)}
+                                  style={{
+                                    background: isRoomFull(room) ? 'rgba(255,255,255,0.1)' : theme.accent,
+                                    border: 'none',
+                                    borderRadius: 12,
+                                    padding: '10px 20px',
+                                    color: theme.text,
+                                    cursor: isRoomFull(room) ? 'not-allowed' : 'pointer',
+                                    fontSize: 14,
+                                    fontWeight: 600,
+                                    opacity: isRoomFull(room) ? 0.5 : 1
+                                  }}
+                                >
+                                  {isRoomFull(room) ? 'Full' : 'Join'}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Active Room View */}
+                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
+                        <button
+                          onClick={leaveRoom}
+                          style={{
+                            background: 'rgba(255,255,255,0.1)',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 16px',
+                            color: theme.text,
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            fontWeight: 600
+                          }}
+                        >
+                          Leave Room
+                        </button>
+                      </div>
+
+                      {/* Participants */}
+                      <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Participants ({getParticipantCount(currentRoom)}/{currentRoom.maxParticipants})
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {Object.entries(currentRoom.participants || {}).map(([userId, participant]) => (
+                            <div
+                              key={userId}
+                              style={{
+                                background: 'rgba(255,255,255,0.1)',
+                                borderRadius: 8,
+                                padding: '6px 12px',
+                                fontSize: 13,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6
+                              }}
+                            >
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent }} />
+                              {participant.displayName}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Room Timer */}
+                      {currentRoom.timer && (
+                        <div
+                          key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
+                          style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
+                        >
+                          {/* Composite Timer Progress Indicators */}
+                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                            <>
+                              <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                                {currentRoom.compositeTimer.steps.map((step, idx) => (
+                                  <React.Fragment key={idx}>
+                                    <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
+                                    {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                              <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
+                                {currentRoom.compositeTimer.steps.map((step, idx) => (
+                                  <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                            <div style={{ fontSize: 14, color: currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.color || theme.accent, marginBottom: 8, fontWeight: 600 }}>
+                              {currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.name}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent, marginBottom: 8 }}>
+                            {formatTime(Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000)))}
+                          </div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                            {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Start Timer Button */}
+                      {!currentRoom.timer && (
+                        <div style={{ marginBottom: 24, textAlign: 'center' }}>
+                          <button
+                            onClick={() => startRoomTimer(currentRoom.duration)}
+                            style={{
+                              background: theme.accent,
+                              border: 'none',
+                              borderRadius: 12,
+                              padding: '16px 32px',
+                              color: theme.text,
+                              cursor: 'pointer',
+                              fontSize: 16,
+                              fontWeight: 600,
+                              boxShadow: `0 4px 12px ${theme.accent}40`,
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                          >
+                            <Play size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+                            Start {currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}
+                          </button>
+                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
+                            <div style={{ marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                              {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Chat */}
+                      <div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Chat
+                        </div>
+                        <div
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 12,
+                            maxHeight: 300,
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12
+                          }}
+                        >
+                          {messages.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                              No messages yet. Say hi! 👋
+                            </div>
+                          ) : (
+                            messages.map((msg) => {
+                              const participant = currentRoom.participants?.[msg.userId];
+                              const isMe = msg.userId === RealtimeServiceFactory.getService().currentUserId;
+                              return (
+                                <div
+                                  key={msg.id}
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: isMe ? 'flex-end' : 'flex-start'
+                                  }}
+                                >
+                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+                                    {participant?.displayName || 'Unknown'}
+                                  </div>
+                                  <div
+                                    style={{
+                                      background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
+                                      borderRadius: 12,
+                                      padding: '8px 12px',
+                                      maxWidth: '70%',
+                                      wordBreak: 'break-word'
+                                    }}
+                                  >
+                                    {msg.text}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            ref={chatInputRef}
+                            type="text"
+                            placeholder="Type a message..."
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && e.target.value.trim()) {
+                                sendMessage(e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: 8,
+                              padding: 12,
+                              color: theme.text,
+                              fontSize: 14
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (chatInputRef.current && chatInputRef.current.value.trim()) {
+                                sendMessage(chatInputRef.current.value);
+                                chatInputRef.current.value = '';
+                              }
+                            }}
+                            style={{
+                              background: theme.accent,
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '12px 20px',
+                              color: theme.text,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6
+                            }}
+                          >
+                            <Send size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Stats & History Tab Content */}
+            {activeFeatureTab === 'stats' && (
+              <>
+                {/* Stats Card */}
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>📊 Your Progress</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
+                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{currentStreak}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>🔥 Day Streak</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{totalCompletions}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>✅ Completed</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{saved.length}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>⏱️ Saved Timers</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Comparison */}
+            {(() => {
+              const currentMonth = new Date().toISOString().slice(0, 7);
+              const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
+              const currentStats = monthlyStats[currentMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
+              const lastStats = monthlyStats[lastMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
+              const hasLastMonth = lastStats.completions > 0;
+
+              if (!hasLastMonth && currentStats.completions === 0) return null;
+
+              const calcChange = (current, last) => {
+                if (last === 0) return current > 0 ? 100 : 0;
+                return Math.round(((current - last) / last) * 100);
+              };
+
+              return (
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TrendingUp size={18} /> This Month vs Last Month
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
+                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Completions</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.completions}</div>
+                      {hasLastMonth && (
+                        <div style={{ fontSize: 12, color: calcChange(currentStats.completions, lastStats.completions) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                          {calcChange(currentStats.completions, lastStats.completions) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.completions, lastStats.completions))}%
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{Math.floor(currentStats.totalSeconds / 3600)}h</div>
+                      {hasLastMonth && (
+                        <div style={{ fontSize: 12, color: calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                          {calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.totalSeconds, lastStats.totalSeconds))}%
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Best Streak</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.bestStreak} days</div>
+                      {hasLastMonth && (
+                        <div style={{ fontSize: 12, color: calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                          {calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.bestStreak, lastStats.bestStreak))}%
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+              </>
+            )}
+
+            {/* Achievements Tab Content */}
+            {activeFeatureTab === 'achievements' && (
+              <>
+                {/* Achievements */}
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Award size={18} /> Achievements
+                  </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                {ACHIEVEMENTS.map(ach => {
+                  const isUnlocked = achievements.includes(ach.id);
+                  return (
+                    <div key={ach.id} style={{ padding: 16, background: isUnlocked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: 12, textAlign: 'center', opacity: isUnlocked ? 1 : 0.5, border: isUnlocked ? `2px solid ${theme.accent}40` : 'none', transition: 'all 0.3s' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8, filter: isUnlocked ? 'none' : 'grayscale(100%)' }}>{ach.icon}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{ach.name}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{ach.description}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Smart Insights */}
+            {(() => {
+              const suggestions = getSmartSuggestions();
+              if (suggestions.length === 0) return null;
+
+              return (
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={18} /> Your Insights
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {suggestions.map((sug, idx) => (
+                      <div key={idx} style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ fontSize: 24 }}>{sug.icon}</div>
+                        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>{sug.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Daily Challenge */}
+            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Target size={18} /> Daily Challenge
+              </h2>
+              <div style={{ padding: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 16, border: dailyChallenge.progress >= dailyChallenge.target ? `2px solid ${theme.accent}` : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <div style={{ fontSize: 32 }}>{dailyChallenge.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{dailyChallenge.text}</div>
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
+                      Progress: {dailyChallenge.progress} / {dailyChallenge.target}
+                      {dailyChallenge.progress >= dailyChallenge.target && ' ✅'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, (dailyChallenge.progress / dailyChallenge.target) * 100)}%`, height: '100%', background: theme.accent, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Time Capsule */}
+            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Mail size={18} /> Time Capsule
+              </h2>
+              <div style={{ marginBottom: 16, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+                Write a message to your future self. You'll see it in 30 days!
+              </div>
+              {!showCapsuleInput ? (
+                <button
+                  onClick={() => setShowCapsuleInput(true)}
+                  style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                >
+                  📩 Create Time Capsule
+                </button>
+              ) : (
+                <div>
+                  <textarea
+                    value={capsuleMessage}
+                    onChange={(e) => setCapsuleMessage(e.target.value)}
+                    placeholder="Write your message here..."
+                    style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 16, color: theme.text, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button
+                      onClick={createTimeCapsule}
+                      disabled={!capsuleMessage.trim()}
+                      style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 12, padding: 12, color: 'white', cursor: capsuleMessage.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: capsuleMessage.trim() ? 1 : 0.5 }}
+                    >
+                      Send to Future
+                    </button>
+                    <button
+                      onClick={() => { setShowCapsuleInput(false); setCapsuleMessage(''); }}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {timeCapsules.filter(c => !c.opened).length > 0 && (
+                <div style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                  📦 You have {timeCapsules.filter(c => !c.opened).length} unopened capsule{timeCapsules.filter(c => !c.opened).length > 1 ? 's' : ''} waiting
+                </div>
+              )}
+            </div>
+
+            {/* Export/Import Data */}
+            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>💾 Backup & Restore</h2>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  onClick={exportData}
+                  style={{ flex: 1, minWidth: 200, background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  <Download size={16} /> Export Data
+                </button>
+                <label style={{ flex: 1, minWidth: 200 }}>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importData}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Upload size={16} /> Import Data
+                  </div>
+                </label>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                Backup all your timers, stats, and achievements
+              </div>
+            </div>
+
+            {/* History Log */}
+             <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                   <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><History size={18}/> Recent History</h2>
+                   {history.length > 0 && <button onClick={() => setHistory([])} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
+               </div>
+               {history.length === 0 ? (
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', padding: 20 }}>No recently completed timers.</div>
+               ) : (
+                   <div>
+                       {history.map(entry => (
+                           <div key={entry.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                               <div style={{ flexGrow: 1, minWidth: '150px' }}>
+                                   <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.name || entry.type}</div>
+                                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{entry.details}</div>
+                               </div>
+                               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', flexShrink: 0, marginTop: window.innerWidth <= 480 ? 4 : 0 }}>{formatDate(entry.completedAt)}</div>
+                           </div>
+                       ))}
+                   </div>
+               )}
+            </div>
+              </>
+            )}
+
+            {/* Scenes & Themes Tab Content */}
+            {activeFeatureTab === 'scenes' && (
+              <>
+                {/* Immersive Scenes */}
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={18} /> Immersive Scenes
+                  </h2>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
+                    Choose a scene that matches your timer activity. Scenes change the visual ambiance to help you focus.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+                    {Object.entries(SCENES).map(([key, scene]) => (
+                      <div
+                        key={key}
+                        style={{
+                          padding: 16,
+                          background: key === 'none' ? 'rgba(255,255,255,0.05)' : scene.bg,
+                          borderRadius: 12,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          border: activeScene === key ? `2px solid ${theme.accent}` : 'none',
+                          transition: 'all 0.3s',
+                          position: 'relative'
+                        }}
+                        onClick={() => setActiveScene(key)}
+                      >
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>{scene.emoji}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{scene.name}</div>
+                        {scene.description && (
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{scene.description}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Theme Selector */}
+                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Palette size={18} /> Color Themes
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
+                    {themes.map(t => (
+                      <div
+                        key={t.name}
+                        onClick={() => setTheme(t)}
+                        style={{
+                          padding: 20,
+                          background: t.card,
+                          borderRadius: 12,
+                          cursor: 'pointer',
+                          border: theme.name === t.name ? `2px solid ${t.accent}` : 'none',
+                          transition: 'all 0.3s',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: t.accent, margin: '0 auto 12px' }} />
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
