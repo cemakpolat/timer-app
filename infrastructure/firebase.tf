@@ -71,47 +71,42 @@ output "firebase_config" {
   sensitive = true
 }
 
-# Individual outputs for GitHub Actions (all marked sensitive to hide from logs)
+# Individual outputs for GitHub Actions
+# Note: These are NOT secrets - they're public config values that go in client-side code
+# Firebase security is enforced via Security Rules, not by hiding these values
 output "firebase_api_key" {
-  description = "Firebase API Key - SENSITIVE"
+  description = "Firebase API Key (public - used in client-side code)"
   value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].api_key : null
-  sensitive   = true
 }
 
 output "firebase_auth_domain" {
-  description = "Firebase Auth Domain - SENSITIVE"
+  description = "Firebase Auth Domain (public - used in client-side code)"
   value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].auth_domain : null
-  sensitive   = true
 }
 
 output "firebase_database_url" {
-  description = "Firebase Database URL - SENSITIVE"
+  description = "Firebase Database URL (public - used in client-side code)"
   value       = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : null
-  sensitive   = true
 }
 
 output "firebase_project_id" {
-  description = "Firebase Project ID - SENSITIVE"
+  description = "Firebase Project ID (public - used in client-side code)"
   value       = var.enable_firebase ? var.project_id : null
-  sensitive   = true
 }
 
 output "firebase_storage_bucket" {
-  description = "Firebase Storage Bucket - SENSITIVE"
+  description = "Firebase Storage Bucket (public - used in client-side code)"
   value       = var.enable_firebase ? google_storage_bucket.firebase_storage[0].name : null
-  sensitive   = true
 }
 
 output "firebase_messaging_sender_id" {
-  description = "Firebase Messaging Sender ID - SENSITIVE"
+  description = "Firebase Messaging Sender ID (public - used in client-side code)"
   value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].messaging_sender_id : null
-  sensitive   = true
 }
 
 output "firebase_app_id" {
-  description = "Firebase App ID - SENSITIVE"
+  description = "Firebase App ID (public - used in client-side code)"
   value       = var.enable_firebase ? google_firebase_web_app.default[0].app_id : null
-  sensitive   = true
 }
 
 output "firebase_web_app_id" {
