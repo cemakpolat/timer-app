@@ -84,40 +84,32 @@ jobs:
           echo "Testing firebase_config specifically:"
           terraform output firebase_config 2>&1
 
-      - name: Extract Firebase Credentials (Safely)
+      - name: Extract Firebase Credentials (Using Individual Outputs)
         id: extract-creds
         working-directory: ./infrastructure
         run: |
-          echo "📥 Extracting Firebase credentials from Terraform..."
+          echo "📥 Extracting Firebase credentials from individual Terraform outputs..."
           
-          # Get terraform output as JSON
-          OUTPUT=$(terraform output -json firebase_config 2>&1)
-          RESULT=$?
-          
-          if [ $RESULT -ne 0 ]; then
-            echo "❌ Error: terraform output failed"
-            echo "$OUTPUT"
-            exit 1
-          fi
-          
-          echo "✅ Terraform output retrieved successfully"
-          
-          # Extract each value - simple and straightforward
-          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey')
-          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain')
-          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL')
-          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId')
-          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket')
-          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId')
-          APP_ID=$(echo "$OUTPUT" | jq -r '.appId')
+          # Get each output individually
+          API_KEY=$(terraform output -raw firebase_api_key)
+          AUTH_DOMAIN=$(terraform output -raw firebase_auth_domain)
+          DATABASE_URL=$(terraform output -raw firebase_database_url)
+          PROJECT_ID=$(terraform output -raw firebase_project_id)
+          STORAGE_BUCKET=$(terraform output -raw firebase_storage_bucket)
+          MESSAGING_SENDER_ID=$(terraform output -raw firebase_messaging_sender_id)
+          APP_ID=$(terraform output -raw firebase_app_id)
           
           # Debug: Show what we got
           echo "Extracted values:"
-          echo "  apiKey: ${API_KEY:0:20}..."
+          echo "  apiKey: ${API_KEY:0:10}..."
+          echo "  authDomain: $AUTH_DOMAIN"
           echo "  databaseURL: $DATABASE_URL"
           echo "  projectId: $PROJECT_ID"
+          echo "  storageBucket: $STORAGE_BUCKET"
+          echo "  messagingSenderId: $MESSAGING_SENDER_ID"
+          echo "  appId: $APP_ID"
           
-          # Write outputs - these go to infrastructure job outputs
+          # Write outputs
           echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
           echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
@@ -135,12 +127,14 @@ jobs:
           echo "::add-mask::$MESSAGING_SENDER_ID"
           echo "::add-mask::$APP_ID"
           
-          echo ""
-          echo "✅ All 7 credentials written to job outputs"
-          echo "::add-mask::$APP_ID"
-          
-          echo ""
-          echo "✅ Firebase credentials extracted successfully"
+          echo "✅ All 7 credentials extracted successfully"
+
+      - name: Debug Raw Terraform Output
+        working-directory: ./infrastructure
+        run: |
+          echo "🔍 Debugging raw Terraform output..."
+          terraform output -json firebase_config || echo "❌ Failed to retrieve firebase_config output"
+          echo "✅ Debugging complete."
 
   # STAGE 2: Build React App with Firebase Credentials
   build:
