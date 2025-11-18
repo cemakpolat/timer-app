@@ -27,13 +27,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Verify authentication
-        run: |
-          echo "Checking GCP authentication..."
-          gcloud auth list
-          gcloud config list
-          gcloud projects get-iam-policy timerapp-2997d --flatten="bindings[].members" --format='table(bindings.role)' --filter="bindings.members:serviceAccount:github-actions@timerapp-2997d.iam.gserviceaccount.com" || true
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
