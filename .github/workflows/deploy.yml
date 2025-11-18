@@ -192,6 +192,19 @@ jobs:
           npm run build
           echo "✅ React app built successfully"
 
+      - name: Debug Infrastructure Outputs
+        if: always()
+        run: |
+          echo "🔍 Debugging outputs from infrastructure job..."
+          echo "REACT_APP_FIREBASE_API_KEY: ${{ needs.infrastructure.outputs.firebase-api-key }}"
+          echo "REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ needs.infrastructure.outputs.firebase-auth-domain }}"
+          echo "REACT_APP_FIREBASE_DATABASE_URL: ${{ needs.infrastructure.outputs.firebase-database-url }}"
+          echo "REACT_APP_FIREBASE_PROJECT_ID: ${{ needs.infrastructure.outputs.firebase-project-id }}"
+          echo "REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ needs.infrastructure.outputs.firebase-storage-bucket }}"
+          echo "REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ needs.infrastructure.outputs.firebase-messaging-sender-id }}"
+          echo "REACT_APP_FIREBASE_APP_ID: ${{ needs.infrastructure.outputs.firebase-app-id }}"
+          echo "✅ Debugging complete."
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
