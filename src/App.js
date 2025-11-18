@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb, Calendar } from 'lucide-react';
 import './styles/global.css';
 import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
@@ -8,6 +8,7 @@ import RoomSettingsModal from './components/FocusRooms/RoomSettingsModal';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import RoomExpirationModal from './components/FocusRooms/RoomExpirationModal';
 import FeedbackModal from './components/FeedbackModal';
+import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 
 const DEFAULT_THEMES = [
   { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isDefault: true },
@@ -344,6 +345,7 @@ export default function TimerApp() {
   const [timerToDelete, setTimerToDelete] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [calendarExportRoom, setCalendarExportRoom] = useState(null); // Task 5: Calendar export modal state
 
   // Helper to show friendly toasts for realtime permission/init errors
   const showRealtimeErrorToast = (err, action = 'Operation') => {
@@ -400,6 +402,38 @@ export default function TimerApp() {
       console.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
       throw err; // rethrow if callers expect it
+    }
+  };
+
+  // Task 5: Calendar export handlers
+  const handleExportToICS = (room) => {
+    try {
+      downloadICSFile(room);
+      setToastMessage('Calendar file downloaded');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      setCalendarExportRoom(null);
+    } catch (err) {
+      console.error('Error exporting to ICS:', err);
+      setToastMessage('Failed to export calendar file');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  const handleExportToGoogleCalendar = (room) => {
+    try {
+      const url = generateGoogleCalendarURL(room);
+      window.open(url, '_blank');
+      setToastMessage('Opening Google Calendar');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      setCalendarExportRoom(null);
+    } catch (err) {
+      console.error('Error exporting to Google Calendar:', err);
+      setToastMessage('Failed to open Google Calendar');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
   
@@ -489,7 +523,10 @@ export default function TimerApp() {
 
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
   const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
-  const filteredGroups = groups.filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
+  // When in composite mode, exclude "Sequences" from the dropdown since sequences are special
+  const filteredGroups = groups
+    .filter(g => !(activeMainTab === 'composite' && g === 'Sequences'))
+    .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
   const intervalRef = useRef(null);
   const lastActiveTimeRef = useRef(null);
   const handleCompleteRef = useRef(null);
@@ -1072,6 +1109,19 @@ export default function TimerApp() {
       setNewTimerScene('none');
       setShowCreateTimer(false);
     }
+  };
+
+  const cancelCreateTimer = () => {
+    // Reset all form fields
+    setNewTimerName('');
+    setNewTimerMin('');
+    setNewTimerUnit('min');
+    setNewTimerColor('#3b82f6');
+    setNewTimerGroup('');
+    setNewTimerScene('none');
+    setShowGroupDropdown(false);
+    // Close the form
+    setShowCreateTimer(false);
   };
 
   // Export all data
@@ -2116,9 +2166,14 @@ export default function TimerApp() {
                       {SCENES[newTimerScene].description || 'No immersive background'}
                     </div>
                   </div>
-                  <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ width: '100%', background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
-                    <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ flex: 1, background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
+                      <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
+                    </button>
+                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                      <X size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2254,15 +2309,25 @@ export default function TimerApp() {
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+                                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     {room.name}
+                                    {room.status === 'scheduled' && (
+                                      <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                                        📅 Scheduled
+                                      </span>
+                                    )}
                                   </div>
-                                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                       <Users size={14} />
                                       {getParticipantCount(room)}/{room.maxParticipants}
                                     </div>
-                                    {room.timer && (
+                                    {room.status === 'scheduled' && room.scheduledFor ? (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Clock size={14} />
+                                        Available: {new Date(room.scheduledFor).toLocaleString()}
+                                      </div>
+                                    ) : room.timer && (
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <Clock size={14} />
                                         {formatTime(Math.max(0, Math.floor((room.timer.endsAt - Date.now()) / 1000)))} remaining
@@ -2270,23 +2335,49 @@ export default function TimerApp() {
                                     )}
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleJoinRoom(room.id)}
-                                  disabled={isRoomFull(room)}
-                                  style={{
-                                    background: isRoomFull(room) ? 'rgba(255,255,255,0.1)' : theme.accent,
-                                    border: 'none',
-                                    borderRadius: 12,
-                                    padding: '10px 20px',
-                                    color: theme.text,
-                                    cursor: isRoomFull(room) ? 'not-allowed' : 'pointer',
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    opacity: isRoomFull(room) ? 0.5 : 1
-                                  }}
-                                >
-                                  {isRoomFull(room) ? 'Full' : 'Join'}
-                                </button>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  {room.status === 'scheduled' && room.scheduledFor && (
+                                    <button
+                                      onClick={() => setCalendarExportRoom(room)}
+                                      style={{
+                                        background: 'rgba(34,197,94,0.2)',
+                                        border: '1px solid rgba(34,197,94,0.5)',
+                                        borderRadius: 12,
+                                        padding: '10px 16px',
+                                        color: '#22c55e',
+                                        cursor: 'pointer',
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
+                                      onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
+                                      title="Export to calendar"
+                                    >
+                                      <Calendar size={16} /> Export
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleJoinRoom(room.id)}
+                                    disabled={isRoomFull(room) || room.status === 'scheduled'}
+                                    style={{
+                                      background: (isRoomFull(room) || room.status === 'scheduled') ? 'rgba(255,255,255,0.1)' : theme.accent,
+                                      border: 'none',
+                                      borderRadius: 12,
+                                      padding: '10px 20px',
+                                      color: theme.text,
+                                      cursor: (isRoomFull(room) || room.status === 'scheduled') ? 'not-allowed' : 'pointer',
+                                      fontSize: 14,
+                                      fontWeight: 600,
+                                      opacity: (isRoomFull(room) || room.status === 'scheduled') ? 0.5 : 1
+                                    }}
+                                  >
+                                    {isRoomFull(room) ? 'Full' : room.status === 'scheduled' ? 'Not Ready' : 'Join'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -2461,6 +2552,113 @@ export default function TimerApp() {
                         gracePeriodSec={120}
                         maxExtensionMinutes={30}
                       />
+
+                      {/* Task 5: Calendar Export Modal */}
+                      {calendarExportRoom && (
+                        <div
+                          style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1000,
+                            padding: 20
+                          }}
+                          onClick={() => setCalendarExportRoom(null)}
+                        >
+                          <div
+                            style={{
+                              background: theme.card,
+                              borderRadius: 24,
+                              padding: 32,
+                              maxWidth: 500,
+                              width: '100%'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
+                              📅 Export "{calendarExportRoom.name}" to Calendar
+                            </h2>
+                            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
+                                📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
+                              </div>
+                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                                ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
+                              </div>
+                            </div>
+                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
+                              Choose how to export this room to your calendar:
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                              <button
+                                onClick={() => handleExportToICS(calendarExportRoom)}
+                                style={{
+                                  background: 'rgba(34,197,94,0.2)',
+                                  border: '1px solid rgba(34,197,94,0.5)',
+                                  borderRadius: 12,
+                                  padding: 16,
+                                  color: '#22c55e',
+                                  cursor: 'pointer',
+                                  fontSize: 15,
+                                  fontWeight: 600,
+                                  transition: 'all 0.2s',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 8
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
+                                onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
+                              >
+                                <Download size={18} /> Download .ics File
+                              </button>
+                              <button
+                                onClick={() => handleExportToGoogleCalendar(calendarExportRoom)}
+                                style={{
+                                  background: 'rgba(59,130,246,0.2)',
+                                  border: '1px solid rgba(59,130,246,0.5)',
+                                  borderRadius: 12,
+                                  padding: 16,
+                                  color: '#3b82f6',
+                                  cursor: 'pointer',
+                                  fontSize: 15,
+                                  fontWeight: 600,
+                                  transition: 'all 0.2s',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 8
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = 'rgba(59,130,246,0.3)'}
+                                onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
+                              >
+                                <Calendar size={18} /> Add to Google Calendar
+                              </button>
+                              <button
+                                onClick={() => setCalendarExportRoom(null)}
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: 12,
+                                  padding: 16,
+                                  color: 'rgba(255,255,255,0.6)',
+                                  cursor: 'pointer',
+                                  fontSize: 15,
+                                  fontWeight: 600,
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Start Timer Button */}
                       {!currentRoom.timer && (

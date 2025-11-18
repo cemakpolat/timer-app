@@ -252,20 +252,49 @@ class FirebaseService extends IRealtimeService {
   async createFocusRoom(roomData) {
     if (!this.db) throw new Error('Service not initialized');
 
-    const { ref, set } = this.firebase;
+    const { ref, set, get } = this.firebase;
+
+    // Task 4: Check per-user limit (max 1 active room per user)
+    const userRoomsRef = ref(this.db, `userRooms/${this.currentUserId}`);
+    const userRoomsSnapshot = await get(userRoomsRef);
+    if (userRoomsSnapshot.exists()) {
+      throw new Error('You already have an active room. Leave your current room before creating a new one.');
+    }
+
+    // Task 4: Check global limit (max 100 active rooms)
+    const focusRoomsRef = ref(this.db, `focusRooms`);
+    const focusRoomsSnapshot = await get(focusRoomsRef);
+    let activeRoomCount = 0;
+    if (focusRoomsSnapshot.exists()) {
+      const rooms = focusRoomsSnapshot.val();
+      // Count only active and scheduled rooms (not completed)
+      activeRoomCount = Object.values(rooms).filter(r => r && r.status !== 'completed').length;
+    }
+    if (activeRoomCount >= 100) {
+      throw new Error('Maximum number of active rooms (100) has been reached. Please try again later.');
+    }
+
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
 
     const creatorName = roomData.creatorName || (this.currentUserProfile && this.currentUserProfile.displayName) || `User ${this.currentUserId?.substr?.(0,6) || ''}`;
+
+    const now = Date.now();
+    // Determine if room is scheduled (scheduledFor is in the future)
+    const scheduledFor = roomData.scheduledFor || null;
+    const isScheduled = scheduledFor && scheduledFor > now;
 
     const room = {
       id: roomId,
       name: roomData.name || 'Focus Room',
       createdBy: this.currentUserId,
       creatorName,
-      createdAt: Date.now(),
+      createdAt: now,
       maxParticipants: roomData.maxParticipants || 10,
       duration: roomData.duration || 1500, // 25 min default
+      // Phase 2a: Room scheduling
+      scheduledFor: scheduledFor || null,
+      status: isScheduled ? 'scheduled' : 'active', // 'scheduled', 'active', 'completed'
       // Optional per-room empty-room removal delay (in seconds). If provided, this overrides service/env defaults.
       emptyRoomRemovalDelaySec: typeof roomData.emptyRoomRemovalDelaySec === 'number' ? roomData.emptyRoomRemovalDelaySec : undefined,
       participants: {},

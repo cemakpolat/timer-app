@@ -12,6 +12,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
   const [selectedComposite, setSelectedComposite] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [emptyRoomDelay, setEmptyRoomDelay] = useState(2); // minutes
+  const [scheduleRoom, setScheduleRoom] = useState(false); // Phase 2a: enable scheduling
+  const [scheduledDate, setScheduledDate] = useState(''); // Date in YYYY-MM-DD format
+  const [scheduledTime, setScheduledTime] = useState(''); // Time in HH:mm format
 
   // Get composite timers (sequences)
   const compositeTimers = savedTimers.filter(t => t.group === 'Sequences');
@@ -34,6 +37,24 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
       return;
     }
 
+    // Phase 2a: Validate scheduling inputs if enabled
+    if (scheduleRoom) {
+      if (!scheduledDate || !scheduledTime) {
+        alert('Please select both date and time for scheduling');
+        return;
+      }
+      // Parse date and time into a timestamp
+      const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+      if (isNaN(scheduledDateTime.getTime())) {
+        alert('Invalid date or time');
+        return;
+      }
+      if (scheduledDateTime.getTime() <= Date.now()) {
+        alert('Scheduled time must be in the future');
+        return;
+      }
+    }
+
     const roomData = {
       name: roomName.trim(),
       maxParticipants: parseInt(maxParticipants),
@@ -43,6 +64,12 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
     // emptyRoomDelay is in minutes; convert to seconds for the service
     if (emptyRoomDelay && !Number.isNaN(parseInt(emptyRoomDelay, 10))) {
       roomData.emptyRoomRemovalDelaySec = parseInt(emptyRoomDelay, 10) * 60;
+    }
+
+    // Phase 2a: Add scheduledFor if scheduling is enabled
+    if (scheduleRoom && scheduledDate && scheduledTime) {
+      const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+      roomData.scheduledFor = scheduledDateTime.getTime();
     }
 
     if (timerType === 'single') {
@@ -399,6 +426,77 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
             </div>
           </div>
 
+          {/* Phase 2a: Room Scheduling */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={16} /> Schedule Room (Optional)
+            </label>
+            <button
+              type="button"
+              onClick={() => setScheduleRoom(!scheduleRoom)}
+              style={{
+                width: '100%',
+                background: scheduleRoom ? theme.accent : 'rgba(255,255,255,0.05)',
+                border: `2px solid ${scheduleRoom ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: 12,
+                padding: 14,
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                transition: 'all 0.2s',
+                marginBottom: 12
+              }}
+            >
+              {scheduleRoom ? '📅 Room Scheduled' : '🔔 Schedule for Later'}
+            </button>
+            {scheduleRoom && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6, display: 'block' }}>
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 8,
+                      padding: 10,
+                      color: 'white',
+                      fontSize: 14,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6, display: 'block' }}>
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 8,
+                      padding: 10,
+                      color: 'white',
+                      fontSize: 14,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Summary */}
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -454,6 +552,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 </>
               )}
               <div>Capacity: Up to {maxParticipants} people</div>
+              {scheduleRoom && scheduledDate && scheduledTime && (
+                <div style={{ marginTop: 8, padding: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13 }}>
+                  📅 Scheduled: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
+                </div>
+              )}
             </div>
           </div>
 

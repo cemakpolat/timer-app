@@ -123,6 +123,66 @@ async function removeStaleParticipants(roomId, room, presence, now) {
 }
 
 /**
+ * Phase 2a: Scheduled job to activate rooms when their scheduledFor time arrives.
+ * Changes room status from 'scheduled' to 'active' when now >= scheduledFor.
+ * Runs on the same schedule as room cleanup (default: every 15 minutes).
+ */
+exports.activateScheduledRooms = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun(async (context) => {
+  console.log(`Starting scheduled room activation (Phase 2a)`);
+  
+  try {
+    const db = getDatabase();
+    const now = Date.now();
+    
+    // Fetch all focus rooms
+    const snapshot = await retryWithBackoff(
+      () => db.ref('focusRooms').get(),
+      3,
+      200
+    );
+    
+    if (!snapshot.exists()) {
+      console.log('No focusRooms found for activation');
+      return null;
+    }
+
+    const rooms = snapshot.val();
+    const updates = {};
+    let activatedCount = 0;
+
+    for (const [roomId, room] of Object.entries(rooms)) {
+      try {
+        // If room is scheduled and scheduledFor time has arrived, activate it
+        if (room && room.status === 'scheduled' && room.scheduledFor && room.scheduledFor <= now) {
+          updates[`focusRooms/${roomId}/status`] = 'active';
+          activatedCount++;
+          console.log(`Activated scheduled room: ${room.name} (${roomId})`);
+        }
+      } catch (e) {
+        console.error(`Error processing room ${roomId} for activation:`, e);
+      }
+    }
+
+    // Apply all updates at once if there are any
+    if (Object.keys(updates).length > 0) {
+      await retryWithBackoff(
+        () => db.ref('/').update(updates),
+        3,
+        200
+      );
+      console.log(`Successfully activated ${activatedCount} scheduled rooms`);
+    } else {
+      console.log('No scheduled rooms ready for activation');
+    }
+
+    return { activatedCount };
+  } catch (error) {
+    console.error('Error in activateScheduledRooms:', error);
+    throw error;
+  }
+});
+
+/**
  * Scheduled job that runs periodically and removes or marks completed rooms whose timer ended and
  * have passed their empty-room removal grace period.
  *
@@ -172,14 +232,35 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
     for (const [roomId, room] of Object.entries(rooms)) {
       try {
-        if (!room || !room.timer || !room.timer.endsAt) continue;
+        if (!room) continue;
+        
+        // Clean up empty rooms (no participants, regardless of timer state)
+        const participants = room.participants || {};
+        let participantIds = Object.keys(participants);
+        
+        // If room is empty, check if it should be deleted based on grace period
+        if (participantIds.length === 0) {
+          const createdAt = room.createdAt || Date.now();
+          const ageMs = now - createdAt;
+          
+          // Use the room's configured grace period (default: 2 minutes)
+          const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
+          const emptyRoomThresholdMs = delaySec * 1000;
+          
+          if (ageMs > emptyRoomThresholdMs) {
+            console.log(`Deleting empty room ${roomId} (created at ${new Date(createdAt).toISOString()}, age: ${Math.floor(ageMs / 1000)}s, threshold: ${delaySec}s)`);
+            deletions.push({ roomId, room });
+            continue;
+          }
+        }
+        
+        // If room has no timer end time, skip normal cleanup (room is still active/scheduled)
+        if (!room.timer || !room.timer.endsAt) continue;
+        
         // compute delay
         const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
         const deadline = room.timer.endsAt + (delaySec * 1000);
         if (now < deadline) continue; // not eligible yet
-
-        const participants = room.participants || {};
-        let participantIds = Object.keys(participants);
 
         // FIRST: Remove stale participants (5+ min no presence update)
         if (participantIds.length > 0) {
