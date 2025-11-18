@@ -157,14 +157,27 @@ jobs:
           path: ./build
           # ✅ Build folder contains the compiled app with Firebase credentials embedded
 
+      - name: Verify Build Artifacts
+        run: |
+          echo "📦 Build contents:"
+          ls -la build/
+          echo ""
+          echo "📊 Build size:"
+          du -sh build/
+
       - name: Deploy to Firebase Hosting
         run: |
           npm install -g firebase-tools
+          
+          echo "🔑 Authenticating with Firebase..."
           firebase deploy \
             --project timerapp-2997d \
             --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" \
             --only hosting \
-            --message "Deployment from GitHub Actions - Build ${{ github.run_number }}"
+            --message "Build #${{ github.run_number }} from GitHub Actions" \
+            --debug
           
+          echo ""
           echo "✅ Firebase Hosting deployment complete!"
           echo "🌍 Live at: https://timerapp-2997d.web.app"
+          echo "⏱️  Deployment may take 1-2 minutes to propagate"
