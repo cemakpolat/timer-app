@@ -67,12 +67,23 @@ jobs:
         run: |
           # ✅ Get Firebase config JSON from Terraform
           echo "📥 Extracting Firebase credentials from Terraform..."
-          OUTPUT=$(terraform output -json firebase_config 2>/dev/null || echo "{}")
+          
+          # First, check if terraform output exists
+          if ! terraform output firebase_config >/dev/null 2>&1; then
+            echo "❌ Error: firebase_config output not found"
+            echo "Available outputs:"
+            terraform output
+            exit 1
+          fi
+          
+          OUTPUT=$(terraform output -json firebase_config)
+          
+          echo "📋 Raw Terraform output:"
+          echo "$OUTPUT" | jq '.' 2>/dev/null || echo "$OUTPUT"
           
           # Debug: Check if output is valid JSON
           if ! echo "$OUTPUT" | jq empty 2>/dev/null; then
-            echo "❌ Error: Firebase credentials not found in Terraform output"
-            echo "This usually means: enable_firebase = false in terraform.tfvars"
+            echo "❌ Error: Firebase credentials not valid JSON"
             exit 1
           fi
           
@@ -85,11 +96,21 @@ jobs:
           MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId // empty')
           APP_ID=$(echo "$OUTPUT" | jq -r '.appId // empty')
           
+          echo ""
+          echo "✅ Extracted values:"
+          [ -n "$API_KEY" ] && echo "  ✓ API_KEY set" || echo "  ❌ API_KEY empty"
+          [ -n "$AUTH_DOMAIN" ] && echo "  ✓ AUTH_DOMAIN set" || echo "  ❌ AUTH_DOMAIN empty"
+          [ -n "$DATABASE_URL" ] && echo "  ✓ DATABASE_URL set" || echo "  ❌ DATABASE_URL empty"
+          [ -n "$PROJECT_ID" ] && echo "  ✓ PROJECT_ID set" || echo "  ❌ PROJECT_ID empty"
+          [ -n "$STORAGE_BUCKET" ] && echo "  ✓ STORAGE_BUCKET set" || echo "  ❌ STORAGE_BUCKET empty"
+          [ -n "$MESSAGING_SENDER_ID" ] && echo "  ✓ MESSAGING_SENDER_ID set" || echo "  ❌ MESSAGING_SENDER_ID empty"
+          [ -n "$APP_ID" ] && echo "  ✓ APP_ID set" || echo "  ❌ APP_ID empty"
+          
           # Verify all credentials were extracted
           if [ -z "$DATABASE_URL" ]; then
-            echo "❌ Error: DATABASE_URL is empty"
-            echo "Terraform output was:"
-            terraform output firebase_config
+            echo ""
+            echo "❌ CRITICAL: DATABASE_URL is empty!"
+            echo "Cannot proceed without database URL"
             exit 1
           fi
           
@@ -144,9 +165,24 @@ jobs:
           REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ needs.infrastructure.outputs.firebase-messaging-sender-id }}
           REACT_APP_FIREBASE_APP_ID: ${{ needs.infrastructure.outputs.firebase-app-id }}
         run: |
-          # ✅ Credentials are available as env vars during build
-          # ✅ In logs: "REACT_APP_FIREBASE_API_KEY=***" (masked)
           echo "🔨 Building React app with Firebase credentials..."
+          echo ""
+          echo "✅ Environment variables received:"
+          [ -n "$REACT_APP_FIREBASE_API_KEY" ] && echo "  ✓ REACT_APP_FIREBASE_API_KEY set" || echo "  ❌ REACT_APP_FIREBASE_API_KEY missing"
+          [ -n "$REACT_APP_FIREBASE_AUTH_DOMAIN" ] && echo "  ✓ REACT_APP_FIREBASE_AUTH_DOMAIN set" || echo "  ❌ REACT_APP_FIREBASE_AUTH_DOMAIN missing"
+          [ -n "$REACT_APP_FIREBASE_DATABASE_URL" ] && echo "  ✓ REACT_APP_FIREBASE_DATABASE_URL set" || echo "  ❌ REACT_APP_FIREBASE_DATABASE_URL missing"
+          [ -n "$REACT_APP_FIREBASE_PROJECT_ID" ] && echo "  ✓ REACT_APP_FIREBASE_PROJECT_ID set" || echo "  ❌ REACT_APP_FIREBASE_PROJECT_ID missing"
+          [ -n "$REACT_APP_FIREBASE_STORAGE_BUCKET" ] && echo "  ✓ REACT_APP_FIREBASE_STORAGE_BUCKET set" || echo "  ❌ REACT_APP_FIREBASE_STORAGE_BUCKET missing"
+          [ -n "$REACT_APP_FIREBASE_MESSAGING_SENDER_ID" ] && echo "  ✓ REACT_APP_FIREBASE_MESSAGING_SENDER_ID set" || echo "  ❌ REACT_APP_FIREBASE_MESSAGING_SENDER_ID missing"
+          [ -n "$REACT_APP_FIREBASE_APP_ID" ] && echo "  ✓ REACT_APP_FIREBASE_APP_ID set" || echo "  ❌ REACT_APP_FIREBASE_APP_ID missing"
+          echo ""
+          
+          # If DATABASE_URL is missing, warn and fail
+          if [ -z "$REACT_APP_FIREBASE_DATABASE_URL" ]; then
+            echo "❌ CRITICAL: REACT_APP_FIREBASE_DATABASE_URL not received from infrastructure job!"
+            exit 1
+          fi
+          
           npm run build
           echo "✅ React app built successfully"
 
