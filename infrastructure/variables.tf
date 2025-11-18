@@ -54,3 +54,15 @@ variable "github_repo" {
   type        = string
 }
 
+variable "firebase_region" {
+  description = "Region for Firebase Realtime Database and Storage"
+  type        = string
+  default     = "us-central1"
+}
+
+variable "enable_firebase" {
+  description = "Enable Firebase provisioning (Realtime Database, Storage, Web App)"
+  type        = bool
+  default     = true
+}
+
