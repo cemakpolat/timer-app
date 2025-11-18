@@ -1,42 +1,11 @@
 # Firebase Configuration via Terraform
 # This module provisions Firebase services including Realtime Database, Storage, and Authentication
-
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 4.85.0"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
-      version = "~> 4.85.0"
-    }
-  }
-}
-
-# Enable Firebase API
-resource "google_project_service" "firebase" {
-  service = "firebase.googleapis.com"
-  project = var.project_id
-}
-
-resource "google_project_service" "firestore" {
-  service = "firestore.googleapis.com"
-  project = var.project_id
-}
-
-resource "google_project_service" "firebase_database" {
-  service = "firebasedatabase.googleapis.com"
-  project = var.project_id
-}
-
-resource "google_project_service" "firebase_storage" {
-  service = "firebasestorage.googleapis.com"
-  project = var.project_id
-}
+# Note: Required providers are defined in providers.tf
+# Note: Service enablement is defined in services.tf
 
 # Create Firebase App (Web)
 resource "google_firebase_web_app" "default" {
+  provider            = google-beta
   count               = var.enable_firebase ? 1 : 0
   project             = var.project_id
   display_name        = "Timer App Web"
@@ -46,54 +15,40 @@ resource "google_firebase_web_app" "default" {
 
 # Get Firebase Web App Config
 data "google_firebase_web_app_config" "default" {
+  provider   = google-beta
   count      = var.enable_firebase ? 1 : 0
   web_app_id = google_firebase_web_app.default[0].app_id
   project    = var.project_id
 }
 
-# Create Realtime Database
+# Create Realtime Database (non-default instance to avoid conflicts with existing default)
+# Note: Creating a new instance managed by Terraform
+# The existing default database will be deprecated and can be deleted from Firebase Console
 resource "google_firebase_database_instance" "default" {
+  provider            = google-beta
   count               = var.enable_firebase ? 1 : 0
   project             = var.project_id
   region              = var.firebase_region
-  instance_id         = "${var.project_id}-default-rtdb"
+  instance_id         = "${var.project_id}-terraform-rtdb"
   desired_state       = "ACTIVE"
-  type                = "DEFAULT_DATABASE"
+  # Omitting type to let it default to a standard database (not DEFAULT_DATABASE)
   depends_on          = [google_project_service.firebase_database]
 }
 
 # Create Cloud Storage Bucket for Firebase
 resource "google_storage_bucket" "firebase_storage" {
-  count             = var.enable_firebase ? 1 : 0
-  project           = var.project_id
-  name              = "${var.project_id}.appspot.com"
-  location          = var.firebase_region
-  force_destroy     = false
+  count                     = var.enable_firebase ? 1 : 0
+  project                   = var.project_id
+  name                      = "${var.project_id}-firebase-storage"
+  location                  = var.firebase_region
+  force_destroy             = false
   uniform_bucket_level_access = true
-  depends_on        = [google_project_service.firebase_storage]
+  depends_on                = [google_project_service.firebase_storage]
 }
 
-# Deploy Firebase Realtime Database Rules
-resource "google_firebase_database_ruleset" "default" {
-  count       = var.enable_firebase ? 1 : 0
-  project     = var.project_id
-  
-  source {
-    language = "json"
-    rules    = file("${path.module}/database-rules.json")
-  }
-  
-  depends_on = [google_firebase_database_instance.default]
-}
-
-# Release the rules to the database
-resource "google_firebase_database_default_instance" "rules" {
-  count           = var.enable_firebase ? 1 : 0
-  project         = var.project_id
-  ruleset_id      = google_firebase_database_ruleset.default[0].ruleset_id
-  instance        = google_firebase_database_instance.default[0].name
-  depends_on      = [google_firebase_database_ruleset.default]
-}
+# Note: Firebase Database Rules should be deployed manually or via Firebase CLI
+# Rules file: infrastructure/database-rules.json
+# Deploy with: firebase deploy --only database:rules
 
 # Output Firebase Config (for use in app) - SENSITIVE: Will not display in terraform output
 output "firebase_config" {
@@ -101,11 +56,11 @@ output "firebase_config" {
   value = var.enable_firebase ? {
     apiKey            = data.google_firebase_web_app_config.default[0].api_key
     authDomain        = data.google_firebase_web_app_config.default[0].auth_domain
-    projectId         = data.google_firebase_web_app_config.default[0].project_id
+    projectId         = var.project_id
     databaseURL       = "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com"
     storageBucket     = google_storage_bucket.firebase_storage[0].name
     messagingSenderId = data.google_firebase_web_app_config.default[0].messaging_sender_id
-    appId             = data.google_firebase_web_app_config.default[0].app_id
+    appId             = google_firebase_web_app.default[0].app_id
   } : null
   sensitive = true
 }
@@ -131,7 +86,7 @@ output "firebase_database_url" {
 
 output "firebase_project_id" {
   description = "Firebase Project ID - SENSITIVE"
-  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].project_id : null
+  value       = var.enable_firebase ? var.project_id : null
   sensitive   = true
 }
 
@@ -149,7 +104,7 @@ output "firebase_messaging_sender_id" {
 
 output "firebase_app_id" {
   description = "Firebase App ID - SENSITIVE"
-  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].app_id : null
+  value       = var.enable_firebase ? google_firebase_web_app.default[0].app_id : null
   sensitive   = true
 }
 
