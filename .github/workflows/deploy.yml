@@ -216,29 +216,27 @@ jobs:
           sed -i "s|APP_ID_PLACEHOLDER|$APP_ID|g" /tmp/credentials/firebase-config.env
           
           echo "✅ Credentials file created"
+
+      - name: Encrypt credentials file
+        run: |
+          # Install openssl (usually already available)
+          echo "🔐 Encrypting credentials with AES-256..."
+          
+          # Encrypt the file using openssl with the secret password
+          openssl enc -aes-256-cbc -salt -in /tmp/credentials/firebase-config.env -out /tmp/credentials/firebase-config.env.enc -pass pass:"${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}" -md sha256
+          
+          # Remove the unencrypted file
+          rm /tmp/credentials/firebase-config.env
+          
+          echo "✅ Credentials encrypted and unencrypted file removed"
+          ls -lh /tmp/credentials/
           
       - name: Upload credentials artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firebase-credentials
-          path: /tmp/credentials/firebase-config.env
+          name: firebase-credentials-encrypted
+          path: /tmp/credentials/firebase-config.env.enc
           retention-days: 1
-        working-directory: ./infrastructure
-        run: |
-          echo "🔍 Debugging raw Terraform output..."
-          terraform output -json firebase_config || echo "❌ Failed to retrieve firebase_config output"
-          echo "✅ Debugging complete."
-
-      - name: Verify Job Outputs Are Set
-        run: |
-          echo "🔍 Verifying job outputs are available..."
-          echo "firebase-api-key: ${{ steps.extract-creds.outputs.api_key }}"
-          echo "firebase-auth-domain: ${{ steps.extract-creds.outputs.auth_domain }}"
-          echo "firebase-database-url: ${{ steps.extract-creds.outputs.database_url }}"
-          echo "firebase-project-id: ${{ steps.extract-creds.outputs.project_id }}"
-          echo "firebase-storage-bucket: ${{ steps.extract-creds.outputs.storage_bucket }}"
-          echo "firebase-messaging-sender-id: ${{ steps.extract-creds.outputs.messaging_sender_id }}"
-          echo "firebase-app-id: ${{ steps.extract-creds.outputs.app_id }}"
 
   # STAGE 2: Build React App with Firebase Credentials
   build:
@@ -251,14 +249,37 @@ jobs:
       - name: Download credentials artifact
         uses: actions/download-artifact@v4
         with:
-          name: firebase-credentials
+          name: firebase-credentials-encrypted
           path: /tmp/credentials
+
+      - name: Decrypt credentials file
+        run: |
+          if [ -f /tmp/credentials/firebase-config.env.enc ]; then
+            echo "🔐 Decrypting credentials..."
+            
+            # Decrypt the file using openssl with the same password
+            openssl enc -aes-256-cbc -d -in /tmp/credentials/firebase-config.env.enc -out /tmp/credentials/firebase-config.env -pass pass:"${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}" -md sha256
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Credentials decrypted successfully"
+              # Remove the encrypted file for security
+              rm /tmp/credentials/firebase-config.env.enc
+            else
+              echo "❌ Failed to decrypt credentials"
+              exit 1
+            fi
+          else
+            echo "❌ Encrypted credentials file not found"
+            exit 1
+          fi
 
       - name: Load credentials from file
         run: |
           if [ -f /tmp/credentials/firebase-config.env ]; then
-            echo "✅ Loading credentials from artifact..."
+            echo "✅ Loading credentials from decrypted file..."
             cat /tmp/credentials/firebase-config.env >> $GITHUB_ENV
+            # Remove the decrypted file for security after loading
+            rm /tmp/credentials/firebase-config.env
           else
             echo "⚠️  Credentials file not found, will use fallback"
           fi
