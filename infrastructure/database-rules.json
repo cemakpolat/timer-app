@@ -1,47 +1,30 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "presence": {
       ".read": true,
-      "$userId": {
-        ".write": "auth != null && auth.uid == $userId"
-      }
+      ".write": true
     },
     "users": {
-      "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid",
-        "avatarUrl": {
-          ".validate": "newData.isString() || newData.val() === null"
-        },
-        "avatarSession": {
-          ".validate": "newData.isBoolean() || newData.val() === null"
-        }
-      }
+      ".read": true,
+      ".write": true
     },
     "userRooms": {
-      "$userId": {
-        ".read": "auth != null && auth.uid == $userId",
-        ".write": "auth != null && auth.uid == $userId",
-        ".validate": "newData.isString() || newData.val() === null"
-      }
+      ".read": true,
+      ".write": true
     },
     "focusRooms": {
       ".read": true,
-      "$roomId": {
-        ".write": "auth != null",
-        "participants": {
-          "$userId": {
-            ".write": "auth != null && (auth.uid == $userId || root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid)",
-            ".validate": "newData.hasChildren(['joinedAt', 'displayName']) || newData.val() === null"
-          }
-        },
-        "messages": {
-          ".write": "auth != null"
-        },
-        "timer": {
-          ".write": "auth != null"
-        }
-      }
+      ".write": true
+    },
+    "timers": {
+      ".read": true,
+      ".write": true
+    },
+    "notifications": {
+      ".read": true,
+      ".write": true
     }
   }
 }
