@@ -21,14 +21,14 @@
 
 ## 📋 Exposed Information
 
-| Type | Value | Status |
-|------|-------|--------|
-| **API Key** | `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs` | 🔴 EXPOSED |
-| **Project ID** | `timerapp-2997d` | 🟡 PUBLIC |
-| **Database URL** | `timerapp-2997d-default-rtdb.firebaseio.com` | 🟡 PUBLIC |
-| **Storage Bucket** | `timerapp-2997d.appspot.com` | 🟡 PUBLIC |
-| **App ID** | `1:341637730794:web:02b636c85719a526b2e293` | 🟡 PUBLIC |
-| **Sender ID** | `341637730794` | 🟡 PUBLIC |
+| Type | Status | Details |
+|------|--------|---------|
+| **API Key** | 🔴 EXPOSED | Firebase API Key |
+| **Project ID** | 🟡 PUBLIC | Firebase Project Identifier |
+| **Database URL** | 🟡 PUBLIC | Realtime Database URL |
+| **Storage Bucket** | 🟡 PUBLIC | Cloud Storage Bucket |
+| **App ID** | 🟡 PUBLIC | Firebase App Configuration |
+| **Sender ID** | 🟡 PUBLIC | Messaging Sender ID |
 
 **Visibility:** Anyone with GitHub repository access can see this in git history
 
@@ -55,7 +55,7 @@ Without rotating, the exposed API key can still be used even after removing from
 
 1. **Access Firebase Console**
    - URL: https://console.firebase.google.com/
-   - Select: `timerapp-2997d` project
+   - Select: Your Firebase project
 
 2. **Navigate to API Keys**
    - Click gear ⚙️ icon
@@ -63,7 +63,7 @@ Without rotating, the exposed API key can still be used even after removing from
    - Look for **API keys** section
 
 3. **Delete Exposed Key**
-   - Find: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
+   - Find your exposed Firebase API key
    - Click the **delete button** (trash icon)
    - Confirm deletion
    - ✅ Key is now revoked - can no longer be used
@@ -115,12 +115,12 @@ Removes the exposed credentials from every commit that contained them.
    - Show "Credentials removed from history!" when done ✅
 
 ### Script Details
-The script removes these patterns from entire git history:
-- API Key: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
-- Project ID: `timerapp-2997d`
-- Database URL: `timerapp-2997d-default-rtdb.firebaseio.com`
-- Storage: `timerapp-2997d.appspot.com`
-- App ID: `02b636c85719a526b2e293`
+The script removes these types of data from entire git history:
+- Firebase API Keys
+- Firebase Project IDs
+- Database URLs
+- Storage Buckets
+- Firebase App IDs
 
 ### Success Criteria
 - Script completes without errors
@@ -193,13 +193,13 @@ New credentials are needed for CI/CD and GitHub Actions to work.
    - Paste: **Your NEW API key from Phase 1**
    - Save
 
-   **Secret 2-7: Keep existing values** (unless changed)
-   - `REACT_APP_FIREBASE_AUTH_DOMAIN`: `timerapp-2997d.firebaseapp.com`
-   - `REACT_APP_FIREBASE_DATABASE_URL`: `https://timerapp-2997d-default-rtdb.firebaseio.com`
-   - `REACT_APP_FIREBASE_PROJECT_ID`: `timerapp-2997d`
-   - `REACT_APP_FIREBASE_STORAGE_BUCKET`: `timerapp-2997d.appspot.com`
-   - `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`: `341637730794`
-   - `REACT_APP_FIREBASE_APP_ID`: `1:341637730794:web:02b636c85719a526b2e293`
+   **Secret 2-7: Keep existing values** (or update if changed)
+   - `REACT_APP_FIREBASE_AUTH_DOMAIN`: Your Firebase auth domain
+   - `REACT_APP_FIREBASE_DATABASE_URL`: Your Realtime Database URL
+   - `REACT_APP_FIREBASE_PROJECT_ID`: Your Firebase project ID
+   - `REACT_APP_FIREBASE_STORAGE_BUCKET`: Your storage bucket
+   - `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`: Your sender ID
+   - `REACT_APP_FIREBASE_APP_ID`: Your Firebase app ID
 
 3. **Verify All 7 Secrets Are Set**
    - All should show (values masked)
@@ -217,13 +217,13 @@ New credentials are needed for CI/CD and GitHub Actions to work.
 ### Verify Credentials Removed from History
 
 ```bash
-# Check for old API key (should be empty)
-git log -p --all | grep "AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs"
+# Check for Firebase API keys (should be empty)
+git log -p --all | grep -i "AIza"
 
 # Expected result: (no output - complete silence)
 ```
 
-If you see the API key in output = remediation failed ❌
+If you see any API keys in output = remediation failed ❌
 
 ### Test Application Locally
 

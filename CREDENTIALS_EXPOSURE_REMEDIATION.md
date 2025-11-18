@@ -2,15 +2,15 @@
 
 ## ⚠️ Status: CREDENTIALS EXPOSED IN GIT HISTORY
 
-Your Firebase API key and credentials were committed to git history and are visible if someone has access to the repository.
+Your Firebase credentials were committed to git history and are visible if someone has access to the repository.
 
-**Exposed Data:**
-- API Key: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
-- Project ID: `timerapp-2997d`
-- Database URL: `timerapp-2997d-default-rtdb.firebaseio.com`
-- Storage Bucket: `timerapp-2997d.appspot.com`
-- Sender ID: `341637730794`
-- App ID: `1:341637730794:web:02b636c85719a526b2e293`
+**Exposed Data Types:**
+- Firebase API Key
+- Firebase Project ID
+- Database URL
+- Storage Bucket
+- Messaging Sender ID
+- App ID
 
 ## 🛠️ Remediation Steps (REQUIRED)
 
@@ -19,9 +19,9 @@ Your Firebase API key and credentials were committed to git history and are visi
 **Why:** The exposed API key can be used to access your Firebase project if it was public.
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select project: **timerapp-2997d**
+2. Select project (your Firebase project)
 3. Go to **Project Settings** → **API keys**
-4. **DELETE** the old API key: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
+4. **DELETE** the exposed API key
 5. Create a **NEW API key** by clicking "Create API key"
 6. Copy the new API key
 7. Also check **Web apps** configuration and create a new config if needed
@@ -41,10 +41,9 @@ git clone --mirror . backup-before-filter
 
 # Create a text file with patterns to remove
 cat > remove-patterns.txt << 'EOF'
-AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs
-AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs
-timerapp-2997d
-02b636c85719a526b2e293
+YOUR_EXPOSED_API_KEY_HERE
+YOUR_PROJECT_ID_HERE
+YOUR_APP_ID_PARTS_HERE
 EOF
 
 # Remove these patterns from history
@@ -78,13 +77,13 @@ git push --force-with-lease origin main
 ### Step 5: Verify Credentials Are Removed
 
 ```bash
-# Scan entire history for the old API key
-git log -p --all | grep -i "AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs"
+# Scan entire history for the old API key (should return empty)
+git log -p --all | grep -i "YOUR_API_KEY_PATTERN"
 
 # Should return: (empty - no matches)
 
-# Also scan for project ID patterns
-git log -p --all | grep -i "timerapp-2997d" | head -5
+# Also scan for any Firebase identifiers
+git log -p --all | grep -i "firebaseapp" | head -5
 ```
 
 ## 📋 Checklist

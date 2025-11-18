@@ -14,15 +14,12 @@ Your Firebase credentials (API key, project ID, etc.) were hardcoded and committ
 **THIS MUST BE DONE FIRST!**
 
 1. Open: https://console.firebase.google.com/
-2. Select: `timerapp-2997d` project
+2. Select: Your Firebase project
 3. Click gear ⚙️ → **Project Settings**
 4. Go to: **API keys** tab
-5. **DELETE** this exposed key:
-   ```
-   AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs
-   ```
+5. **DELETE** the exposed Firebase API key
 6. Click **Create API key** → Generate **NEW key**
-7. **Copy the new API key**
+7. **COPY** the new API key
 8. Also check: **Web apps** section and regenerate web app config if needed
 
 ✅ **When done:** The old key no longer works (revoked)
@@ -68,12 +65,12 @@ git push --force-with-lease origin main
 | Secret | New Value |
 |--------|-----------|
 | `REACT_APP_FIREBASE_API_KEY` | **← NEW API KEY from Step 1** |
-| `REACT_APP_FIREBASE_AUTH_DOMAIN` | `timerapp-2997d.firebaseapp.com` |
-| `REACT_APP_FIREBASE_DATABASE_URL` | `https://timerapp-2997d-default-rtdb.firebaseio.com` |
-| `REACT_APP_FIREBASE_PROJECT_ID` | `timerapp-2997d` |
-| `REACT_APP_FIREBASE_STORAGE_BUCKET` | `timerapp-2997d.appspot.com` |
-| `REACT_APP_FIREBASE_MESSAGING_SENDER_ID` | `341637730794` |
-| `REACT_APP_FIREBASE_APP_ID` | `1:341637730794:web:02b636c85719a526b2e293` |
+| `REACT_APP_FIREBASE_AUTH_DOMAIN` | Your Firebase auth domain |
+| `REACT_APP_FIREBASE_DATABASE_URL` | Your Realtime Database URL |
+| `REACT_APP_FIREBASE_PROJECT_ID` | Your Firebase project ID |
+| `REACT_APP_FIREBASE_STORAGE_BUCKET` | Your storage bucket |
+| `REACT_APP_FIREBASE_MESSAGING_SENDER_ID` | Your sender ID |
+| `REACT_APP_FIREBASE_APP_ID` | Your app ID |
 
 ✅ **When done:** GitHub Actions will use new credentials
 
@@ -83,7 +80,7 @@ git push --force-with-lease origin main
 
 Check no credentials remain:
 ```bash
-git log -p --all | grep "AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs"
+git log -p --all | grep -i "AIza"
 ```
 
 Expected result: **Empty (no output)**

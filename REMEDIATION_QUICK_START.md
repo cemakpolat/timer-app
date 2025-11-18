@@ -1,17 +1,17 @@
 # 🚨 SECURITY INCIDENT: Firebase Credentials in Git History
 
 ## Current Status
-- ❌ Firebase API key exposed in git commit history
+- ❌ Firebase credentials exposed in git commit history
 - ❌ Credentials visible to anyone with repository access
 - ⏰ Immediate action required
 
-## Exposed Information
-```
-API Key: AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs
-Project: timerapp-2997d
-Database: timerapp-2997d-default-rtdb.firebaseio.com
-Storage: timerapp-2997d.appspot.com
-```
+## Exposed Information Types
+- Firebase API Key
+- Firebase Project ID  
+- Database URL
+- Storage Bucket
+- Messaging Sender ID
+- Firebase App ID
 
 ## Remediation Plan
 
@@ -19,10 +19,10 @@ Storage: timerapp-2997d.appspot.com
 **Time: ~5 minutes | Location: Firebase Console**
 
 1. Go to: https://console.firebase.google.com/
-2. Select project: `timerapp-2997d`
+2. Select project (your Firebase project)
 3. Click gear ⚙️ → "Project Settings"
 4. Go to "API keys" section
-5. Find and DELETE the exposed key: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
+5. Find and DELETE the exposed Firebase API key
 6. Click "Create API key" to generate a NEW key
 7. Copy the new key
 8. Also check "Web apps" configuration and regenerate if needed
@@ -80,8 +80,8 @@ git push --force-with-lease origin main
 
 Verify credentials are removed:
 ```bash
-# Check for the old API key (should be empty)
-git log -p --all | grep "AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs"
+# Check for any Firebase API keys (should be empty)
+git log -p --all | grep -i "AIza"
 
 # Result should be: (no output = success ✅)
 ```

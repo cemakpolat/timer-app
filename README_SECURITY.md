@@ -46,10 +46,10 @@ Your Firebase credentials were hardcoded in the source code and committed to git
 
 **Steps:**
 1. Open: https://console.firebase.google.com/
-2. Select: `timerapp-2997d` 
+2. Select: Your Firebase project
 3. Go to: Settings ⚙️ → **API keys**
-4. **DELETE** exposed key: `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs`
-5. Click **Create API key** → Generate NEW key
+4. **DELETE** your exposed Firebase API key
+5. Click **Create API key** → Generate **NEW key**
 6. **COPY** the new key (you'll need it in Phase 4)
 
 ✅ **Result:** Old key revoked, new key created
@@ -102,8 +102,8 @@ git push --force-with-lease origin main
 **Duration:** 1 minute | **Location:** Terminal
 
 ```bash
-# Verify no old credentials in history
-git log -p --all | grep "AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs"
+# Verify no Firebase API keys in history
+git log -p --all | grep -i "AIza"
 # Expected: Empty (no output)
 
 # Test the app locally

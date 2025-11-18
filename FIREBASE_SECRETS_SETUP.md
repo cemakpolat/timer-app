@@ -28,15 +28,15 @@ You'll need these values:
 3. Click **Secrets and variables** → **Actions** (left sidebar)
 4. Click **New repository secret** and add each value:
 
-| Secret Name | Value | Example |
+| Secret Name | Value | Notes |
 |---|---|---|
-| `REACT_APP_FIREBASE_API_KEY` | Your Firebase API Key | `AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs` |
-| `REACT_APP_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain | `timerapp-2997d.firebaseapp.com` |
-| `REACT_APP_FIREBASE_DATABASE_URL` | Realtime Database URL | `https://timerapp-2997d-default-rtdb.firebaseio.com` |
-| `REACT_APP_FIREBASE_PROJECT_ID` | Firebase Project ID | `timerapp-2997d` |
-| `REACT_APP_FIREBASE_STORAGE_BUCKET` | Storage Bucket | `timerapp-2997d.appspot.com` |
-| `REACT_APP_FIREBASE_MESSAGING_SENDER_ID` | Messaging Sender ID | `341637730794` |
-| `REACT_APP_FIREBASE_APP_ID` | Firebase App ID | `1:341637730794:web:02b636c85719a526b2e293` |
+| `REACT_APP_FIREBASE_API_KEY` | Your Firebase API Key | Get from Firebase Console → Project Settings |
+| `REACT_APP_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain | Format: `your-project.firebaseapp.com` |
+| `REACT_APP_FIREBASE_DATABASE_URL` | Realtime Database URL | Format: `https://your-project-default-rtdb.firebaseio.com` |
+| `REACT_APP_FIREBASE_PROJECT_ID` | Firebase Project ID | Your project ID |
+| `REACT_APP_FIREBASE_STORAGE_BUCKET` | Storage Bucket | Format: `your-project.appspot.com` |
+| `REACT_APP_FIREBASE_MESSAGING_SENDER_ID` | Messaging Sender ID | Numeric ID from Firebase Console |
+| `REACT_APP_FIREBASE_APP_ID` | Firebase App ID | Full app ID including prefix |
 
 **Important:** Click "Add secret" after each entry!
 
