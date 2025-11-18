@@ -22,18 +22,15 @@ data "google_firebase_web_app_config" "default" {
   depends_on = [google_firebase_web_app.default]
 }
 
-# Create Realtime Database (non-default instance to avoid conflicts with existing default)
-# Note: Creating a new instance managed by Terraform
-# The existing default database will be deprecated and can be deleted from Firebase Console
-resource "google_firebase_database_instance" "default" {
-  provider            = google-beta
-  count               = var.enable_firebase ? 1 : 0
-  project             = var.project_id
-  region              = var.firebase_region
-  instance_id         = "${var.project_id}-terraform-rtdb"
-  desired_state       = "ACTIVE"
-  # Omitting type to let it default to a standard database (not DEFAULT_DATABASE)
-  depends_on          = [google_project_service.firebase_database]
+# Get reference to the default Realtime Database
+# Note: Firebase creates a default database instance automatically when Realtime Database is enabled
+# We reference it instead of creating a new one to avoid multiple databases
+data "google_firebase_database_instance" "default" {
+  provider   = google-beta
+  count      = var.enable_firebase ? 1 : 0
+  project    = var.project_id
+  instance_id = "${var.project_id}-default-rtdb"
+  depends_on = [google_project_service.firebase_database]
 }
 
 # Create Cloud Storage Bucket for Firebase
@@ -64,7 +61,7 @@ output "firebase_config" {
     apiKey            = data.google_firebase_web_app_config.default[0].api_key
     authDomain        = data.google_firebase_web_app_config.default[0].auth_domain
     projectId         = var.project_id
-    databaseURL       = "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com"
+    databaseURL       = "https://${var.project_id}-default-rtdb.firebaseio.com"
     storageBucket     = google_storage_bucket.firebase_storage[0].name
     messagingSenderId = data.google_firebase_web_app_config.default[0].messaging_sender_id
     appId             = google_firebase_web_app.default[0].app_id
@@ -89,7 +86,7 @@ output "firebase_auth_domain" {
 
 output "firebase_database_url" {
   description = "Firebase Database URL (public - used in client-side code)"
-  value       = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : ""
+  value       = var.enable_firebase ? "https://${var.project_id}-default-rtdb.firebaseio.com" : ""
   sensitive   = false
 }
 
