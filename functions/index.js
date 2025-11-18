@@ -18,6 +18,7 @@ function getDatabase() {
 // Cleanup configuration
 const DEFAULT_EMPTY_REMOVAL_SEC = 120; // fallback if room not set
 const PRESENCE_INACTIVE_MS = 2 * 60 * 1000; // 2 minutes
+const STALE_PARTICIPANT_MS = 5 * 60 * 1000; // 5 minutes - participant is considered stale if no presence update
 
 /**
  * Retry helper with exponential backoff
@@ -61,6 +62,51 @@ async function removeRoomAndUserMappings(roomId, room) {
     // apply update
     await getDatabase().ref('/').update(updates);
   });
+}
+
+/**
+ * Helper to remove stale participants from a room (those not present in presence DB for 5+ min)
+ * Returns { staleParticipants: [uid], ownerStale: boolean }
+ */
+async function removeStaleParticipants(roomId, room, presence, now) {
+  const staleParticipants = [];
+  let ownerStale = false;
+  const updates = {};
+
+  const participants = room.participants || {};
+  for (const uid of Object.keys(participants)) {
+    const presenceData = presence[uid];
+    
+    // If participant has no presence entry or lastSeen is stale (5+ min ago), they're stale
+    const lastSeen = presenceData?.lastSeen || 0;
+    const isStale = (now - lastSeen) > STALE_PARTICIPANT_MS;
+
+    if (isStale) {
+      staleParticipants.push(uid);
+      updates[`focusRooms/${roomId}/participants/${uid}`] = null;
+      
+      // Track if owner is stale
+      if (uid === room.createdBy) {
+        ownerStale = true;
+      }
+
+      console.log(`Marked participant ${uid} as stale (lastSeen: ${lastSeen}, now: ${now}, delta: ${now - lastSeen}ms)`);
+    }
+  }
+
+  // Apply updates if there are stale participants
+  if (Object.keys(updates).length > 0) {
+    try {
+      await retryWithBackoff(async () => {
+        await getDatabase().ref('/').update(updates);
+      });
+      console.log(`Removed ${staleParticipants.length} stale participants from room ${roomId}`);
+    } catch (e) {
+      console.error(`Failed to remove stale participants from room ${roomId}:`, e);
+    }
+  }
+
+  return { staleParticipants, ownerStale };
 }
 
 /**
@@ -118,15 +164,47 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule('every 15 minutes').onR
         if (now < deadline) continue; // not eligible yet
 
         const participants = room.participants || {};
-        const participantIds = Object.keys(participants);
+        let participantIds = Object.keys(participants);
 
+        // FIRST: Remove stale participants (5+ min no presence update)
+        if (participantIds.length > 0) {
+          const { staleParticipants, ownerStale } = await removeStaleParticipants(roomId, room, presence, now);
+          
+          if (staleParticipants.length > 0) {
+            // Re-fetch the room to get updated participant list
+            const updatedSnap = await retryWithBackoff(
+              () => getDatabase().ref(`focusRooms/${roomId}`).get(),
+              2,
+              100
+            );
+            if (updatedSnap.exists()) {
+              const updatedRoom = updatedSnap.val();
+              participantIds = Object.keys(updatedRoom.participants || {});
+              console.log(`After removing stale participants, room ${roomId} has ${participantIds.length} active participants`);
+              
+              // If owner was stale and removed, mark room for potential deletion
+              if (ownerStale) {
+                console.log(`Owner ${room.createdBy} is stale in room ${roomId}. Setting ownerDisconnected flag.`);
+                try {
+                  await retryWithBackoff(async () => {
+                    await getDatabase().ref(`focusRooms/${roomId}/ownerDisconnected`).set(true);
+                  });
+                } catch (e) {
+                  console.error(`Failed to set ownerDisconnected flag for room ${roomId}:`, e);
+                }
+              }
+            }
+          }
+        }
+
+        // SECOND: Check if room is now empty after stale removal
         if (participantIds.length === 0) {
-          console.log(`Deleting empty room ${roomId} (no participants, timer ended at ${room.timer.endsAt})`);
+          console.log(`Deleting empty room ${roomId} (no active participants, timer ended at ${room.timer.endsAt})`);
           deletions.push({ roomId, room });
           continue;
         }
 
-        // if participants exist, check presence timestamps; if all inactive long enough, delete
+        // THIRD: If participants exist but all are inactive, still delete
         let anyActive = false;
         for (const uid of participantIds) {
           const p = presence[uid];
@@ -137,10 +215,10 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule('every 15 minutes').onR
         }
 
         if (!anyActive) {
-          console.log(`Deleting room ${roomId} (participants inactive after timer end)`);
+          console.log(`Deleting room ${roomId} (all participants inactive after timer end)`);
           deletions.push({ roomId, room });
         } else {
-          console.log(`Skipping room ${roomId}: participants still active after timer end`);
+          console.log(`Skipping room ${roomId}: active participants detected after timer end`);
         }
       } catch (e) {
         console.error('Error evaluating room', roomId, e);
