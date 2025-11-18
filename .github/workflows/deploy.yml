@@ -128,6 +128,12 @@ jobs:
             echo "ℹ️  Not a main branch push - outputs may be empty (this is expected for PRs)"
           fi
           
+          # Mask sensitive values BEFORE writing to output
+          # (masking after output causes the value to be corrupted)
+          if [ -n "$API_KEY" ]; then
+            echo "::add-mask::$API_KEY"
+          fi
+          
           # Write outputs - these must match the job outputs definition
           # Output names: api_key, auth_domain, database_url, project_id, storage_bucket, messaging_sender_id, app_id
           echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
@@ -137,11 +143,6 @@ jobs:
           echo "storage_bucket=$STORAGE_BUCKET" >> $GITHUB_OUTPUT
           echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
           echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
-          
-          # Mask sensitive values in logs (only API_KEY is truly sensitive)
-          if [ -n "$API_KEY" ]; then
-            echo "::add-mask::$API_KEY"
-          fi
           
           echo "✅ All 7 credentials extracted successfully"
 
