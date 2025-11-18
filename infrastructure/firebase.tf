@@ -76,37 +76,44 @@ output "firebase_config" {
 # Firebase security is enforced via Security Rules, not by hiding these values
 output "firebase_api_key" {
   description = "Firebase API Key (public - used in client-side code)"
-  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].api_key : null
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].api_key : ""
+  sensitive   = false
 }
 
 output "firebase_auth_domain" {
   description = "Firebase Auth Domain (public - used in client-side code)"
-  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].auth_domain : null
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].auth_domain : ""
+  sensitive   = false
 }
 
 output "firebase_database_url" {
   description = "Firebase Database URL (public - used in client-side code)"
-  value       = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : null
+  value       = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : ""
+  sensitive   = false
 }
 
 output "firebase_project_id" {
   description = "Firebase Project ID (public - used in client-side code)"
-  value       = var.enable_firebase ? var.project_id : null
+  value       = var.enable_firebase ? var.project_id : ""
+  sensitive   = false
 }
 
 output "firebase_storage_bucket" {
   description = "Firebase Storage Bucket (public - used in client-side code)"
-  value       = var.enable_firebase ? google_storage_bucket.firebase_storage[0].name : null
+  value       = var.enable_firebase ? google_storage_bucket.firebase_storage[0].name : ""
+  sensitive   = false
 }
 
 output "firebase_messaging_sender_id" {
   description = "Firebase Messaging Sender ID (public - used in client-side code)"
-  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].messaging_sender_id : null
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].messaging_sender_id : ""
+  sensitive   = false
 }
 
 output "firebase_app_id" {
   description = "Firebase App ID (public - used in client-side code)"
-  value       = var.enable_firebase ? google_firebase_web_app.default[0].app_id : null
+  value       = var.enable_firebase ? google_firebase_web_app.default[0].app_id : ""
+  sensitive   = false
 }
 
 output "firebase_web_app_id" {

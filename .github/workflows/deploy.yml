@@ -86,48 +86,66 @@ jobs:
 
       - name: Extract Firebase Credentials (Using Individual Outputs)
         id: extract-creds
+        if: always()  # Always run this step to populate outputs (even if empty)
         working-directory: ./infrastructure
         run: |
           echo "📥 Extracting Firebase credentials from individual Terraform outputs..."
           
-          # Get each output individually
-          API_KEY=$(terraform output -raw firebase_api_key)
-          AUTH_DOMAIN=$(terraform output -raw firebase_auth_domain)
-          DATABASE_URL=$(terraform output -raw firebase_database_url)
-          PROJECT_ID=$(terraform output -raw firebase_project_id)
-          STORAGE_BUCKET=$(terraform output -raw firebase_storage_bucket)
-          MESSAGING_SENDER_ID=$(terraform output -raw firebase_messaging_sender_id)
-          APP_ID=$(terraform output -raw firebase_app_id)
+          # Get each output individually with error checking
+          API_KEY=$(terraform output -raw firebase_api_key 2>/dev/null || echo "")
+          AUTH_DOMAIN=$(terraform output -raw firebase_auth_domain 2>/dev/null || echo "")
+          DATABASE_URL=$(terraform output -raw firebase_database_url 2>/dev/null || echo "")
+          PROJECT_ID=$(terraform output -raw firebase_project_id 2>/dev/null || echo "")
+          STORAGE_BUCKET=$(terraform output -raw firebase_storage_bucket 2>/dev/null || echo "")
+          MESSAGING_SENDER_ID=$(terraform output -raw firebase_messaging_sender_id 2>/dev/null || echo "")
+          APP_ID=$(terraform output -raw firebase_app_id 2>/dev/null || echo "")
           
-          # Debug: Show what we got
-          echo "Extracted values:"
-          echo "  apiKey: ${API_KEY:0:10}..."
-          echo "  authDomain: $AUTH_DOMAIN"
-          echo "  databaseURL: $DATABASE_URL"
-          echo "  projectId: $PROJECT_ID"
-          echo "  storageBucket: $STORAGE_BUCKET"
-          echo "  messagingSenderId: $MESSAGING_SENDER_ID"
-          echo "  appId: $APP_ID"
+          # Check if this is a main branch push (where values should exist)
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ github.event_name }}" == "push" ]; then
+            # On main branch: validate that all values were extracted
+            if [ -z "$API_KEY" ] || [ -z "$AUTH_DOMAIN" ] || [ -z "$DATABASE_URL" ] || [ -z "$PROJECT_ID" ] || [ -z "$STORAGE_BUCKET" ] || [ -z "$MESSAGING_SENDER_ID" ] || [ -z "$APP_ID" ]; then
+              echo "❌ ERROR: Some credentials are missing on main branch deployment!"
+              echo "  API_KEY: ${API_KEY:+SET}${API_KEY:-MISSING}"
+              echo "  AUTH_DOMAIN: ${AUTH_DOMAIN:+SET}${AUTH_DOMAIN:-MISSING}"
+              echo "  DATABASE_URL: ${DATABASE_URL:+SET}${DATABASE_URL:-MISSING}"
+              echo "  PROJECT_ID: ${PROJECT_ID:+SET}${PROJECT_ID:-MISSING}"
+              echo "  STORAGE_BUCKET: ${STORAGE_BUCKET:+SET}${STORAGE_BUCKET:-MISSING}"
+              echo "  MESSAGING_SENDER_ID: ${MESSAGING_SENDER_ID:+SET}${MESSAGING_SENDER_ID:-MISSING}"
+              echo "  APP_ID: ${APP_ID:+SET}${APP_ID:-MISSING}"
+              exit 1
+            fi
+            
+            # Debug: Show what we got (masked)
+            echo "✅ Extracted values for main branch deployment:"
+            echo "  apiKey: ${API_KEY:0:10}***"
+            echo "  authDomain: $AUTH_DOMAIN"
+            echo "  databaseURL: $DATABASE_URL"
+            echo "  projectId: $PROJECT_ID"
+            echo "  storageBucket: $STORAGE_BUCKET"
+            echo "  messagingSenderId: $MESSAGING_SENDER_ID"
+            echo "  appId: $APP_ID"
+          else
+            echo "ℹ️  Not a main branch push - outputs may be empty (this is expected for PRs)"
+          fi
           
-          # Write outputs
-          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
-          echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
-          echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
-          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
-          echo "storage_bucket=$STORAGE_BUCKET" >> $GITHUB_OUTPUT
-          echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
-          echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
+          # Write outputs (these must be written before masking)
+          # Even if empty, write them to avoid undefined output errors
+          {
+            echo "api_key=$API_KEY"
+            echo "auth_domain=$AUTH_DOMAIN"
+            echo "database_url=$DATABASE_URL"
+            echo "project_id=$PROJECT_ID"
+            echo "storage_bucket=$STORAGE_BUCKET"
+            echo "messaging_sender_id=$MESSAGING_SENDER_ID"
+            echo "app_id=$APP_ID"
+          } >> $GITHUB_OUTPUT
           
-          # Mask values in logs
-          echo "::add-mask::$API_KEY"
-          echo "::add-mask::$AUTH_DOMAIN"
-          echo "::add-mask::$DATABASE_URL"
-          echo "::add-mask::$PROJECT_ID"
-          echo "::add-mask::$STORAGE_BUCKET"
-          echo "::add-mask::$MESSAGING_SENDER_ID"
-          echo "::add-mask::$APP_ID"
+          # Mask sensitive values in logs (only API_KEY is truly sensitive)
+          if [ -n "$API_KEY" ]; then
+            echo "::add-mask::$API_KEY"
+          fi
           
-          echo "✅ All 7 credentials extracted successfully"
+          echo "✅ Credentials extraction complete"
 
       - name: Debug Raw Terraform Output
         working-directory: ./infrastructure
@@ -167,7 +185,7 @@ jobs:
         run: |
           echo "🔨 Building React app with Firebase credentials..."
           echo ""
-          echo "✅ Environment variables received:"
+          echo "📋 Checking environment variables:"
           [ -n "$REACT_APP_FIREBASE_API_KEY" ] && echo "  ✓ REACT_APP_FIREBASE_API_KEY set" || echo "  ❌ REACT_APP_FIREBASE_API_KEY missing"
           [ -n "$REACT_APP_FIREBASE_AUTH_DOMAIN" ] && echo "  ✓ REACT_APP_FIREBASE_AUTH_DOMAIN set" || echo "  ❌ REACT_APP_FIREBASE_AUTH_DOMAIN missing"
           [ -n "$REACT_APP_FIREBASE_DATABASE_URL" ] && echo "  ✓ REACT_APP_FIREBASE_DATABASE_URL set" || echo "  ❌ REACT_APP_FIREBASE_DATABASE_URL missing"
@@ -177,11 +195,23 @@ jobs:
           [ -n "$REACT_APP_FIREBASE_APP_ID" ] && echo "  ✓ REACT_APP_FIREBASE_APP_ID set" || echo "  ❌ REACT_APP_FIREBASE_APP_ID missing"
           echo ""
           
-          # If DATABASE_URL is missing, warn and fail
-          if [ -z "$REACT_APP_FIREBASE_DATABASE_URL" ]; then
-            echo "❌ CRITICAL: REACT_APP_FIREBASE_DATABASE_URL not received from infrastructure job!"
-            exit 1
+          # Check if this is a main branch push (where credentials are required)
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ github.event_name }}" == "push" ]; then
+            echo "🔍 Main branch deployment - validating all credentials..."
+            # If any credential is missing on main branch, fail
+            if [ -z "$REACT_APP_FIREBASE_API_KEY" ] || [ -z "$REACT_APP_FIREBASE_AUTH_DOMAIN" ] || \
+               [ -z "$REACT_APP_FIREBASE_DATABASE_URL" ] || [ -z "$REACT_APP_FIREBASE_PROJECT_ID" ] || \
+               [ -z "$REACT_APP_FIREBASE_STORAGE_BUCKET" ] || [ -z "$REACT_APP_FIREBASE_MESSAGING_SENDER_ID" ] || \
+               [ -z "$REACT_APP_FIREBASE_APP_ID" ]; then
+              echo "❌ CRITICAL: Missing Firebase credentials on main branch deployment!"
+              echo "   This should not happen. Check the infrastructure job outputs."
+              exit 1
+            fi
+            echo "✅ All credentials present"
+          else
+            echo "ℹ️  PR build - credentials may be empty (will use fallback config)"
           fi
+          echo ""
           
           npm run build
           echo "✅ React app built successfully"
