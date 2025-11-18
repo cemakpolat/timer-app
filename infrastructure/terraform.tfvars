@@ -1,5 +1,10 @@
 project_id = "timerapp-2997d"
 region     = "us-central1"
+
+# Enable Firebase provisioning (Realtime Database, Storage, Web App)
+enable_firebase = true
+firebase_region = "us-central1"
+
 # function_zip_path will be set by CI when the artifact is created (e.g. ../functions-artifact.zip)
 function_zip_path = "../functions-artifact.zip"
 # optional: override artifact bucket name
