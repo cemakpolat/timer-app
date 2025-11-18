@@ -22,16 +22,9 @@ data "google_firebase_web_app_config" "default" {
   depends_on = [google_firebase_web_app.default]
 }
 
-# Get reference to the default Realtime Database
-# Note: Firebase creates a default database instance automatically when Realtime Database is enabled
-# We reference it instead of creating a new one to avoid multiple databases
-data "google_firebase_database_instance" "default" {
-  provider   = google-beta
-  count      = var.enable_firebase ? 1 : 0
-  project    = var.project_id
-  instance_id = "${var.project_id}-default-rtdb"
-  depends_on = [google_project_service.firebase_database]
-}
+# Note: Firebase creates a default Realtime Database instance automatically
+# Instance ID format: {project_id}-default-rtdb
+# We reference it by constructing the URL directly instead of creating a new instance
 
 # Create Cloud Storage Bucket for Firebase
 # Note: If this bucket already exists, you can import it:
