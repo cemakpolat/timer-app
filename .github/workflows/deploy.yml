@@ -90,27 +90,34 @@ jobs:
         run: |
           echo "📥 Extracting Firebase credentials from Terraform..."
           
-          # Get the terraform output - use printf to be safe
-          if ! OUTPUT=$(terraform output -json firebase_config 2>&1); then
-            echo "❌ Terraform output command failed"
-            echo "Available outputs:"
-            terraform output
-            echo "firebase_config=${empty}" >> $GITHUB_OUTPUT
+          # Get terraform output as JSON
+          OUTPUT=$(terraform output -json firebase_config 2>&1)
+          RESULT=$?
+          
+          if [ $RESULT -ne 0 ]; then
+            echo "❌ Error: terraform output failed"
+            echo "$OUTPUT"
             exit 1
           fi
           
-          echo "✅ Terraform output retrieved"
+          echo "✅ Terraform output retrieved successfully"
           
-          # Simple extraction - just pass the values through
-          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey // empty')
-          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain // empty')
-          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL // empty')
-          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId // empty')
-          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket // empty')
-          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId // empty')
-          APP_ID=$(echo "$OUTPUT" | jq -r '.appId // empty')
+          # Extract each value - simple and straightforward
+          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey')
+          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain')
+          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL')
+          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId')
+          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket')
+          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId')
+          APP_ID=$(echo "$OUTPUT" | jq -r '.appId')
           
-          # ✅ Always set outputs to GITHUB_OUTPUT (don't exit early)
+          # Debug: Show what we got
+          echo "Extracted values:"
+          echo "  apiKey: ${API_KEY:0:20}..."
+          echo "  databaseURL: $DATABASE_URL"
+          echo "  projectId: $PROJECT_ID"
+          
+          # Write outputs - these go to infrastructure job outputs
           echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
           echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
@@ -119,7 +126,7 @@ jobs:
           echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
           echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
           
-          # ✅ Mask all values in logs
+          # Mask values in logs
           echo "::add-mask::$API_KEY"
           echo "::add-mask::$AUTH_DOMAIN"
           echo "::add-mask::$DATABASE_URL"
@@ -129,10 +136,7 @@ jobs:
           echo "::add-mask::$APP_ID"
           
           echo ""
-          echo "✅ Credentials set as outputs"
-          echo "::add-mask::$PROJECT_ID"
-          echo "::add-mask::$STORAGE_BUCKET"
-          echo "::add-mask::$MESSAGING_SENDER_ID"
+          echo "✅ All 7 credentials written to job outputs"
           echo "::add-mask::$APP_ID"
           
           echo ""
