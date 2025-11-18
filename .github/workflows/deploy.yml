@@ -30,14 +30,6 @@ jobs:
         with:
           terraform_version: 1.5.0
 
-      - name: Debug - Check directory structure
-        run: |
-          echo "Current working directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-          echo "Infrastructure directory:"
-          ls -la infrastructure/ || echo "infrastructure directory not found"
-
       - name: Terraform Init
         working-directory: ./infrastructure
         run: terraform init
