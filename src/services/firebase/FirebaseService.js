@@ -703,6 +703,50 @@ class FirebaseService extends IRealtimeService {
   }
 
   /**
+   * Extend room timer by the specified duration (in milliseconds)
+   * Only the room owner can extend the timer
+   * @param {string} roomId
+   * @param {number} extensionMs - milliseconds to add to the timer (max 30 min)
+   */
+  async extendRoomTimer(roomId, extensionMs) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get, update } = this.firebase;
+
+    // Max extension: 30 minutes
+    const MAX_EXTENSION_MS = 30 * 60 * 1000;
+    if (extensionMs > MAX_EXTENSION_MS) {
+      throw new Error(`Extension exceeds maximum of 30 minutes (got ${Math.floor(extensionMs / 1000 / 60)} min)`);
+    }
+
+    // Verify current user is the room owner
+    const roomRef = ref(this.db, `focusRooms/${roomId}`);
+    const snap = await get(roomRef);
+    if (!snap.exists()) throw new Error('Room not found');
+
+    const room = snap.val();
+    if (room.createdBy !== this.currentUserId) {
+      throw new Error('Only the room owner can extend the timer');
+    }
+
+    if (!room.timer || !room.timer.endsAt) {
+      throw new Error('Timer not started');
+    }
+
+    // Extend the timer
+    const newEndsAt = room.timer.endsAt + extensionMs;
+    const newDuration = room.timer.duration + extensionMs / 1000;
+
+    const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
+    await update(timerRef, {
+      endsAt: newEndsAt,
+      duration: newDuration,
+      extendedAt: Date.now()
+    });
+
+    console.log(`Room ${roomId} timer extended by ${extensionMs}ms to ${new Date(newEndsAt).toISOString()}`);
+  }
+
+  /**
    * Delete a room manually. Only allowed for the creator when there are no other joiners.
    * @param {string} roomId
    * @param {string} requesterId

@@ -6,6 +6,7 @@ import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
 import RoomSettingsModal from './components/FocusRooms/RoomSettingsModal';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
+import RoomExpirationModal from './components/FocusRooms/RoomExpirationModal';
 import FeedbackModal from './components/FeedbackModal';
 
 const DEFAULT_THEMES = [
@@ -156,12 +157,13 @@ export default function TimerApp() {
     createRoom,
     joinRoom,
     leaveRoom,
-  deleteRoom,
-  updateRoomSettings,
+    deleteRoom,
+    updateRoomSettings,
     sendMessage,
     startTimer: startRoomTimer,
-  getParticipantCount,
-  isRoomFull
+    extendTimer: extendRoomTimer,
+    getParticipantCount,
+    isRoomFull
   } = useFocusRoom();
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const handleSaveRoomSettings = async (updates) => {
@@ -185,14 +187,53 @@ export default function TimerApp() {
 
   // Force re-render for room timer countdown
   const [, forceUpdate] = useState(0);
+  const [showRoomExpirationModal, setShowRoomExpirationModal] = useState(false);
+  const [timerExpired, setTimerExpired] = useState(false);
+
   useEffect(() => {
     if (currentRoom?.timer) {
       const interval = setInterval(() => {
+        // Check if timer has expired
+        const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
+        if (timeRemainingSec === 0 && !timerExpired) {
+          setTimerExpired(true);
+          setShowRoomExpirationModal(true);
+        }
         forceUpdate(n => n + 1);
       }, 1000);
       return () => clearInterval(interval);
+    } else {
+      setTimerExpired(false);
+      setShowRoomExpirationModal(false);
     }
-  }, [currentRoom?.timer]);
+  }, [currentRoom?.timer, timerExpired]);
+
+  // Handle timer extension
+  const handleExtendTimer = async (extensionMs) => {
+    try {
+      await extendRoomTimer(extensionMs);
+      setTimerExpired(false); // Reset expiration state
+      setShowRoomExpirationModal(false);
+      setToastMessage('Timer extended successfully');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error('Failed to extend timer:', err);
+      showRealtimeErrorToast(err, 'Extend timer');
+    }
+  };
+
+  // Handle room close (from expiration modal)
+  const handleCloseRoom = async () => {
+    try {
+      setShowRoomExpirationModal(false);
+      await leaveRoom();
+      setTimerExpired(false);
+    } catch (err) {
+      console.error('Failed to close room:', err);
+      showRealtimeErrorToast(err, 'Close room');
+    }
+  };
 
   // Load themes from localStorage (default + custom)
   const [themes, setThemes] = useState(() => {
@@ -2409,6 +2450,17 @@ export default function TimerApp() {
                           onSave={handleSaveRoomSettings}
                         />
                       )}
+
+                      {/* Room Expiration Modal */}
+                      <RoomExpirationModal
+                        isOpen={showRoomExpirationModal}
+                        roomId={currentRoom?.id}
+                        isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getService()?.currentUserId}
+                        onExtend={handleExtendTimer}
+                        onClose={handleCloseRoom}
+                        gracePeriodSec={120}
+                        maxExtensionMinutes={30}
+                      />
 
                       {/* Start Timer Button */}
                       {!currentRoom.timer && (

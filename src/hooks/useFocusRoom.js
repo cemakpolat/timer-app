@@ -393,6 +393,23 @@ const useFocusRoom = () => {
   }, [currentRoom]);
 
   /**
+   * Extend timer in current room by extensionMs (max 30 min = 1800000 ms)
+   */
+  const extendTimer = useCallback(async (extensionMs) => {
+    if (!currentRoom) return;
+
+    try {
+      const service = RealtimeServiceFactory.getService();
+      await service.extendRoomTimer(currentRoom.id, extensionMs);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to extend timer:', err);
+      setError(err.message);
+      throw err;
+    }
+  }, [currentRoom]);
+
+  /**
    * Initial room list fetch
    */
   useEffect(() => {
@@ -536,13 +553,14 @@ const useFocusRoom = () => {
     leaveRoom,
     sendMessage,
     startTimer,
-  deleteRoom,
+    extendTimer,
+    deleteRoom,
 
     // Helpers
     getParticipantCount,
     isRoomFull,
-    getRemainingTime
-  , updateRoomSettings
+    getRemainingTime,
+    updateRoomSettings
   };
 };
 
