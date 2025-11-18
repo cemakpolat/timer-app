@@ -28,25 +28,26 @@
  * }
  */
 
-// const firebaseConfig = {
-//   // Replace with your Firebase project config
-//   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "YOUR_API_KEY",
-//   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
-//   databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://your-project-default-rtdb.firebaseio.com",
-//   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "your-project",
-//   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
-//   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-//   appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef"
-// };
+/**
+ * Firebase Configuration - All values come from environment variables
+ * 
+ * Set these GitHub Secrets in your repository:
+ * - REACT_APP_FIREBASE_API_KEY
+ * - REACT_APP_FIREBASE_AUTH_DOMAIN
+ * - REACT_APP_FIREBASE_DATABASE_URL
+ * - REACT_APP_FIREBASE_PROJECT_ID
+ * - REACT_APP_FIREBASE_STORAGE_BUCKET
+ * - REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+ * - REACT_APP_FIREBASE_APP_ID
+ */
 const firebaseConfig = {
-  // Replace with your Firebase project config
-  apiKey:"AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs" ,
-  authDomain:"timerapp-2997d.firebaseapp.com",
-  databaseURL: "https://timerapp-2997d-default-rtdb.firebaseio.com",
-  projectId:"timerapp-2997d",
-  storageBucket: "timerapp-2997d.firebasestorage.app",
-  messagingSenderId: "341637730794",
-  appId: "1:341637730794:web:02b636c85719a526b2e293"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Room removal delay in seconds after timer end (can be overridden via env var)
