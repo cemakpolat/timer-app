@@ -57,6 +57,12 @@ resource "google_project_iam_member" "github_actions_project_iam_admin" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+resource "google_project_iam_member" "github_actions_wif_admin" {
+  project = var.project_id
+  role    = "roles/iam.workloadIdentityPoolAdmin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 resource "google_project_iam_member" "github_actions_wif" {
   project = var.project_id
   role    = "roles/iam.securityAdmin"
