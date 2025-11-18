@@ -15,10 +15,23 @@ function getDatabase() {
   return admin.database();
 }
 
-// Cleanup configuration
+// Cleanup configuration - can be overridden with environment variables
 const DEFAULT_EMPTY_REMOVAL_SEC = 120; // fallback if room not set
 const PRESENCE_INACTIVE_MS = 2 * 60 * 1000; // 2 minutes
 const STALE_PARTICIPANT_MS = 5 * 60 * 1000; // 5 minutes - participant is considered stale if no presence update
+
+// Parse environment variables with fallbacks
+const CLEANUP_SCHEDULE = process.env.CLEANUP_SCHEDULE || 'every 15 minutes';
+const STALE_THRESHOLD_MS = parseInt(process.env.STALE_THRESHOLD_MS || '300000', 10); // 5 minutes
+const PRESENCE_INACTIVE_THRESHOLD_MS = parseInt(process.env.PRESENCE_INACTIVE_THRESHOLD_MS || '120000', 10); // 2 minutes
+const EMPTY_ROOM_REMOVAL_DELAY_SEC = parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '120', 10); // 2 minutes
+
+// Log configuration on function load (useful for debugging)
+console.log('Cloud Function Configuration:');
+console.log(`  CLEANUP_SCHEDULE: ${CLEANUP_SCHEDULE}`);
+console.log(`  STALE_THRESHOLD_MS: ${STALE_THRESHOLD_MS}ms (${(STALE_THRESHOLD_MS / 60000).toFixed(1)} min)`);
+console.log(`  PRESENCE_INACTIVE_THRESHOLD_MS: ${PRESENCE_INACTIVE_THRESHOLD_MS}ms (${(PRESENCE_INACTIVE_THRESHOLD_MS / 60000).toFixed(1)} min)`);
+console.log(`  EMPTY_ROOM_REMOVAL_DELAY_SEC: ${EMPTY_ROOM_REMOVAL_DELAY_SEC}s`);
 
 /**
  * Retry helper with exponential backoff
@@ -77,9 +90,9 @@ async function removeStaleParticipants(roomId, room, presence, now) {
   for (const uid of Object.keys(participants)) {
     const presenceData = presence[uid];
     
-    // If participant has no presence entry or lastSeen is stale (5+ min ago), they're stale
+    // If participant has no presence entry or lastSeen is stale (configurable threshold), they're stale
     const lastSeen = presenceData?.lastSeen || 0;
-    const isStale = (now - lastSeen) > STALE_PARTICIPANT_MS;
+    const isStale = (now - lastSeen) > STALE_THRESHOLD_MS;
 
     if (isStale) {
       staleParticipants.push(uid);
@@ -90,7 +103,7 @@ async function removeStaleParticipants(roomId, room, presence, now) {
         ownerStale = true;
       }
 
-      console.log(`Marked participant ${uid} as stale (lastSeen: ${lastSeen}, now: ${now}, delta: ${now - lastSeen}ms)`);
+      console.log(`Marked participant ${uid} as stale (lastSeen: ${lastSeen}, now: ${now}, delta: ${now - lastSeen}ms, threshold: ${STALE_THRESHOLD_MS}ms)`);
     }
   }
 
@@ -120,9 +133,11 @@ async function removeStaleParticipants(roomId, room, presence, now) {
  *
  * The room-level `emptyRoomRemovalDelaySec` is respected if present. Otherwise fallback to environment or default.
  */
-// Run the cleanup every 15 minutes to reduce invocation and DB read volume (cost control)
-exports.scheduledRoomCleanup = functions.pubsub.schedule('every 15 minutes').onRun(async (context) => {
-  console.log('Starting scheduled room cleanup...');
+// Run the cleanup on a configurable schedule (default: every 15 minutes)
+// Schedule can be changed via environment variable CLEANUP_SCHEDULE
+// Examples: 'every 5 minutes', 'every 30 minutes', '*/10 * * * *' (cron)
+exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun(async (context) => {
+  console.log(`Starting scheduled room cleanup on schedule: ${CLEANUP_SCHEDULE}`);
   
   try {
     // Get database with retry logic
@@ -208,7 +223,7 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule('every 15 minutes').onR
         let anyActive = false;
         for (const uid of participantIds) {
           const p = presence[uid];
-          if (p && p.lastSeen && (now - p.lastSeen) < PRESENCE_INACTIVE_MS) {
+          if (p && p.lastSeen && (now - p.lastSeen) < PRESENCE_INACTIVE_THRESHOLD_MS) {
             anyActive = true;
             break;
           }
