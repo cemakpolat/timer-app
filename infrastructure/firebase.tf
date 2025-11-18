@@ -36,6 +36,8 @@ resource "google_firebase_database_instance" "default" {
 }
 
 # Create Cloud Storage Bucket for Firebase
+# Note: If this bucket already exists, you can import it:
+# terraform import google_storage_bucket.firebase_storage[0] timerapp-2997d-firebase-storage
 resource "google_storage_bucket" "firebase_storage" {
   count                     = var.enable_firebase ? 1 : 0
   project                   = var.project_id
@@ -43,6 +45,10 @@ resource "google_storage_bucket" "firebase_storage" {
   location                  = var.firebase_region
   force_destroy             = false
   uniform_bucket_level_access = true
+  # Uncomment the line below if the bucket already exists and you want to skip recreation
+  # lifecycle {
+  #   ignore_changes = all
+  # }
   depends_on                = [google_project_service.firebase_storage]
 }
 

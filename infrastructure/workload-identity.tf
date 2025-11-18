@@ -99,6 +99,19 @@ resource "google_project_iam_member" "github_actions_iam_serviceAccountUser" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+resource "google_project_iam_member" "github_actions_compute_admin" {
+  project = var.project_id
+  role    = "roles/compute.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+# Firebase permissions for GitHub Actions
+resource "google_project_iam_member" "github_actions_firebase_admin" {
+  project = var.project_id
+  role    = "roles/firebase.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # Bind the service account to the Workload Identity Provider
 resource "google_service_account_iam_binding" "workload_identity_user" {
   service_account_id = google_service_account.github_actions.name
