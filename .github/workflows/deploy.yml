@@ -7,11 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  terraform:
+  # STAGE 1: Deploy Infrastructure (Firebase + Functions)
+  infrastructure:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
+    
+    outputs:
+      firebase-api-key: ${{ steps.extract-creds.outputs.api_key }}
+      firebase-auth-domain: ${{ steps.extract-creds.outputs.auth_domain }}
+      firebase-database-url: ${{ steps.extract-creds.outputs.database_url }}
+      firebase-project-id: ${{ steps.extract-creds.outputs.project_id }}
+      firebase-storage-bucket: ${{ steps.extract-creds.outputs.storage_bucket }}
+      firebase-messaging-sender-id: ${{ steps.extract-creds.outputs.messaging_sender_id }}
+      firebase-app-id: ${{ steps.extract-creds.outputs.app_id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -43,8 +53,107 @@ jobs:
       - name: Terraform Plan
         working-directory: ./infrastructure
         run: terraform plan -var-file=terraform.tfvars -out=tfplan
+        # ✅ Plan output will NOT show sensitive values due to 'sensitive = true'
 
       - name: Terraform Apply (main branch only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         working-directory: ./infrastructure
         run: terraform apply -auto-approve tfplan
+        # ✅ Apply output will NOT show sensitive values due to 'sensitive = true'
+
+      - name: Extract Firebase Credentials (Safely)
+        id: extract-creds
+        working-directory: ./infrastructure
+        run: |
+          # ✅ Convert JSON output to environment variables
+          OUTPUT=$(terraform output -json firebase_config)
+          
+          # Extract individual values using jq
+          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey // empty')
+          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain // empty')
+          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL // empty')
+          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId // empty')
+          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket // empty')
+          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId // empty')
+          APP_ID=$(echo "$OUTPUT" | jq -r '.appId // empty')
+          
+          # ✅ CRITICAL: Mask each credential in logs
+          echo "::add-mask::$API_KEY"
+          echo "::add-mask::$AUTH_DOMAIN"
+          echo "::add-mask::$DATABASE_URL"
+          echo "::add-mask::$PROJECT_ID"
+          echo "::add-mask::$STORAGE_BUCKET"
+          echo "::add-mask::$MESSAGING_SENDER_ID"
+          echo "::add-mask::$APP_ID"
+          
+          # ✅ Set as job outputs (for next job)
+          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
+          echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
+          echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
+          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "storage_bucket=$STORAGE_BUCKET" >> $GITHUB_OUTPUT
+          echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
+          echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
+          
+          # ✅ IMPORTANT: Never print values themselves!
+          echo "✅ Firebase credentials extracted and masked in logs"
+
+  # STAGE 2: Build React App with Firebase Credentials
+  build:
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build React App with Firebase Credentials
+        env:
+          # ✅ Inject credentials from infrastructure job
+          # These will be masked in logs (show as ***)
+          REACT_APP_FIREBASE_API_KEY: ${{ needs.infrastructure.outputs.firebase-api-key }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ needs.infrastructure.outputs.firebase-auth-domain }}
+          REACT_APP_FIREBASE_DATABASE_URL: ${{ needs.infrastructure.outputs.firebase-database-url }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ needs.infrastructure.outputs.firebase-project-id }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ needs.infrastructure.outputs.firebase-storage-bucket }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ needs.infrastructure.outputs.firebase-messaging-sender-id }}
+          REACT_APP_FIREBASE_APP_ID: ${{ needs.infrastructure.outputs.firebase-app-id }}
+        run: |
+          # ✅ Credentials are available as env vars during build
+          # ✅ In logs: "REACT_APP_FIREBASE_API_KEY=***" (masked)
+          echo "🔨 Building React app with Firebase credentials..."
+          npm run build
+          echo "✅ React app built successfully"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: react-build
+          path: build/
+          retention-days: 1
+          # ✅ Artifacts contain built app with embedded credentials
+
+  # STAGE 3: Deploy (Optional - depends on your setup)
+  # deploy:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   steps:
+  #     - name: Download Build
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: react-build
+  #         path: ./build
+  #     
+  #     - name: Deploy to Firebase Hosting (or your server)
+  #       run: |
+  #         npm install -g firebase-tools
+  #         firebase deploy --token ${{ secrets.FIREBASE_DEPLOY_TOKEN }}

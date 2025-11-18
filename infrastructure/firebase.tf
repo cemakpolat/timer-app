@@ -73,9 +73,31 @@ resource "google_storage_bucket" "firebase_storage" {
   depends_on        = [google_project_service.firebase_storage]
 }
 
-# Output Firebase Config (for use in app)
+# Deploy Firebase Realtime Database Rules
+resource "google_firebase_database_ruleset" "default" {
+  count       = var.enable_firebase ? 1 : 0
+  project     = var.project_id
+  
+  source {
+    language = "json"
+    rules    = file("${path.module}/database-rules.json")
+  }
+  
+  depends_on = [google_firebase_database_instance.default]
+}
+
+# Release the rules to the database
+resource "google_firebase_database_default_instance" "rules" {
+  count           = var.enable_firebase ? 1 : 0
+  project         = var.project_id
+  ruleset_id      = google_firebase_database_ruleset.default[0].ruleset_id
+  instance        = google_firebase_database_instance.default[0].name
+  depends_on      = [google_firebase_database_ruleset.default]
+}
+
+# Output Firebase Config (for use in app) - SENSITIVE: Will not display in terraform output
 output "firebase_config" {
-  description = "Firebase configuration for web app"
+  description = "Firebase configuration for web app - DO NOT PRINT THIS IN LOGS"
   value = var.enable_firebase ? {
     apiKey            = data.google_firebase_web_app_config.default[0].api_key
     authDomain        = data.google_firebase_web_app_config.default[0].auth_domain
@@ -88,14 +110,50 @@ output "firebase_config" {
   sensitive = true
 }
 
-output "firebase_web_app_id" {
-  value = var.enable_firebase ? google_firebase_web_app.default[0].app_id : null
+# Individual outputs for GitHub Actions (all marked sensitive to hide from logs)
+output "firebase_api_key" {
+  description = "Firebase API Key - SENSITIVE"
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].api_key : null
+  sensitive   = true
+}
+
+output "firebase_auth_domain" {
+  description = "Firebase Auth Domain - SENSITIVE"
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].auth_domain : null
+  sensitive   = true
 }
 
 output "firebase_database_url" {
-  value = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : null
+  description = "Firebase Database URL - SENSITIVE"
+  value       = var.enable_firebase ? "https://${google_firebase_database_instance.default[0].instance_id}.firebaseio.com" : null
+  sensitive   = true
+}
+
+output "firebase_project_id" {
+  description = "Firebase Project ID - SENSITIVE"
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].project_id : null
+  sensitive   = true
 }
 
 output "firebase_storage_bucket" {
-  value = var.enable_firebase ? google_storage_bucket.firebase_storage[0].name : null
+  description = "Firebase Storage Bucket - SENSITIVE"
+  value       = var.enable_firebase ? google_storage_bucket.firebase_storage[0].name : null
+  sensitive   = true
+}
+
+output "firebase_messaging_sender_id" {
+  description = "Firebase Messaging Sender ID - SENSITIVE"
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].messaging_sender_id : null
+  sensitive   = true
+}
+
+output "firebase_app_id" {
+  description = "Firebase App ID - SENSITIVE"
+  value       = var.enable_firebase ? data.google_firebase_web_app_config.default[0].app_id : null
+  sensitive   = true
+}
+
+output "firebase_web_app_id" {
+  description = "Firebase Web App ID"
+  value       = var.enable_firebase ? google_firebase_web_app.default[0].app_id : null
 }
