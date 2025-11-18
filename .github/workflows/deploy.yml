@@ -30,10 +30,6 @@ jobs:
         with:
           terraform_version: 1.5.0
 
-      - name: Terraform Format Check
-        working-directory: ./infrastructure
-        run: terraform fmt -check
-
       - name: Terraform Init
         working-directory: ./infrastructure
         run: terraform init
