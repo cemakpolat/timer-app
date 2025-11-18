@@ -171,8 +171,58 @@ jobs:
           cat $GITHUB_OUTPUT || echo "Could not read GITHUB_OUTPUT"
           
           echo "✅ All 7 credentials extracted successfully"
+          
+          # Export variables for next steps
+          echo "API_KEY=$API_KEY" >> $GITHUB_ENV
+          echo "AUTH_DOMAIN=$AUTH_DOMAIN" >> $GITHUB_ENV
+          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+          echo "STORAGE_BUCKET=$STORAGE_BUCKET" >> $GITHUB_ENV
+          echo "MESSAGING_SENDER_ID=$MESSAGING_SENDER_ID" >> $GITHUB_ENV
+          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
 
-      - name: Debug Raw Terraform Output
+      - name: Save credentials to file (for artifact passing)
+        run: |
+          # Create a credentials file using the step outputs
+          mkdir -p /tmp/credentials
+          
+          # Get values from step outputs (which should be available)
+          API_KEY="${{ steps.extract-creds.outputs.api_key }}"
+          AUTH_DOMAIN="${{ steps.extract-creds.outputs.auth_domain }}"
+          DATABASE_URL="${{ steps.extract-creds.outputs.database_url }}"
+          PROJECT_ID="${{ steps.extract-creds.outputs.project_id }}"
+          STORAGE_BUCKET="${{ steps.extract-creds.outputs.storage_bucket }}"
+          MESSAGING_SENDER_ID="${{ steps.extract-creds.outputs.messaging_sender_id }}"
+          APP_ID="${{ steps.extract-creds.outputs.app_id }}"
+          
+          # Write to file
+          cat > /tmp/credentials/firebase-config.env << 'ENVEOF'
+          REACT_APP_FIREBASE_API_KEY=API_KEY_PLACEHOLDER
+          REACT_APP_FIREBASE_AUTH_DOMAIN=AUTH_DOMAIN_PLACEHOLDER
+          REACT_APP_FIREBASE_DATABASE_URL=DATABASE_URL_PLACEHOLDER
+          REACT_APP_FIREBASE_PROJECT_ID=PROJECT_ID_PLACEHOLDER
+          REACT_APP_FIREBASE_STORAGE_BUCKET=STORAGE_BUCKET_PLACEHOLDER
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID=MESSAGING_SENDER_ID_PLACEHOLDER
+          REACT_APP_FIREBASE_APP_ID=APP_ID_PLACEHOLDER
+          ENVEOF
+          
+          # Replace placeholders with actual values
+          sed -i "s|API_KEY_PLACEHOLDER|$API_KEY|g" /tmp/credentials/firebase-config.env
+          sed -i "s|AUTH_DOMAIN_PLACEHOLDER|$AUTH_DOMAIN|g" /tmp/credentials/firebase-config.env
+          sed -i "s|DATABASE_URL_PLACEHOLDER|$DATABASE_URL|g" /tmp/credentials/firebase-config.env
+          sed -i "s|PROJECT_ID_PLACEHOLDER|$PROJECT_ID|g" /tmp/credentials/firebase-config.env
+          sed -i "s|STORAGE_BUCKET_PLACEHOLDER|$STORAGE_BUCKET|g" /tmp/credentials/firebase-config.env
+          sed -i "s|MESSAGING_SENDER_ID_PLACEHOLDER|$MESSAGING_SENDER_ID|g" /tmp/credentials/firebase-config.env
+          sed -i "s|APP_ID_PLACEHOLDER|$APP_ID|g" /tmp/credentials/firebase-config.env
+          
+          echo "✅ Credentials file created"
+          
+      - name: Upload credentials artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-credentials
+          path: /tmp/credentials/firebase-config.env
+          retention-days: 1
         working-directory: ./infrastructure
         run: |
           echo "🔍 Debugging raw Terraform output..."
@@ -198,6 +248,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download credentials artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firebase-credentials
+          path: /tmp/credentials
+
+      - name: Load credentials from file
+        run: |
+          if [ -f /tmp/credentials/firebase-config.env ]; then
+            echo "✅ Loading credentials from artifact..."
+            cat /tmp/credentials/firebase-config.env >> $GITHUB_ENV
+          else
+            echo "⚠️  Credentials file not found, will use fallback"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -209,15 +274,14 @@ jobs:
 
       - name: Build React App with Firebase Credentials
         env:
-          # ✅ Inject credentials from infrastructure job
-          # These will be masked in logs (show as ***)
-          REACT_APP_FIREBASE_API_KEY: ${{ needs.infrastructure.outputs.firebase-api-key }}
-          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ needs.infrastructure.outputs.firebase-auth-domain }}
-          REACT_APP_FIREBASE_DATABASE_URL: ${{ needs.infrastructure.outputs.firebase-database-url }}
-          REACT_APP_FIREBASE_PROJECT_ID: ${{ needs.infrastructure.outputs.firebase-project-id }}
-          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ needs.infrastructure.outputs.firebase-storage-bucket }}
-          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ needs.infrastructure.outputs.firebase-messaging-sender-id }}
-          REACT_APP_FIREBASE_APP_ID: ${{ needs.infrastructure.outputs.firebase-app-id }}
+          # Credentials are now loaded from the env via the artifact
+          REACT_APP_FIREBASE_API_KEY: ${{ env.REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ env.REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_DATABASE_URL: ${{ env.REACT_APP_FIREBASE_DATABASE_URL }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ env.REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ env.REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ env.REACT_APP_FIREBASE_APP_ID }}
         run: |
           echo "🔨 Building React app with Firebase credentials..."
           echo ""

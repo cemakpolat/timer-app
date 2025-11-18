@@ -19,6 +19,7 @@ data "google_firebase_web_app_config" "default" {
   count      = var.enable_firebase ? 1 : 0
   web_app_id = google_firebase_web_app.default[0].app_id
   project    = var.project_id
+  depends_on = [google_firebase_web_app.default]
 }
 
 # Create Realtime Database (non-default instance to avoid conflicts with existing default)
