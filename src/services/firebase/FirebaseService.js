@@ -18,6 +18,9 @@ class FirebaseService extends IRealtimeService {
     this.currentUserId = null;
     this.presenceInterval = null;
     this.subscriptions = new Map();
+    this.cleanupTimers = new Map(); // timers for scheduled room removals
+  this.participantCleanupTimers = new Map(); // periodic cleanup timers for stale participants (creator-only)
+    this.config = {};
   }
 
   /**
@@ -27,7 +30,7 @@ class FirebaseService extends IRealtimeService {
   async initialize(config) {
     try {
       const { initializeApp } = await import('firebase/app');
-      const { getDatabase, ref, set, get, onValue, off, remove, serverTimestamp } = await import('firebase/database');
+  const { getDatabase, ref, set, get, onValue, off, remove, serverTimestamp, runTransaction, update } = await import('firebase/database');
       const { getAuth, signInAnonymously } = await import('firebase/auth');
 
       // Initialize Firebase
@@ -35,14 +38,45 @@ class FirebaseService extends IRealtimeService {
       this.db = getDatabase(app);
       this.auth = getAuth(app);
 
-      // Store Firebase methods for later use
-      this.firebase = { ref, set, get, onValue, off, remove, serverTimestamp };
+  // Store Firebase methods for later use
+  this.firebase = { ref, set, get, onValue, off, remove, serverTimestamp, runTransaction, update };
+  // store config (e.g., roomRemovalDelaySec)
+  this.config = config || {};
 
       // Sign in anonymously
       const userCredential = await signInAnonymously(this.auth);
       this.currentUserId = userCredential.user.uid;
 
-      console.log('Firebase initialized successfully');
+      // Helpful debug logs for dev: print authenticated UID and project info
+      try {
+        console.log('Firebase initialized successfully');
+        console.log('Firebase signed-in UID:', this.currentUserId);
+        // If config contains projectId, print it to help debug rules vs project mismatch
+        if (config && config.projectId) {
+          console.log('Firebase projectId:', config.projectId);
+        }
+      } catch (e) {
+        // Ignore logging errors
+      }
+      // Ensure a simple user profile exists for this uid so we can display a friendly name
+      try {
+        const { ref, get, set } = this.firebase;
+        const userRef = ref(this.db, `users/${this.currentUserId}`);
+        const snap = await get(userRef);
+        if (snap.exists()) {
+          this.currentUserProfile = snap.val();
+        } else {
+          // Prefer a client-saved display name if available
+          const stored = typeof window !== 'undefined' ? window.localStorage.getItem('userDisplayName') : null;
+          const displayName = stored || `User ${this.currentUserId.substr(0, 6)}`;
+          await set(userRef, { displayName, createdAt: Date.now() });
+          if (typeof window !== 'undefined') window.localStorage.setItem('userDisplayName', displayName);
+          this.currentUserProfile = { displayName, createdAt: Date.now() };
+        }
+      } catch (e) {
+        // Non-fatal: profile write/read failed
+        console.warn('User profile check/write failed', e);
+      }
       return true;
     } catch (error) {
       console.error('Firebase initialization failed:', error);
@@ -75,6 +109,30 @@ class FirebaseService extends IRealtimeService {
     });
 
     return count;
+  }
+
+  /**
+   * Get presence entries for a list of user IDs. Returns a map userId -> presence object or null.
+   * @param {Array<string>} userIds
+   */
+  async getPresenceForUserIds(userIds = []) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get } = this.firebase;
+    const presenceRef = ref(this.db, 'presence');
+    const snap = await get(presenceRef);
+  const result = {};
+    if (!snap.exists()) {
+      userIds.forEach(id => { result[id] = null; });
+      return result;
+    }
+    userIds.forEach((id) => {
+      if (snap.child && snap.child(id).exists && snap.child(id).exists()) {
+        result[id] = snap.child(id).val();
+      } else {
+        result[id] = null;
+      }
+    });
+    return result;
   }
 
   /**
@@ -198,13 +256,18 @@ class FirebaseService extends IRealtimeService {
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
 
+    const creatorName = roomData.creatorName || (this.currentUserProfile && this.currentUserProfile.displayName) || `User ${this.currentUserId?.substr?.(0,6) || ''}`;
+
     const room = {
       id: roomId,
       name: roomData.name || 'Focus Room',
       createdBy: this.currentUserId,
+      creatorName,
       createdAt: Date.now(),
       maxParticipants: roomData.maxParticipants || 10,
       duration: roomData.duration || 1500, // 25 min default
+      // Optional per-room empty-room removal delay (in seconds). If provided, this overrides service/env defaults.
+      emptyRoomRemovalDelaySec: typeof roomData.emptyRoomRemovalDelaySec === 'number' ? roomData.emptyRoomRemovalDelaySec : undefined,
       participants: {},
       timerStartedAt: null,
       timerEndsAt: null,
@@ -221,8 +284,8 @@ class FirebaseService extends IRealtimeService {
    */
   async joinFocusRoom(roomId, userId = this.currentUserId, userInfo = {}) {
     if (!this.db) throw new Error('Service not initialized');
+    const { ref, set, get, runTransaction } = this.firebase;
 
-    const { ref, set, get } = this.firebase;
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
     const snapshot = await get(roomRef);
 
@@ -237,12 +300,78 @@ class FirebaseService extends IRealtimeService {
       throw new Error('Room is full');
     }
 
+    // Use a transaction on userRooms/{userId} to claim this user atomically
+    const userRoomsRef = ref(this.db, `userRooms/${userId}`);
+
+    let txResult;
+    try {
+      txResult = await runTransaction(userRoomsRef, (current) => {
+        // If user not in any room, claim this room
+        if (current === null || current === undefined) return roomId;
+        // If already in same room, keep it
+        if (current === roomId) return roomId;
+        // Otherwise abort (return undefined cancels the transaction)
+        return;
+      });
+    } catch (err) {
+      // Convert Firebase permission errors to a clearer message
+      if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
+        throw new Error('Permission denied: update your Realtime Database rules to allow authenticated writes to userRooms (see FIREBASE-SETUP.md). Also ensure Anonymous Auth is enabled.');
+      }
+      throw err;
+    }
+
+    if (!txResult.committed) {
+      const existing = txResult.snapshot ? txResult.snapshot.val() : null;
+      if (existing && existing !== roomId) {
+        throw new Error('User already in another room');
+      }
+      throw new Error('Failed to claim userRooms entry');
+    }
+
+    // Now add the participant entry. If this fails, roll back the userRooms claim.
     const participantRef = ref(this.db, `focusRooms/${roomId}/participants/${userId}`);
-    await set(participantRef, {
-      joinedAt: Date.now(),
-      displayName: userInfo.displayName || `User ${userId.substr(0, 6)}`,
-      ...userInfo
-    });
+    try {
+      // Try to include any existing avatar from the user's profile
+      const userRef = ref(this.db, `users/${userId}`);
+      const userSnap = await get(userRef);
+      let avatarUrl = null;
+      if (userSnap.exists()) {
+        const profile = userSnap.val();
+        avatarUrl = profile.avatarUrl || null;
+      }
+
+      // If no avatar exists, generate a session avatar using DiceBear and mark it as a session avatar
+      if (!avatarUrl) {
+        try {
+          avatarUrl = await this.setUserAvatarFromSeed(userId, true);
+        } catch (e) {
+          // non-fatal, continue without avatar
+          console.warn('Failed to generate session avatar:', e);
+          avatarUrl = null;
+        }
+      }
+
+      await set(participantRef, {
+        joinedAt: Date.now(),
+        displayName: userInfo.displayName || `User ${userId.substr(0, 6)}`,
+        avatarUrl,
+        ...userInfo
+      });
+      // If a scheduled cleanup/removal exists for this room (eg. room was empty), cancel it because someone re-joined
+      if (this.cleanupTimers.has(roomId)) {
+        clearTimeout(this.cleanupTimers.get(roomId));
+        this.cleanupTimers.delete(roomId);
+        console.log(`Cancelled scheduled removal for room ${roomId} because a participant re-joined`);
+      }
+    } catch (err) {
+      // Rollback userRooms
+      try { await set(userRoomsRef, null); } catch (e) { console.error('Rollback failed', e); }
+      if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
+        throw new Error('Permission denied when adding participant: ensure Realtime DB rules allow authenticated users to write to focusRooms/{roomId}/participants/{userId} and that Anonymous Auth is enabled.');
+      }
+      throw err;
+    }
 
     return { ...room, id: roomId };
   }
@@ -253,9 +382,101 @@ class FirebaseService extends IRealtimeService {
   async leaveFocusRoom(roomId, userId = this.currentUserId) {
     if (!this.db) throw new Error('Service not initialized');
 
-    const { ref, remove } = this.firebase;
-    const participantRef = ref(this.db, `focusRooms/${roomId}/participants/${userId}`);
-    await remove(participantRef);
+    const { ref, update } = this.firebase;
+
+    // Remove both participant entry and userRooms mapping atomically
+    const rootRef = ref(this.db, '/');
+    const updates = {};
+    updates[`focusRooms/${roomId}/participants/${userId}`] = null;
+    updates[`userRooms/${userId}`] = null;
+
+    try {
+      console.log('Attempting leave update by', this.currentUserId, 'updates:', updates);
+      await update(rootRef, updates);
+      console.log('Leave update succeeded for', userId, 'in room', roomId);
+    } catch (err) {
+      if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
+        throw new Error('Permission denied when leaving room: ensure Realtime DB rules allow the user to remove their participant and userRooms entries.');
+      }
+      throw err;
+    }
+    // If this user had a session avatar (generated for the room), remove it
+    try {
+      await this.removeSessionAvatar(userId);
+    } catch (e) {
+      // non-fatal
+      console.warn('Failed to remove session avatar:', e);
+    }
+    // After leaving, check if the room now has zero participants; if so and there's a timer, schedule removal after 2 minutes
+    try {
+      const { ref, get } = this.firebase;
+      const roomRef = ref(this.db, `focusRooms/${roomId}`);
+      const snap = await get(roomRef);
+      if (snap.exists()) {
+        const room = snap.val();
+        const participants = room.participants || {};
+        const participantsCount = Object.keys(participants).length;
+        if (participantsCount === 0 && room.timer) {
+          // Determine delay. Priority: room.emptyRoomRemovalDelaySec -> config.emptyRoomRemovalDelaySec -> config.roomRemovalDelaySec -> REACT_APP_EMPTY_ROOM_REMOVAL_DELAY_SEC -> REACT_APP_ROOM_REMOVAL_DELAY_SEC -> default 120 sec
+          const cfg = this.config || {};
+          const envEmpty = parseInt(process.env.REACT_APP_EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10);
+          const envRoom = parseInt(process.env.REACT_APP_ROOM_REMOVAL_DELAY_SEC || '', 10);
+          // Prefer a per-room override if the room defines emptyRoomRemovalDelaySec
+          const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec)
+            || (typeof cfg.emptyRoomRemovalDelaySec === 'number' && cfg.emptyRoomRemovalDelaySec)
+            || cfg.roomRemovalDelaySec
+            || envEmpty
+            || envRoom
+            || 120;
+          const delayMs = delaySec * 1000;
+          if (this.cleanupTimers.has(roomId)) {
+            clearTimeout(this.cleanupTimers.get(roomId));
+            this.cleanupTimers.delete(roomId);
+          }
+          console.log(`Room ${roomId} has no participants but a timer; scheduling removal in ${delayMs}ms`);
+          const timeoutId = setTimeout(async () => {
+            try {
+              console.log(`Scheduled empty-room removal executing for ${roomId} by ${this.currentUserId}`);
+              // Fetch latest room state
+              const latestSnap = await get(roomRef);
+              if (!latestSnap.exists()) return;
+              const latestRoom = latestSnap.val();
+              const latestParticipants = latestRoom.participants || {};
+              if (Object.keys(latestParticipants).length === 0) {
+                // Attempt full removal if we are creator, otherwise mark completed
+                if (latestRoom.createdBy && latestRoom.createdBy === this.currentUserId) {
+                  const { ref: rootRef, update } = this.firebase;
+                  const updates2 = {};
+                  updates2[`focusRooms/${roomId}`] = null;
+                  updates2[`userRooms/${latestRoom.createdBy}`] = null;
+                  console.log('Attempting full removal updates:', updates2);
+                  await update(rootRef(this.db, '/'), updates2);
+                  console.log(`Empty room ${roomId} removed by creator ${this.currentUserId}`);
+                } else {
+                  // mark completed (safe for non-creator)
+                  const { ref: rootRef, update } = this.firebase;
+                  const updates2 = {};
+                  updates2[`focusRooms/${roomId}/completed`] = true;
+                  updates2[`focusRooms/${roomId}/timer`] = null;
+                  console.log('Attempting mark-completed updates:', updates2);
+                  await update(rootRef(this.db, '/'), updates2);
+                  console.log(`Empty room ${roomId} marked completed by non-creator ${this.currentUserId}`);
+                }
+              } else {
+                console.log(`Empty-room removal aborted for ${roomId}: participants re-joined`);
+              }
+            } catch (err) {
+              console.error('Failed scheduled empty-room removal:', err);
+            } finally {
+              this.cleanupTimers.delete(roomId);
+            }
+          }, delayMs);
+          this.cleanupTimers.set(roomId, timeoutId);
+        }
+      }
+    } catch (e) {
+      console.warn('Post-leave room check failed:', e);
+    }
   }
 
   /**
@@ -278,10 +499,97 @@ class FirebaseService extends IRealtimeService {
     const key = `room_${roomId}`;
     this.subscriptions.set(key, { ref: roomRef, listener });
 
+    // If the current client is the room creator, start a periodic cleanup job to remove stale participants
+    // This will run whenever we receive an update and the room indicates this client is creator
+    const maybeStartCreatorCleanup = async (snapshotVal) => {
+      try {
+        const room = snapshotVal;
+        if (!room) return;
+        if (room.createdBy && room.createdBy === this.currentUserId) {
+          // start cleanup if not already running
+          if (!this.participantCleanupTimers.has(roomId)) {
+            const intervalMs = 60 * 1000; // run every minute
+            const inactiveThresholdMs = (2 * 60 * 1000); // 2 minutes
+            const timerId = setInterval(async () => {
+              try {
+                await this.cleanupStaleParticipants(roomId, inactiveThresholdMs);
+              } catch (e) {
+                console.warn('Participant cleanup failed for', roomId, e);
+              }
+            }, intervalMs);
+            this.participantCleanupTimers.set(roomId, timerId);
+          }
+        } else {
+          // not creator: ensure no cleanup running
+          if (this.participantCleanupTimers.has(roomId)) {
+            clearInterval(this.participantCleanupTimers.get(roomId));
+            this.participantCleanupTimers.delete(roomId);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    // run initial check based on current snapshot value
+    // Note: listener above already calls callback with snapshot val; we also fetch once to decide cleanup start
+    (async () => {
+      try {
+        const snap = await this.firebase.get(roomRef);
+        maybeStartCreatorCleanup(snap.exists() ? snap.val() : null);
+      } catch (e) {}
+    })();
+
     return () => {
       off(roomRef, 'value', listener);
+      // stop any creator cleanup for this room
+      if (this.participantCleanupTimers.has(roomId)) {
+        clearInterval(this.participantCleanupTimers.get(roomId));
+        this.participantCleanupTimers.delete(roomId);
+      }
       this.subscriptions.delete(key);
     };
+  }
+
+  /**
+   * Remove stale participants from a room. Only the room creator should call this.
+   * It looks at presence/{uid}.lastSeen and removes participants whose lastSeen is older than inactiveThresholdMs.
+   */
+  async cleanupStaleParticipants(roomId, inactiveThresholdMs = 2 * 60 * 1000) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get, update } = this.firebase;
+
+    const roomRef = ref(this.db, `focusRooms/${roomId}`);
+    const roomSnap = await get(roomRef);
+    if (!roomSnap.exists()) return;
+    const room = roomSnap.val();
+
+    // Only the creator may remove other participants
+    if (!room.createdBy || room.createdBy !== this.currentUserId) return;
+
+    const participants = room.participants || {};
+    if (Object.keys(participants).length === 0) return;
+
+    const presenceRef = ref(this.db, 'presence');
+    const presenceSnap = await get(presenceRef);
+    const now = Date.now();
+
+    const updates = {};
+    let any = false;
+    Object.keys(participants).forEach((uid) => {
+      if (uid === room.createdBy) return; // never remove creator
+      const p = presenceSnap.exists() && presenceSnap.child(uid).exists() ? presenceSnap.child(uid).val() : null;
+      const lastSeen = p && p.lastSeen ? p.lastSeen : 0;
+      if ((now - lastSeen) > inactiveThresholdMs) {
+        updates[`focusRooms/${roomId}/participants/${uid}`] = null;
+        updates[`userRooms/${uid}`] = null;
+        any = true;
+      }
+    });
+
+    if (any) {
+      await update(ref(this.db, '/'), updates);
+    }
   }
 
   /**
@@ -346,6 +654,166 @@ class FirebaseService extends IRealtimeService {
       endsAt: now + (duration * 1000),
       duration
     });
+    // Schedule room removal after timer end + configured delay
+    try {
+      const delaySec = (this.config && this.config.roomRemovalDelaySec) || parseInt(process.env.REACT_APP_ROOM_REMOVAL_DELAY_SEC || '30', 10);
+      const totalMs = (duration + delaySec) * 1000;
+      if (this.cleanupTimers.has(roomId)) {
+        clearTimeout(this.cleanupTimers.get(roomId));
+      }
+      const timeoutId = setTimeout(async () => {
+        try {
+          // Double-check room still exists and timer ended
+          const { get, ref, update } = this.firebase;
+          const roomRef = ref(this.db, `focusRooms/${roomId}`);
+          const snap = await get(roomRef);
+          if (!snap.exists()) return;
+          const room = snap.val();
+          const now2 = Date.now();
+          if (room.timer && room.timer.endsAt && room.timer.endsAt <= now2) {
+            // If this client is the creator, perform full removal (remove room and the creator's userRooms mapping).
+            // Otherwise, mark the room as completed so it no longer appears active. Deleting a room from a different
+            // anonymous client will often fail due to security rules that restrict deletions to the creator.
+            if (room.createdBy && room.createdBy === this.currentUserId) {
+              const rootRef = ref(this.db, '/');
+              const updates = {};
+              updates[`focusRooms/${roomId}`] = null;
+              updates[`userRooms/${room.createdBy}`] = null;
+              await update(rootRef, updates);
+              console.log(`Room ${roomId} removed after timeout by creator`);
+            } else {
+              // Mark room as completed and clear the timer so viewers know it's finished.
+              const roomUpdates = {};
+              roomUpdates[`focusRooms/${roomId}/completed`] = true;
+              roomUpdates[`focusRooms/${roomId}/timer`] = null;
+              await update(ref(this.db, '/'), roomUpdates);
+              console.log(`Room ${roomId} marked completed after timeout (cleanup by non-creator)`);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to auto-remove room:', err);
+        } finally {
+          this.cleanupTimers.delete(roomId);
+        }
+      }, totalMs);
+      this.cleanupTimers.set(roomId, timeoutId);
+    } catch (e) {
+      console.error('Failed to schedule room removal:', e);
+    }
+  }
+
+  /**
+   * Delete a room manually. Only allowed for the creator when there are no other joiners.
+   * @param {string} roomId
+   * @param {string} requesterId
+   */
+  async deleteFocusRoom(roomId, requesterId = this.currentUserId) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get, update } = this.firebase;
+    const roomRef = ref(this.db, `focusRooms/${roomId}`);
+    const snap = await get(roomRef);
+    if (!snap.exists()) throw new Error('Room not found');
+    const room = snap.val();
+    const participants = room.participants || {};
+    const participantCount = Object.keys(participants).length;
+
+    // Allow deletion only if requester is creator and there are no other joiners
+    if (room.createdBy !== requesterId) {
+      throw new Error('Only the room creator can delete this room');
+    }
+    // If only creator is present or no participants, allow deletion
+    if (participantCount <= 1 && (!participants || Object.keys(participants).every(id => id === requesterId))) {
+      const rootRef = ref(this.db, '/');
+      const updates = {};
+      updates[`focusRooms/${roomId}`] = null;
+      updates[`userRooms/${requesterId}`] = null;
+      await update(rootRef, updates);
+      // clear any scheduled cleanup
+      if (this.cleanupTimers.has(roomId)) {
+        clearTimeout(this.cleanupTimers.get(roomId));
+        this.cleanupTimers.delete(roomId);
+      }
+      return true;
+    }
+
+    throw new Error('Cannot delete room: there are other participants');
+  }
+
+  /**
+   * Update room settings (partial update). Caller should be authorized (creator typically).
+   * @param {string} roomId
+   * @param {Object} updates - partial fields to update under focusRooms/{roomId}
+   */
+  async updateRoomSettings(roomId, updates = {}) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, update } = this.firebase;
+    try {
+      const roomRef = ref(this.db, `focusRooms/${roomId}`);
+      // update at the room ref to apply partial updates
+      await update(roomRef, updates);
+      return true;
+    } catch (err) {
+      if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
+        throw new Error('Permission denied when updating room settings: ensure your Realtime DB rules allow the room creator to update room metadata.');
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Fetch a user's profile (displayName etc.)
+   * @param {string} uid
+   */
+  async getUserProfile(uid) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get } = this.firebase;
+    const userRef = ref(this.db, `users/${uid}`);
+    const snap = await get(userRef);
+    return snap.exists() ? snap.val() : null;
+  }
+
+  /**
+   * Generate and set a DiceBear avatar URL for the user. If isSession is true,
+   * mark avatarSession=true so it can be removed when the user leaves.
+   * Returns the avatarUrl string.
+   */
+  async setUserAvatarFromSeed(seed, isSession = false) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, set, get } = this.firebase;
+    const uid = this.currentUserId || seed;
+
+    // Use the seed (prefer numeric uid, fallback to provided string)
+    const avatarSeed = encodeURIComponent(String(seed || uid));
+    // DiceBear identicon SVG URL (public service) - SVG is fine for <img>
+    const avatarUrl = `https://api.dicebear.com/8.x/identicon/svg?seed=${avatarSeed}`;
+
+    const userRef = ref(this.db, `users/${uid}`);
+    // Write avatar url and optional session flag
+    const payload = { avatarUrl };
+    if (isSession) payload.avatarSession = true;
+
+    await set(userRef, { ...((await get(userRef)).val() || {}), ...payload });
+    return avatarUrl;
+  }
+
+  /**
+   * If the user's profile has avatarSession === true, remove avatarUrl and avatarSession.
+   */
+  async removeSessionAvatar(uid = this.currentUserId) {
+    if (!this.db) throw new Error('Service not initialized');
+    const { ref, get, set } = this.firebase;
+    const userRef = ref(this.db, `users/${uid}`);
+    const snap = await get(userRef);
+    if (!snap.exists()) return false;
+    const profile = snap.val();
+    if (profile.avatarSession) {
+      const newProfile = { ...profile };
+      delete newProfile.avatarUrl;
+      delete newProfile.avatarSession;
+      await set(userRef, newProfile);
+      return true;
+    }
+    return false;
   }
 
   /**

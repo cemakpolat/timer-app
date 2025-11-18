@@ -86,6 +86,16 @@ class MockRealtimeService extends IRealtimeService {
     localStorage.setItem('mockPresence', JSON.stringify({
       [this.currentUserId]: { lastSeen: Date.now() }
     }));
+    // userRooms mapping for mock atomic checks
+    const mockUserRooms = {
+      user_alice: 'room1',
+      user_bob: 'room1',
+      user_charlie: 'room1',
+      user_david: 'room2',
+      user_eve: 'room2',
+      user_frank: 'room3'
+    };
+    localStorage.setItem('mockUserRooms', JSON.stringify(mockUserRooms));
   }
 
   async initialize(config) {
@@ -119,6 +129,20 @@ class MockRealtimeService extends IRealtimeService {
     const presence = JSON.parse(localStorage.getItem('mockPresence') || '{}');
     delete presence[userId];
     localStorage.setItem('mockPresence', JSON.stringify(presence));
+  }
+
+  /**
+   * Return presence entries for the provided user IDs
+   * @param {Array<string>} userIds
+   */
+  async getPresenceForUserIds(userIds = []) {
+    const presence = JSON.parse(localStorage.getItem('mockPresence') || '{}');
+    const result = {};
+    userIds.forEach((id) => {
+      if (presence[id]) result[id] = presence[id];
+      else result[id] = null;
+    });
+    return result;
   }
 
   subscribeToActiveUsers(callback) {
@@ -183,10 +207,21 @@ class MockRealtimeService extends IRealtimeService {
 
     if (!room) throw new Error('Room not found');
 
+    const mockUserRooms = JSON.parse(localStorage.getItem('mockUserRooms') || '{}');
+
+    // Server-side-ish check: ensure user not in another room
+    if (mockUserRooms[userId] && mockUserRooms[userId] !== roomId) {
+      throw new Error('User already in another room');
+    }
+
     const participantCount = Object.keys(room.participants).length;
     if (participantCount >= room.maxParticipants) {
       throw new Error('Room is full');
     }
+
+    // Claim userRooms
+    mockUserRooms[userId] = roomId;
+    localStorage.setItem('mockUserRooms', JSON.stringify(mockUserRooms));
 
     room.participants[userId] = {
       joinedAt: Date.now(),
@@ -209,6 +244,33 @@ class MockRealtimeService extends IRealtimeService {
       localStorage.setItem('mockRooms', JSON.stringify(rooms));
       this.notifyListeners(`room_${roomId}`, room);
     }
+
+    // Remove userRooms mapping
+    const mockUserRooms = JSON.parse(localStorage.getItem('mockUserRooms') || '{}');
+    if (mockUserRooms[userId]) {
+      delete mockUserRooms[userId];
+      localStorage.setItem('mockUserRooms', JSON.stringify(mockUserRooms));
+    }
+    // If room becomes empty, remove it after mock delay
+    try {
+      const rooms = JSON.parse(localStorage.getItem('mockRooms') || '[]');
+      const room = rooms.find(r => r.id === roomId);
+      if (room) {
+        const participantsCount = Object.keys(room.participants || {}).length;
+        if (participantsCount === 0) {
+          const delaySec = parseInt(localStorage.getItem('mockRoomRemovalDelaySec') || '30', 10);
+          setTimeout(() => {
+            const rooms2 = JSON.parse(localStorage.getItem('mockRooms') || '[]');
+            const idx = rooms2.findIndex(r => r.id === roomId);
+            if (idx > -1) {
+              rooms2.splice(idx, 1);
+              localStorage.setItem('mockRooms', JSON.stringify(rooms2));
+              this.notifyListeners(`room_${roomId}`, null);
+            }
+          }, delaySec * 1000);
+        }
+      }
+    } catch (e) {}
   }
 
   subscribeToFocusRoom(roomId, callback) {
@@ -310,6 +372,25 @@ class MockRealtimeService extends IRealtimeService {
       setTimeout(() => {
         this.advanceCompositeStep(roomId);
       }, stepDuration * 1000);
+    }
+
+    // Schedule room removal after timer end + mock-configured delay
+    try {
+      const delaySec = parseInt(localStorage.getItem('mockRoomRemovalDelaySec') || '30', 10);
+      if (this.cleanupTimers && this.cleanupTimers[roomId]) clearTimeout(this.cleanupTimers[roomId]);
+      if (!this.cleanupTimers) this.cleanupTimers = {};
+      this.cleanupTimers[roomId] = setTimeout(() => {
+        const rooms2 = JSON.parse(localStorage.getItem('mockRooms') || '[]');
+        const idx = rooms2.findIndex(r => r.id === roomId);
+        if (idx > -1) {
+          rooms2.splice(idx, 1);
+          localStorage.setItem('mockRooms', JSON.stringify(rooms2));
+          this.notifyListeners(`room_${roomId}`, null);
+        }
+        delete this.cleanupTimers[roomId];
+      }, (stepDuration + delaySec) * 1000);
+    } catch (e) {
+      // ignore
     }
   }
 

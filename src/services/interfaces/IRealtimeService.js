@@ -137,6 +137,15 @@ export class IRealtimeService {
   }
 
   /**
+   * Get presence information for a list of user IDs.
+   * @param {Array<string>} userIds
+   * @returns {Promise<Object>} Map of userId -> presence object (e.g. { lastSeen })
+   */
+  async getPresenceForUserIds(userIds = []) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
    * Cleanup and disconnect
    */
   async disconnect() {

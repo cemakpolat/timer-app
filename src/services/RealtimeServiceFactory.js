@@ -23,6 +23,8 @@ export const ServiceType = {
 class RealtimeServiceFactory {
   static instance = null;
   static currentService = null;
+  static initListeners = [];
+  static errorListeners = [];
 
   /**
    * Get or create service instance (Singleton pattern)
@@ -30,7 +32,13 @@ class RealtimeServiceFactory {
    * @param {Object} config - Service configuration
    * @returns {IRealtimeService} Service instance
    */
-  static async createService(type = ServiceType.FIREBASE, config = {}) {
+  /**
+   * Create or get the current service instance.
+   * @param {string} type
+   * @param {Object} config
+   * @param {Object} options - { allowFallback: boolean }
+   */
+  static async createService(type = ServiceType.FIREBASE, config = {}, options = { allowFallback: true }) {
     // Return existing service if already created
     if (this.currentService) {
       return this.currentService;
@@ -40,8 +48,24 @@ class RealtimeServiceFactory {
 
     switch (type) {
       case ServiceType.FIREBASE:
-        service = new FirebaseService();
-        await service.initialize(config);
+        try {
+          service = new FirebaseService();
+          await service.initialize(config);
+        } catch (err) {
+          console.error('Firebase init failed:', err);
+          // Notify error listeners
+          try {
+            this.errorListeners.forEach(cb => { try { cb(err); } catch (e) { console.error('errorListener error', e); } });
+          } catch (e) {}
+          if (options && options.allowFallback) {
+            console.warn('Falling back to MockRealtimeService because allowFallback=true');
+            service = new MockRealtimeService();
+            await service.initialize({});
+          } else {
+            // Do not swallow the error when caller explicitly requested no fallback
+            throw err;
+          }
+        }
         break;
 
       case ServiceType.SUPABASE:
@@ -58,7 +82,32 @@ class RealtimeServiceFactory {
     }
 
     this.currentService = service;
+
+    // Notify listeners that a service has been initialized
+    try {
+      this.initListeners.forEach((cb) => {
+        try { cb(this.currentService); } catch (e) { console.error('initListener error', e); }
+      });
+    } catch (e) {
+      // ignore
+    }
     return service;
+  }
+
+  static onInit(cb) {
+    if (typeof cb === 'function') this.initListeners.push(cb);
+  }
+
+  static offInit(cb) {
+    this.initListeners = this.initListeners.filter(f => f !== cb);
+  }
+
+  static onError(cb) {
+    if (typeof cb === 'function') this.errorListeners.push(cb);
+  }
+
+  static offError(cb) {
+    this.errorListeners = this.errorListeners.filter(f => f !== cb);
   }
 
   /**

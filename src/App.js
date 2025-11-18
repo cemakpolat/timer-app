@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb } from 'lucide-react';
 import './styles/global.css';
-import RealtimeServiceFactory, { ServiceType } from './services/RealtimeServiceFactory';
+import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
+import RoomSettingsModal from './components/FocusRooms/RoomSettingsModal';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
 
@@ -104,33 +105,35 @@ const inputStyle = (accentColor) => ({
     boxSizing: 'border-box', // Ensure padding doesn't add to total width
 });
 
-const accentInputStyle = (accentColor) => ({
-    ...inputStyle(accentColor),
-    border: `2px solid ${accentColor}`,
-    fontSize: 18,
-    fontWeight: 600,
-});
+// accentInputStyle removed (unused) to satisfy lint rules
 
 
 export default function TimerApp() {
   // Track if service is ready
   const [serviceReady, setServiceReady] = useState(false);
 
-  // Initialize realtime service (MOCK for now, change to FIREBASE later)
+  // Do not initialize realtime service on page load.
+  // Firebase connection will be created on-demand when the user creates or joins a focus room.
   useEffect(() => {
-    const initService = async () => {
-      try {
-        await RealtimeServiceFactory.createService(ServiceType.MOCK);
-        console.log('✅ Realtime service initialized (using MOCK data)');
-        setServiceReady(true);
-      } catch (error) {
-        console.error('Failed to initialize service:', error);
-      }
-    };
+    // Subscribe to factory init events so we know when the realtime service becomes available
+    if (RealtimeServiceFactory.currentService) {
+      setServiceReady(true);
+    }
 
-    initService();
+    const onInit = () => setServiceReady(true);
+    RealtimeServiceFactory.onInit(onInit);
+    // Show a toast when the realtime factory reports an error during init
+    const onError = (err) => {
+      const msg = err && err.message ? `Realtime init failed: ${err.message}` : 'Realtime init failed';
+      setToastMessage(msg);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+    };
+    RealtimeServiceFactory.onError(onError);
 
     return () => {
+      RealtimeServiceFactory.offInit(onInit);
+      RealtimeServiceFactory.offError(onError);
       RealtimeServiceFactory.resetService();
       setServiceReady(false);
     };
@@ -149,15 +152,36 @@ export default function TimerApp() {
     currentRoom,
     messages,
     loading: roomsLoading,
+    fetchRooms,
     createRoom,
     joinRoom,
     leaveRoom,
+  deleteRoom,
+  updateRoomSettings,
     sendMessage,
     startTimer: startRoomTimer,
-    getParticipantCount,
-    isRoomFull,
-    getRemainingTime
+  getParticipantCount,
+  isRoomFull
   } = useFocusRoom();
+  const [showRoomSettings, setShowRoomSettings] = useState(false);
+  const handleSaveRoomSettings = async (updates) => {
+    if (!currentRoom) return;
+    try {
+      await updateRoomSettings(currentRoom.id, updates);
+      // Refresh room list so list view reflects settings change
+      await fetchRooms();
+      setToastMessage('Room settings saved');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      showRealtimeErrorToast(err, 'Save settings');
+      throw err;
+    } finally {
+      setShowRoomSettings(false);
+    }
+  };
+  
+
 
   // Force re-render for room timer countdown
   const [, forceUpdate] = useState(0);
@@ -279,6 +303,64 @@ export default function TimerApp() {
   const [timerToDelete, setTimerToDelete] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Helper to show friendly toasts for realtime permission/init errors
+  const showRealtimeErrorToast = (err, action = 'Operation') => {
+    const raw = err && err.message ? err.message : String(err || 'Unknown error');
+    let msg = raw;
+    // Specific user-friendly messages
+    if (/already in (another )?room|you are already in a room/i.test(raw)) {
+      msg = `You are already in a room. Leave your current room before joining another.`;
+    } else if (/room name already in use|duplicate|already exists/i.test(raw)) {
+      msg = `Room name already in use. Please choose a different name.`;
+    } else if (/permission_denied|permission denied/i.test(raw)) {
+      msg = `${action} failed: permission denied. Please enable Anonymous Auth and update your Realtime DB rules (see FIREBASE-SETUP.md).`;
+    } else if (/auth|not-authorized/i.test(raw)) {
+      msg = `${action} failed: authentication error. Check Firebase Auth settings and authorized domains.`;
+    } else {
+      msg = `${action} failed: ${raw}`;
+    }
+
+    setToastMessage(msg);
+    setShowToast(true);
+    // Keep toast a bit longer for actionable guidance
+    setTimeout(() => setShowToast(false), 6000);
+  };
+
+  // NOTE: handleComplete is defined later; we'll update the ref after it's created
+
+  // Wrapped join/create handlers so we can show toasts on failure
+  const handleJoinRoom = async (roomId) => {
+    try {
+      await joinRoom(roomId, { displayName: 'You' });
+    } catch (err) {
+      console.error('Join room error (UI):', err);
+      showRealtimeErrorToast(err, 'Joining room');
+    }
+  };
+
+  const handleCreateRoom = async (roomData) => {
+    // Validate unique room name (case-insensitive)
+    if (rooms.some(r => r.name && roomData.name && r.name.trim().toLowerCase() === roomData.name.trim().toLowerCase())) {
+      const msg = 'Room name already in use. Please choose a different name.';
+      setToastMessage(msg);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+      // Throw to let callers know it failed
+      throw new Error(msg);
+    }
+    try {
+      await createRoom(roomData);
+      // Feedback on success
+      setToastMessage('Room created');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error('Create room error (UI):', err);
+      showRealtimeErrorToast(err, 'Creating room');
+      throw err; // rethrow if callers expect it
+    }
+  };
   
   // Load repeat preference from localStorage
   const [repeatEnabled, setRepeatEnabled] = useState(() => {
@@ -361,13 +443,15 @@ export default function TimerApp() {
 
   // Active scene state
   const [activeScene, setActiveScene] = useState('none');
-  const [currentTimerScene, setCurrentTimerScene] = useState('none');
+  // We only use the setter for currentTimerScene in several places; omit the unused value to satisfy lint
+  const [, setCurrentTimerScene] = useState('none');
 
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
   const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
   const filteredGroups = groups.filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
   const intervalRef = useRef(null);
   const lastActiveTimeRef = useRef(null);
+  const handleCompleteRef = useRef(null);
   const chatInputRef = useRef(null);
 
   // Persistence Effects
@@ -389,7 +473,7 @@ export default function TimerApp() {
   // Update active users count every 30 seconds with realistic variation
   // Active users now managed by usePresence hook
 
-  // Parse URL parameters for shared timers
+  // Parse URL parameters for shared timers (run once)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedTimer = params.get('timer');
@@ -424,8 +508,10 @@ export default function TimerApp() {
         console.error('Failed to parse shared timer:', error);
       }
     }
+  }, []);
 
-    // Check for ready time capsules
+  // Check for ready time capsules whenever timeCapsules changes
+  useEffect(() => {
     const now = Date.now();
     timeCapsules.forEach(capsule => {
       if (capsule.openAt <= now && !capsule.opened) {
@@ -433,7 +519,7 @@ export default function TimerApp() {
         setTimeCapsules(prev => prev.map(c => c.id === capsule.id ? { ...c, opened: true } : c));
       }
     });
-  }, []);
+  }, [timeCapsules]);
 
   // Page Visibility API - Handle tab switching correctly
   useEffect(() => {
@@ -478,7 +564,8 @@ export default function TimerApp() {
 
   useEffect(() => {
     if (time === 0 && isRunning && mode !== 'stopwatch') {
-      handleComplete();
+      // Call the latest handleComplete via ref to avoid adding the function to deps
+      if (handleCompleteRef.current) handleCompleteRef.current();
     }
   }, [time, isRunning, mode]);
 
@@ -506,8 +593,8 @@ export default function TimerApp() {
     }
   }, [currentRoom, currentRoom?.currentStep, currentRoom?.timerType]);
 
-  // Achievement definitions
-  const ACHIEVEMENTS = [
+  // Achievement definitions (memoized so checkAchievements can be stable)
+  const ACHIEVEMENTS = React.useMemo(() => ([
     { id: 'first_timer', name: 'First Steps', description: 'Complete your first timer', icon: '🎯', requirement: 1 },
     { id: 'early_bird', name: 'Early Bird', description: 'Complete a timer before 7 AM', icon: '🌅', checkTime: true },
     { id: 'night_owl', name: 'Night Owl', description: 'Complete a timer after 10 PM', icon: '🦉', checkTime: true },
@@ -516,7 +603,7 @@ export default function TimerApp() {
     { id: 'streak_30', name: 'Month Master', description: '30-day streak', icon: '👑', streak: 30 },
     { id: 'speed_demon', name: 'Speed Demon', description: 'Complete 10 timers in one day', icon: '⚡', dailyCount: 10 },
     { id: 'dedicated', name: 'Dedicated', description: 'Complete 500 timers', icon: '🏆', requirement: 500 },
-  ];
+  ]), []);
 
   const checkAchievements = useCallback((completionData) => {
     const newAchievements = [];
@@ -557,7 +644,7 @@ export default function TimerApp() {
     if (newAchievements.length > 0) {
       setAchievements(prev => [...prev, ...newAchievements]);
     }
-  }, [achievements, totalCompletions, currentStreak, history]);
+  }, [achievements, totalCompletions, currentStreak, history, ACHIEVEMENTS]);
 
   const playAlarmSound = useCallback(() => {
     if (alarmSoundType === 'silent') return;
@@ -592,11 +679,11 @@ export default function TimerApp() {
     }
   }, [alarmSoundType, alarmVolume]);
 
-    const addToHistory = (entry) => {
-        setHistory(prev => [
-            { ...entry, completedAt: new Date().toISOString(), id: Date.now() },
-            ...prev
-        ].slice(0, 10)); // Keep only last 10 entries
+  const addToHistory = React.useCallback((entry) => {
+    setHistory(prev => [
+      { ...entry, completedAt: new Date().toISOString(), id: Date.now() },
+      ...prev
+    ].slice(0, 10)); // Keep only last 10 entries
 
         // Track first timer date
         if (!firstTimerDate) {
@@ -627,7 +714,7 @@ export default function TimerApp() {
             return newTotal;
         });
 
-        if (lastCompletionDate === today) {
+    if (lastCompletionDate === today) {
             // Already completed today, no streak change
         } else if (lastCompletionDate === yesterdayString) {
             // Consecutive day
@@ -670,10 +757,10 @@ export default function TimerApp() {
                 setShowToast(true);
                 setTimeout(() => setShowToast(false), 3000);
             }
-        }
-    };
+    }
+  }, [firstTimerDate, currentStreak, lastCompletionDate, dailyChallenge, checkAchievements]);
 
-  const handleComplete = () => {
+  const handleComplete = React.useCallback(() => {
     setIsTransitioning(true);
     setIsRunning(false);
     setActiveScene('none'); // Clear active scene on completion
@@ -788,7 +875,27 @@ export default function TimerApp() {
         setIsTransitioning(false);
       }
     }, 500);
-  };
+  }, [
+    mode,
+    isWork,
+    currentRound,
+    rounds,
+    work,
+    rest,
+    sequence,
+    currentStep,
+    repeatEnabled,
+    initialTime,
+    saved,
+    addToHistory,
+    playAlarmSound,
+    seqName,
+  ]);
+
+  // Keep ref updated with the latest handleComplete function so effects can call it
+  useEffect(() => {
+    handleCompleteRef.current = handleComplete;
+  }, [handleComplete]);
 
   const startTimer = (totalSeconds, scene = 'none') => {
     setMode('timer');
@@ -1074,8 +1181,6 @@ export default function TimerApp() {
         if (history.length < 3) return [];
 
         const suggestions = [];
-        const now = new Date();
-        const currentHour = now.getHours();
 
         // Analyze completion times
         const morningCompletions = history.filter(h => {
@@ -1166,17 +1271,14 @@ export default function TimerApp() {
 
   return (
     <div
+      className="app-container"
       style={{
         minHeight: '100vh',
         background: activeBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
         fontFamily: 'system-ui',
-        transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
-        // Responsive adjustments for the main container
-        '@media (max-width: 600px)': {
-          padding: '10px',
-        }
+        transition: 'background 1s ease-in-out, color 0.3s ease-in-out'
       }}
     >
       <style>{`
@@ -1196,6 +1298,8 @@ export default function TimerApp() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.2); }
         }
+        .app-container { padding: 20px; }
+        @media (max-width: 600px) { .app-container { padding: 10px; } }
         .confetti {
           position: fixed;
           width: 10px;
@@ -1358,7 +1462,7 @@ export default function TimerApp() {
 
       {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
       {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
-      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={createRoom} savedTimers={saved} />}
+  {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
 
       {/* Top Control Bar */}
@@ -2126,7 +2230,7 @@ export default function TimerApp() {
                                   </div>
                                 </div>
                                 <button
-                                  onClick={() => joinRoom(room.id, { displayName: 'You' })}
+                                  onClick={() => handleJoinRoom(room.id)}
                                   disabled={isRoomFull(room)}
                                   style={{
                                     background: isRoomFull(room) ? 'rgba(255,255,255,0.1)' : theme.accent,
@@ -2154,22 +2258,78 @@ export default function TimerApp() {
                     {/* Active Room View */}
                     <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
-                        <button
-                          onClick={leaveRoom}
-                          style={{
-                            background: 'rgba(255,255,255,0.1)',
-                            border: 'none',
-                            borderRadius: 8,
-                            padding: '8px 16px',
-                            color: theme.text,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            fontWeight: 600
-                          }}
-                        >
-                          Leave Room
-                        </button>
+                        <div>
+                          <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                            Host: {currentRoom.creatorName || currentRoom.createdBy}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={leaveRoom}
+                            style={{
+                              background: 'rgba(255,255,255,0.1)',
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '8px 16px',
+                              color: theme.text,
+                              cursor: 'pointer',
+                              fontSize: 14,
+                              fontWeight: 600
+                            }}
+                          >
+                            Leave Room
+                          </button>
+                          {/* Delete room button visible to room creator when no other joiners */}
+                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
+                            <button
+                                  onClick={async () => {
+                                try {
+                                  await deleteRoom(currentRoom.id);
+                                  setToastMessage('Room deleted');
+                                  setShowToast(true);
+                                  setTimeout(() => setShowToast(false), 3000);
+                                  // Leave the room locally to clear UI state
+                                  await leaveRoom();
+                                } catch (err) {
+                                  const msg = err?.message || 'Failed to delete room';
+                                  setToastMessage(msg);
+                                  setShowToast(true);
+                                  setTimeout(() => setShowToast(false), 5000);
+                                }
+                              }}
+                              style={{
+                                background: '#ef4444',
+                                border: 'none',
+                                borderRadius: 8,
+                                padding: '8px 16px',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                fontWeight: 600
+                              }}
+                            >
+                              Delete Room
+                            </button>
+                          )}
+                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
+                            <button
+                              onClick={() => setShowRoomSettings(true)}
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: 'none',
+                                borderRadius: 8,
+                                padding: '8px 16px',
+                                color: theme.text,
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                fontWeight: 600
+                              }}
+                            >
+                              Room Settings
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Participants */}
@@ -2188,11 +2348,16 @@ export default function TimerApp() {
                                 fontSize: 13,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 6
+                                gap: 8
                               }}
                             >
+                              {/* small online dot */}
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent }} />
-                              {participant.displayName}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {/* Avatar component */}
+                                <img src={participant.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(userId)}`} alt={participant.displayName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                                <div>{participant.displayName}</div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -2234,6 +2399,15 @@ export default function TimerApp() {
                             {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
                           </div>
                         </div>
+                      )}
+
+                      {showRoomSettings && currentRoom && (
+                        <RoomSettingsModal
+                          theme={theme}
+                          room={currentRoom}
+                          onClose={() => setShowRoomSettings(false)}
+                          onSave={handleSaveRoomSettings}
+                        />
                       )}
 
                       {/* Start Timer Button */}
@@ -2302,20 +2476,23 @@ export default function TimerApp() {
                                     alignItems: isMe ? 'flex-end' : 'flex-start'
                                   }}
                                 >
-                                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
-                                    {participant?.displayName || 'Unknown'}
-                                  </div>
-                                  <div
-                                    style={{
-                                      background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
-                                      borderRadius: 12,
-                                      padding: '8px 12px',
-                                      maxWidth: '70%',
-                                      wordBreak: 'break-word'
-                                    }}
-                                  >
-                                    {msg.text}
-                                  </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <img src={participant?.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(msg.userId)}`} alt={participant?.displayName || 'Unknown'} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
+                                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+                                          {participant?.displayName || 'Unknown'}
+                                        </div>
+                                      </div>
+                                      <div
+                                        style={{
+                                          background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
+                                          borderRadius: 12,
+                                          padding: '8px 12px',
+                                          maxWidth: '70%',
+                                          wordBreak: 'break-word'
+                                        }}
+                                      >
+                                        {msg.text}
+                                      </div>
                                 </div>
                               );
                             })

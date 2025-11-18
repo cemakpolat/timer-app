@@ -28,16 +28,29 @@
  * }
  */
 
+// const firebaseConfig = {
+//   // Replace with your Firebase project config
+//   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "YOUR_API_KEY",
+//   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
+//   databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://your-project-default-rtdb.firebaseio.com",
+//   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "your-project",
+//   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
+//   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+//   appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef"
+// };
 const firebaseConfig = {
   // Replace with your Firebase project config
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
-  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL || "https://your-project-default-rtdb.firebaseio.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "your-project",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef"
+  apiKey:"AIzaSyDS9NXmEZxyaWT3dE4E14u_43ZHptR18cs" ,
+  authDomain:"timerapp-2997d.firebaseapp.com",
+  databaseURL: "https://timerapp-2997d-default-rtdb.firebaseio.com",
+  projectId:"timerapp-2997d",
+  storageBucket: "timerapp-2997d.firebasestorage.app",
+  messagingSenderId: "341637730794",
+  appId: "1:341637730794:web:02b636c85719a526b2e293"
 };
+
+// Room removal delay in seconds after timer end (can be overridden via env var)
+firebaseConfig.roomRemovalDelaySec = parseInt(process.env.REACT_APP_ROOM_REMOVAL_DELAY_SEC || '30', 10);
 
 // Enable/disable Firebase features
 export const FIREBASE_FEATURES = {

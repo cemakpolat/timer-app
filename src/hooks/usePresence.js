@@ -96,6 +96,12 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
 
     initialize();
 
+    // If the factory initializes later, run initialize again
+    const onInit = () => {
+      initialize().catch(console.error);
+    };
+    RealtimeServiceFactory.onInit(onInit);
+
     // Cleanup on unmount
     return () => {
       if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
@@ -109,6 +115,8 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       } catch (err) {
         // Service already cleaned up
       }
+
+      RealtimeServiceFactory.offInit(onInit);
     };
   }, [enableHeartbeat, heartbeatInterval, pollInterval, fetchActiveUsers]);
 

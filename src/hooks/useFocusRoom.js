@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import RealtimeServiceFactory from '../services/RealtimeServiceFactory';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import RealtimeServiceFactory, { ServiceType } from '../services/RealtimeServiceFactory';
+import firebaseConfig from '../config/firebase.config';
 
 /**
  * Hook for managing focus rooms
@@ -18,9 +19,14 @@ const useFocusRoom = () => {
   const [roomTimer, setRoomTimer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Track room IDs that we're already subscribed to (avoid duplicate subscriptions)
+  const subscribedRoomIdsRef = useRef(new Set());
+  // Track unsub functions per room so we can clean them up
+  const subscriptionsRef = useRef(new Map());
 
   /**
-   * Fetch available focus rooms
+   * Initial fetch to get room list, then subscribe to each room for real-time updates
    */
   const fetchRooms = useCallback(async () => {
     try {
@@ -29,12 +35,135 @@ const useFocusRoom = () => {
       try {
         service = RealtimeServiceFactory.getService();
       } catch (err) {
-        // Service not initialized yet
-        setLoading(false);
-        return;
+        // Service not initialized yet — initialize for read-only room list (allowFallback=true)
+        try {
+          await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: true });
+          service = RealtimeServiceFactory.getService();
+        } catch (e) {
+          console.error('Failed to initialize realtime service for fetching rooms:', e);
+          setLoading(false);
+          return;
+        }
       }
       const fetchedRooms = await service.getFocusRooms();
-      setRooms(fetchedRooms);
+
+      // Merge fetched rooms with existing state to preserve unchanged object references
+      // Additionally: for any room that exists in previous state but not in fetchedRooms,
+      // check whether the room still exists on the backend (subscribe once). Only remove
+      // the room from UI/state if it truly does not exist anymore. If it exists (even
+      // if not in the fetched list due to completion/filters), keep it to avoid churn.
+      setRooms((prevRooms) => {
+        if (!prevRooms || prevRooms.length === 0) return fetchedRooms;
+        const prevMap = new Map(prevRooms.map(r => [r.id, r]));
+        const fetchedMap = new Map(fetchedRooms.map(r => [r.id, r]));
+
+        // Start with the merged list for rooms returned by the backend
+        const merged = fetchedRooms.map((r) => {
+          const existing = prevMap.get(r.id);
+          if (!existing) return r;
+          // Deep-compare serialized form to decide if we can reuse the existing object reference.
+          // This avoids churn caused by new object references for nested fields like participants/messages.
+          try {
+            const a = JSON.stringify(existing);
+            const b = JSON.stringify(r);
+            if (a === b) return existing;
+          } catch (e) {
+            // If serialization fails for any reason, fall back to shallow compare
+            const keys = Object.keys(r);
+            let changed = false;
+            for (let i = 0; i < keys.length; i++) {
+              const k = keys[i];
+              if (existing[k] !== r[k]) { changed = true; break; }
+            }
+            if (!changed) return existing;
+          }
+          return r;
+        });
+
+        // For rooms that were in prevRooms but not in fetchedRooms, keep them for now.
+        // We'll asynchronously validate their existence and prune those that truly vanished.
+        const missing = prevRooms.filter(r => !fetchedMap.has(r.id));
+        missing.forEach(m => merged.push(m));
+
+        return merged;
+      });
+
+      // After optimistic merge, validate missing rooms: if a room no longer exists on the backend,
+      // remove it from state. We do this outside of setRooms to avoid blocking the UI.
+      (async () => {
+        try {
+          // Identify which rooms are currently in state but not in fetchedRooms
+          // We need a fresh snapshot of current rooms state to operate on.
+          setRooms((current) => {
+            const fetchedMap = new Map(fetchedRooms.map(r => [r.id, r]));
+            const candidates = [];
+            current.forEach((room) => {
+              if (!fetchedMap.has(room.id)) candidates.push(room);
+            });
+
+            // For each candidate, perform a one-time subscribe to check existence and presence.
+            // Remove the room only if the room no longer exists OR all participants are offline > 2 minutes.
+            const INACTIVE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+            candidates.forEach((candidate) => {
+              try {
+                const unsub = service.subscribeToFocusRoom(candidate.id, async (val) => {
+                  try {
+                    // If backend reports null (room truly removed), prune it from state
+                    if (!val) {
+                      setRooms((cur) => cur.filter(r => r.id !== candidate.id));
+                      return;
+                    }
+
+                    // If room exists, check participants' presence
+                    const participantIds = val && val.participants ? Object.keys(val.participants) : [];
+                    if (participantIds.length === 0) {
+                      // No participants — treat as inactive and remove
+                      setRooms((cur) => cur.filter(r => r.id !== candidate.id));
+                      return;
+                    }
+
+                    // Ask service for presence info for these participant IDs
+                    if (typeof service.getPresenceForUserIds !== 'function') {
+                      // If service doesn't support presence lookup, keep the room to avoid false removals
+                      return;
+                    }
+
+                    let presenceMap = {};
+                    try {
+                      presenceMap = await service.getPresenceForUserIds(participantIds);
+                    } catch (e) {
+                      // If presence lookup fails, keep the room (safer)
+                      console.warn('Presence lookup failed for', candidate.id, e);
+                      return;
+                    }
+
+                    const now = Date.now();
+                    const anyOnline = participantIds.some((pid) => {
+                      const p = presenceMap && presenceMap[pid] ? presenceMap[pid] : null;
+                      return p && p.lastSeen && (now - p.lastSeen) < INACTIVE_THRESHOLD_MS;
+                    });
+
+                    if (!anyOnline) {
+                      // All participants are offline beyond threshold — remove room from UI
+                      setRooms((cur) => cur.filter(r => r.id !== candidate.id));
+                    }
+                  } finally {
+                    // cleanup listener immediately
+                    try { if (typeof unsub === 'function') unsub(); } catch (e) {}
+                  }
+                });
+              } catch (err) {
+                // If subscribe fails, do nothing — safer to keep room in UI than to remove it wrongly
+                console.warn('One-time room existence/presence check failed for', candidate.id, err);
+              }
+            });
+
+            return current;
+          });
+        } catch (err) {
+          // ignore validation errors
+        }
+      })();
       setError(null);
     } catch (err) {
       console.error('Failed to fetch rooms:', err);
@@ -48,10 +177,20 @@ const useFocusRoom = () => {
    * Join a focus room
    */
   const joinRoom = useCallback(async (roomId, userInfo = {}) => {
+    // Prevent joining multiple rooms
+    if (currentRoom && currentRoom.id && currentRoom.id !== roomId) {
+      const errMsg = 'You are already in a room. Please leave the current room before joining another.';
+      setError(errMsg);
+      throw new Error(errMsg);
+    }
     try {
       setLoading(true);
       let service;
       try {
+        // Ensure a realtime service is initialized. For joining a room we require a real backend (no mock fallback).
+        if (!RealtimeServiceFactory.currentService) {
+          await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: false });
+        }
         service = RealtimeServiceFactory.getService();
       } catch (err) {
         setError('Service not ready');
@@ -62,6 +201,17 @@ const useFocusRoom = () => {
 
       setCurrentRoom(room);
       setError(null);
+
+      // Start presence heartbeat for this user when they join a room
+      try {
+        if (service && service.startPresenceHeartbeat) {
+          service.startPresenceHeartbeat();
+          // Also perform an immediate presence update
+          service.updatePresence().catch(() => {});
+        }
+      } catch (e) {
+        // ignore heartbeat errors
+      }
 
       // Subscribe to room updates
       const unsubscribeRoom = service.subscribeToFocusRoom(roomId, (updatedRoom) => {
@@ -98,16 +248,26 @@ const useFocusRoom = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentRoom]);
 
   /**
    * Create a new focus room
    */
   const createRoom = useCallback(async (roomData) => {
+    // Prevent creating/joining new room when already in one
+    if (currentRoom && currentRoom.id) {
+      const errMsg = 'You are already in a room. Leave it before creating a new one.';
+      setError(errMsg);
+      throw new Error(errMsg);
+    }
     try {
       setLoading(true);
       let service;
       try {
+        // Creating rooms requires real Firebase backend
+        if (!RealtimeServiceFactory.currentService) {
+          await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: false });
+        }
         service = RealtimeServiceFactory.getService();
       } catch (err) {
         // Service not initialized yet
@@ -130,7 +290,7 @@ const useFocusRoom = () => {
     } finally {
       setLoading(false);
     }
-  }, [joinRoom]);
+  }, [joinRoom, currentRoom]);
 
   /**
    * Leave current room
@@ -142,6 +302,17 @@ const useFocusRoom = () => {
       const service = RealtimeServiceFactory.getService();
       await service.leaveFocusRoom(currentRoom.id);
 
+      // Stop presence heartbeat and remove presence when leaving
+      try {
+        if (service && service.stopPresenceHeartbeat) {
+          service.stopPresenceHeartbeat();
+        }
+        if (service && service.removePresence) {
+          await service.removePresence();
+        }
+      } catch (e) {
+        // ignore
+      }
       // Unsubscribe from updates
       if (currentRoom._unsubscribe) {
         currentRoom._unsubscribe();
@@ -154,6 +325,38 @@ const useFocusRoom = () => {
     } catch (err) {
       console.error('Failed to leave room:', err);
       setError(err.message);
+    }
+  }, [currentRoom]);
+
+  const deleteRoom = useCallback(async (roomId) => {
+    try {
+      const service = RealtimeServiceFactory.getService();
+      const result = await service.deleteFocusRoom(roomId, service.currentUserId);
+      return result;
+    } catch (err) {
+      console.error('Failed to delete room:', err);
+      setError(err.message);
+      throw err;
+    }
+  }, []);
+
+  /**
+   * Update room settings (partial update)
+   */
+  const updateRoomSettings = useCallback(async (roomId, updates) => {
+    try {
+      const service = RealtimeServiceFactory.getService();
+      await service.updateRoomSettings(roomId, updates);
+      // Optimistically update currentRoom in state if it matches
+      if (currentRoom && currentRoom.id === roomId) {
+        setCurrentRoom({ ...currentRoom, ...updates });
+      }
+      setError(null);
+      return true;
+    } catch (err) {
+      console.error('Failed to update room settings:', err);
+      setError(err.message);
+      throw err;
     }
   }, [currentRoom]);
 
@@ -194,11 +397,7 @@ const useFocusRoom = () => {
    */
   useEffect(() => {
     fetchRooms();
-
-    // Refresh rooms every 30 seconds
-    const interval = setInterval(fetchRooms, 30000);
-
-    return () => clearInterval(interval);
+    // No periodic refresh — rooms update via subscriptions instead
   }, [fetchRooms]);
 
   /**
@@ -211,6 +410,90 @@ const useFocusRoom = () => {
       }
     };
   }, [currentRoom]);
+
+  /**
+   * Subscribe to room updates as the rooms list changes
+   */
+  useEffect(() => {
+    const subscribeToRoom = async (roomId) => {
+      // Skip if already subscribed
+      if (subscribedRoomIdsRef.current.has(roomId)) {
+        return;
+      }
+
+      try {
+        let service;
+        try {
+          service = RealtimeServiceFactory.getService();
+        } catch (err) {
+          try {
+            await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: true });
+            service = RealtimeServiceFactory.getService();
+          } catch (e) {
+            return;
+          }
+        }
+
+        const unsub = service.subscribeToFocusRoom(roomId, (updatedRoom) => {
+          if (!updatedRoom) {
+            // Room was deleted
+            setRooms((cur) => cur.filter(r => r.id !== roomId));
+            // Clean up subscription
+            subscribedRoomIdsRef.current.delete(roomId);
+            subscriptionsRef.current.delete(roomId);
+          } else {
+            // Room was updated — replace with new data
+            setRooms((cur) => {
+              const idx = cur.findIndex(r => r.id === roomId);
+              if (idx === -1) {
+                return [...cur, updatedRoom];
+              }
+              const updated = [...cur];
+              updated[idx] = updatedRoom;
+              return updated;
+            });
+          }
+        });
+
+        // Mark as subscribed and store unsub function
+        subscribedRoomIdsRef.current.add(roomId);
+        subscriptionsRef.current.set(roomId, unsub);
+      } catch (err) {
+        console.warn('Failed to subscribe to room', roomId, err);
+      }
+    };
+
+    // Get current room IDs from state and subscribe to new ones
+    const currentRoomIds = new Set(rooms.map(r => r.id));
+
+    // Subscribe to rooms that are in state but not yet subscribed
+    currentRoomIds.forEach((roomId) => {
+      if (!subscribedRoomIdsRef.current.has(roomId)) {
+        subscribeToRoom(roomId);
+      }
+    });
+
+    // Unsubscribe from rooms no longer in the state
+    subscribedRoomIdsRef.current.forEach((roomId) => {
+      if (!currentRoomIds.has(roomId)) {
+        const unsub = subscriptionsRef.current.get(roomId);
+        if (unsub) {
+          try { unsub(); } catch (e) {}
+        }
+        subscribedRoomIdsRef.current.delete(roomId);
+        subscriptionsRef.current.delete(roomId);
+      }
+    });
+
+    // Cleanup on unmount: copy refs into local variables to avoid stale ref warnings
+    const subs = subscriptionsRef.current;
+    return () => {
+      subs.forEach((unsub) => {
+        try { unsub(); } catch (e) {}
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms]);
 
   /**
    * Get participant count
@@ -253,11 +536,13 @@ const useFocusRoom = () => {
     leaveRoom,
     sendMessage,
     startTimer,
+  deleteRoom,
 
     // Helpers
     getParticipantCount,
     isRoomFull,
     getRemainingTime
+  , updateRoomSettings
   };
 };
 

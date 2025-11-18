@@ -23,6 +23,10 @@ services/
 - ✅ Easy to switch to Supabase, Pusher, or custom backend
 - ✅ Testable with mock services
 - ✅ Single Responsibility - each service does one thing
+
+Deployment notes
+
+- Deploy the function with the Firebase CLI from the `functions` folder (see `functions/README.md`). The function uses the Admin SDK and requires permissions to read/write the Realtime Database.
 - ✅ Dependency Inversion - depends on abstractions, not concretions
 
 ## Setup Steps
@@ -61,7 +65,26 @@ In Realtime Database → **Rules** tab, paste:
     "presence": {
       ".read": true,
       "$userId": {
-        ".write": "auth != null"
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "avatarUrl": {
+          ".validate": "newData.isString() || newData.val() === null"
+        },
+        "avatarSession": {
+          ".validate": "newData.isBoolean() || newData.val() === null"
+        }
+      }
+    },
+    "userRooms": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId",
+        ".validate": "newData.isString() || newData.val() === null"
       }
     },
     "focusRooms": {
@@ -70,7 +93,10 @@ In Realtime Database → **Rules** tab, paste:
         ".write": "auth != null",
         "participants": {
           "$userId": {
-            ".write": "auth != null && auth.uid == $userId"
+            // Allow either the participant themselves or the room creator to add/remove/update participant entries.
+            // This lets the room creator perform cleanup for disconnected users.
+            ".write": "auth != null && (auth.uid == $userId || root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['joinedAt', 'displayName']) || newData.val() === null"
           }
         },
         "messages": {
@@ -84,6 +110,24 @@ In Realtime Database → **Rules** tab, paste:
   }
 }
 ```
+
+### Restricting room deletion to the creator
+If you want to ensure only the room creator can delete the room (recommended), add the following condition to the `$roomId` rule. It allows anyone authenticated to create/update the room contents but requires that a deletion (where the room node is removed) is performed only by the creator:
+
+```json
+"$roomId": {
+  ".write": "auth != null && (
+      (!data.exists() && newData.exists()) ||                 // creating
+      (data.exists() && newData.exists()) ||                  // updating
+      (data.exists() && !newData.exists() && data.child('createdBy').val() === auth.uid) // deleting only by creator
+  )",
+  "participants": { "$userId": { ".write": "auth != null && auth.uid == $userId" } },
+  "messages": { ".write": "auth != null" },
+  "timer": { ".write": "auth != null" }
+}
+```
+
+Apply and publish these rules in the Realtime Database > Rules tab.
 
 Click **Publish**
 
@@ -115,6 +159,12 @@ REACT_APP_FIREBASE_PROJECT_ID=timer-app-xxxxx
 REACT_APP_FIREBASE_STORAGE_BUCKET=timer-app-xxxxx.appspot.com
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=123456789
 REACT_APP_FIREBASE_APP_ID=1:123456789:web:abcdef
+
+# Optional: room removal timing (seconds)
+# When a room becomes empty but still has an active timer, the app can schedule an automatic removal.
+# Default for empty-room removal is 120 seconds (2 minutes). You can override with either variable.
+REACT_APP_ROOM_REMOVAL_DELAY_SEC=30
+REACT_APP_EMPTY_ROOM_REMOVAL_DELAY_SEC=120
 ```
 
 ### 6. Install Dependencies

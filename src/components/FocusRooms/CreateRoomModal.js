@@ -11,11 +11,12 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
   const [duration, setDuration] = useState(25);
   const [selectedComposite, setSelectedComposite] = useState(null);
   const [displayName, setDisplayName] = useState('');
+  const [emptyRoomDelay, setEmptyRoomDelay] = useState(2); // minutes
 
   // Get composite timers (sequences)
   const compositeTimers = savedTimers.filter(t => t.group === 'Sequences');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!roomName.trim()) {
@@ -39,6 +40,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
       creatorName: displayName.trim()
     };
 
+    // emptyRoomDelay is in minutes; convert to seconds for the service
+    if (emptyRoomDelay && !Number.isNaN(parseInt(emptyRoomDelay, 10))) {
+      roomData.emptyRoomRemovalDelaySec = parseInt(emptyRoomDelay, 10) * 60;
+    }
+
     if (timerType === 'single') {
       roomData.duration = parseInt(duration) * 60; // Convert to seconds
       roomData.timerType = 'single';
@@ -52,8 +58,14 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
       roomData.duration = totalSeconds;
     }
 
-    onCreateRoom(roomData);
-    onClose();
+    try {
+      await onCreateRoom(roomData);
+      onClose();
+    } catch (err) {
+      // Show inline feedback if creation failed (e.g., duplicate name or permission error)
+      const msg = err?.message || 'Failed to create room';
+      alert(msg);
+    }
   };
 
   const presetDurations = [
@@ -388,6 +400,32 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           </div>
 
           {/* Summary */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              Empty-room removal delay (minutes)
+            </label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="number"
+                value={emptyRoomDelay}
+                onChange={(e) => setEmptyRoomDelay(Math.max(0, Math.min(1440, parseInt(e.target.value) || 0)))}
+                min="0"
+                max="1440"
+                style={{
+                  width: 120,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  padding: 10,
+                  color: 'white',
+                  fontSize: 14,
+                  textAlign: 'center',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Set to 0 to disable automatic empty-room removal.</div>
+            </div>
+          </div>
           <div style={{
             background: 'rgba(255,255,255,0.05)',
             borderRadius: 12,
