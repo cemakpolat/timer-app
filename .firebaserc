@@ -2,5 +2,14 @@
   "projects": {
     "default": "timerapp-2997d"
   },
-  "targets": {}
+  "targets": {
+    "timerapp-2997d": {
+      "database": {
+        "main": [
+          "timerapp-2997d-default-rtdb"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

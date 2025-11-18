@@ -3,51 +3,58 @@
     ".read": false,
     ".write": false,
     "presence": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        ".read": "auth != null",
-        ".write": "$uid === auth.uid"
+      ".read": true,
+      "$userId": {
+        ".write": "auth != null && auth.uid == $userId"
       }
     },
     "users": {
-      ".read": "auth != null",
-      ".write": "auth != null",
       "$uid": {
-        ".read": "auth != null",
-        ".write": "$uid === auth.uid"
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "avatarUrl": {
+          ".validate": "newData.isString() || newData.val() === null"
+        },
+        "avatarSession": {
+          ".validate": "newData.isBoolean() || newData.val() === null"
+        }
       }
     },
     "userRooms": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId",
+        ".validate": "newData.isString() || newData.val() === null"
       }
     },
     "focusRooms": {
-      ".read": "auth != null",
-      ".write": "auth != null",
+      ".read": true,
       "$roomId": {
-        ".read": "auth != null",
-        ".write": "root.child('focusRooms').child($roomId).child('ownerId').val() === auth.uid"
+        ".write": "auth != null",
+        "participants": {
+          "$userId": {
+            ".write": "auth != null && (auth.uid == $userId || root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['joinedAt', 'displayName']) || newData.val() === null"
+          }
+        },
+        "messages": {
+          ".write": "auth != null"
+        },
+        "timer": {
+          ".write": "auth != null"
+        }
       }
     },
     "timers": {
-      ".read": "auth != null",
-      ".write": "auth != null",
       "$userId": {
-        ".read": "$userId === auth.uid || root.child('timers').child($userId).child('isPublic').val() === true",
-        ".write": "$userId === auth.uid"
+        ".read": "auth != null && (auth.uid == $userId || root.child('timers').child($userId).child('isPublic').val() === true)",
+        ".write": "auth != null && auth.uid == $userId"
       }
     },
     "notifications": {
-      ".read": "auth != null",
-      ".write": "auth != null",
       "$userId": {
-        ".read": "$userId === auth.uid",
-        ".write": "$userId === auth.uid"
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
       }
     }
   }
