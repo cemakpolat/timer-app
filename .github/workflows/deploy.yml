@@ -65,65 +65,42 @@ jobs:
         id: extract-creds
         working-directory: ./infrastructure
         run: |
-          # ✅ Get Firebase config JSON from Terraform
+          set -e  # Exit on any error
+          
           echo "📥 Extracting Firebase credentials from Terraform..."
           
-          # First, check if terraform output exists
-          if ! terraform output firebase_config >/dev/null 2>&1; then
-            echo "❌ Error: firebase_config output not found"
-            echo "Available outputs:"
-            terraform output
-            exit 1
-          fi
+          # Get the terraform output
+          OUTPUT=$(terraform output -json firebase_config 2>&1)
           
-          OUTPUT=$(terraform output -json firebase_config)
+          echo "📋 Terraform output retrieved"
+          echo "$OUTPUT" | head -c 100
+          echo ""
           
-          echo "📋 Raw Terraform output:"
-          echo "$OUTPUT" | jq '.' 2>/dev/null || echo "$OUTPUT"
-          
-          # Debug: Check if output is valid JSON
-          if ! echo "$OUTPUT" | jq empty 2>/dev/null; then
-            echo "❌ Error: Firebase credentials not valid JSON"
-            exit 1
-          fi
-          
-          # Extract individual values using jq
-          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey // empty')
-          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain // empty')
-          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL // empty')
-          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId // empty')
-          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket // empty')
-          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId // empty')
-          APP_ID=$(echo "$OUTPUT" | jq -r '.appId // empty')
+          # Extract individual values using jq (be very careful with syntax)
+          API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey' 2>/dev/null || echo "")
+          AUTH_DOMAIN=$(echo "$OUTPUT" | jq -r '.authDomain' 2>/dev/null || echo "")
+          DATABASE_URL=$(echo "$OUTPUT" | jq -r '.databaseURL' 2>/dev/null || echo "")
+          PROJECT_ID=$(echo "$OUTPUT" | jq -r '.projectId' 2>/dev/null || echo "")
+          STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket' 2>/dev/null || echo "")
+          MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId' 2>/dev/null || echo "")
+          APP_ID=$(echo "$OUTPUT" | jq -r '.appId' 2>/dev/null || echo "")
           
           echo ""
           echo "✅ Extracted values:"
-          [ -n "$API_KEY" ] && echo "  ✓ API_KEY set" || echo "  ❌ API_KEY empty"
-          [ -n "$AUTH_DOMAIN" ] && echo "  ✓ AUTH_DOMAIN set" || echo "  ❌ AUTH_DOMAIN empty"
-          [ -n "$DATABASE_URL" ] && echo "  ✓ DATABASE_URL set" || echo "  ❌ DATABASE_URL empty"
-          [ -n "$PROJECT_ID" ] && echo "  ✓ PROJECT_ID set" || echo "  ❌ PROJECT_ID empty"
-          [ -n "$STORAGE_BUCKET" ] && echo "  ✓ STORAGE_BUCKET set" || echo "  ❌ STORAGE_BUCKET empty"
-          [ -n "$MESSAGING_SENDER_ID" ] && echo "  ✓ MESSAGING_SENDER_ID set" || echo "  ❌ MESSAGING_SENDER_ID empty"
-          [ -n "$APP_ID" ] && echo "  ✓ APP_ID set" || echo "  ❌ APP_ID empty"
+          echo "  API_KEY length: ${#API_KEY}"
+          echo "  DATABASE_URL: $([[ -n \"$DATABASE_URL\" ]] && echo \"SET\" || echo \"EMPTY\")"
+          echo "  PROJECT_ID: $([[ -n \"$PROJECT_ID\" ]] && echo \"SET\" || echo \"EMPTY\")"
           
-          # Verify all credentials were extracted
-          if [ -z "$DATABASE_URL" ]; then
+          # Verify we got at least the database URL
+          if [[ -z "$DATABASE_URL" ]]; then
             echo ""
-            echo "❌ CRITICAL: DATABASE_URL is empty!"
-            echo "Cannot proceed without database URL"
+            echo "❌ ERROR: DATABASE_URL is empty!"
+            echo "Full terraform output:"
+            terraform output -json firebase_config
             exit 1
           fi
           
-          # ✅ CRITICAL: Mask each credential in logs
-          echo "::add-mask::$API_KEY"
-          echo "::add-mask::$AUTH_DOMAIN"
-          echo "::add-mask::$DATABASE_URL"
-          echo "::add-mask::$PROJECT_ID"
-          echo "::add-mask::$STORAGE_BUCKET"
-          echo "::add-mask::$MESSAGING_SENDER_ID"
-          echo "::add-mask::$APP_ID"
-          
-          # ✅ Set as job outputs (for next job)
+          # ✅ Set all outputs (even if some are empty, they'll be null in next job)
           echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
           echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
@@ -132,9 +109,17 @@ jobs:
           echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
           echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
           
-          # ✅ IMPORTANT: Never print values themselves!
-          echo "✅ Firebase credentials extracted and masked in logs"
-          echo "✅ databaseURL: $DATABASE_URL" | sed 's/https:\/\//-https:\/\//' | sed 's/\.firebaseio\.com/ ✓/'
+          # ✅ Mask all values in logs
+          echo "::add-mask::$API_KEY"
+          echo "::add-mask::$AUTH_DOMAIN"
+          echo "::add-mask::$DATABASE_URL"
+          echo "::add-mask::$PROJECT_ID"
+          echo "::add-mask::$STORAGE_BUCKET"
+          echo "::add-mask::$MESSAGING_SENDER_ID"
+          echo "::add-mask::$APP_ID"
+          
+          echo ""
+          echo "✅ Firebase credentials extracted successfully"
 
   # STAGE 2: Build React App with Firebase Credentials
   build:
