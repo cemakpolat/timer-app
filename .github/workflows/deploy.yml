@@ -409,11 +409,12 @@ jobs:
           npm install
           cd ..
           
-          echo "�🔧 Deploying Cloud Functions..."
+          echo " Deploying Cloud Functions (2nd Generation with latest SDK)..."
           firebase deploy \
             --project timerapp-2997d \
             --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" \
             --only functions \
+            --force \
             --message "Cloud Functions update from GitHub Actions build #${{ github.run_number }}"
           
           if [ $? -eq 0 ]; then
