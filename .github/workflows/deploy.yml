@@ -65,8 +65,16 @@ jobs:
         id: extract-creds
         working-directory: ./infrastructure
         run: |
-          # ✅ Convert JSON output to environment variables
-          OUTPUT=$(terraform output -json firebase_config)
+          # ✅ Get Firebase config JSON from Terraform
+          echo "📥 Extracting Firebase credentials from Terraform..."
+          OUTPUT=$(terraform output -json firebase_config 2>/dev/null || echo "{}")
+          
+          # Debug: Check if output is valid JSON
+          if ! echo "$OUTPUT" | jq empty 2>/dev/null; then
+            echo "❌ Error: Firebase credentials not found in Terraform output"
+            echo "This usually means: enable_firebase = false in terraform.tfvars"
+            exit 1
+          fi
           
           # Extract individual values using jq
           API_KEY=$(echo "$OUTPUT" | jq -r '.apiKey // empty')
@@ -76,6 +84,14 @@ jobs:
           STORAGE_BUCKET=$(echo "$OUTPUT" | jq -r '.storageBucket // empty')
           MESSAGING_SENDER_ID=$(echo "$OUTPUT" | jq -r '.messagingSenderId // empty')
           APP_ID=$(echo "$OUTPUT" | jq -r '.appId // empty')
+          
+          # Verify all credentials were extracted
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ Error: DATABASE_URL is empty"
+            echo "Terraform output was:"
+            terraform output firebase_config
+            exit 1
+          fi
           
           # ✅ CRITICAL: Mask each credential in logs
           echo "::add-mask::$API_KEY"
@@ -97,6 +113,7 @@ jobs:
           
           # ✅ IMPORTANT: Never print values themselves!
           echo "✅ Firebase credentials extracted and masked in logs"
+          echo "✅ databaseURL: $DATABASE_URL" | sed 's/https:\/\//-https:\/\//' | sed 's/\.firebaseio\.com/ ✓/'
 
   # STAGE 2: Build React App with Firebase Credentials
   build:
