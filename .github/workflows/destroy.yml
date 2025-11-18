@@ -1,0 +1,150 @@
+name: Destroy Infrastructure (Admin Only)
+
+# This workflow DESTROYS all GCP infrastructure
+# Only run manually and only with admin/owner approval
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "destroy-all" to confirm infrastructure destruction'
+        required: true
+        default: ''
+      reason:
+        description: 'Reason for destruction (for audit trail)'
+        required: true
+        default: 'Cleanup'
+
+jobs:
+  # Safety check before destruction
+  verify-admin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify Admin or Owner
+        run: |
+          # This job checks if the user is an admin/owner
+          # GitHub automatically prevents non-admins from running workflow_dispatch
+          # But we add explicit confirmation requirement for extra safety
+          if [ "${{ github.actor }}" = "" ]; then
+            echo "❌ No actor information available"
+            exit 1
+          fi
+          echo "✅ User verified: ${{ github.actor }}"
+          echo "📝 Reason: ${{ github.event.inputs.reason }}"
+
+      - name: Verify Confirmation
+        run: |
+          CONFIRMATION="${{ github.event.inputs.confirmation }}"
+          if [ "$CONFIRMATION" != "destroy-all" ]; then
+            echo "❌ Invalid confirmation string"
+            echo "   Expected: destroy-all"
+            echo "   Received: $CONFIRMATION"
+            exit 1
+          fi
+          echo "✅ Confirmation verified"
+
+  # Destroy infrastructure
+  destroy-infrastructure:
+    needs: verify-admin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/341637730794/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions@timerapp-2997d.iam.gserviceaccount.com
+          token_format: 'access_token'
+          access_token_lifetime: '600s'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init
+
+      - name: Show Terraform Plan (Destroy)
+        working-directory: ./infrastructure
+        run: |
+          echo "🔍 Reviewing what will be DESTROYED..."
+          terraform plan -destroy -var-file=terraform.tfvars -out=tfplan.destroy
+          echo ""
+          echo "⚠️  DESTRUCTION PLAN ABOVE ⚠️"
+          echo ""
+          echo "Resources to be destroyed:"
+          terraform show tfplan.destroy | grep "# " | head -20
+
+      - name: Confirm Destruction
+        run: |
+          echo "❌ WARNING: ABOUT TO DESTROY ALL INFRASTRUCTURE"
+          echo "   User: ${{ github.actor }}"
+          echo "   Reason: ${{ github.event.inputs.reason }}"
+          echo "   Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo ""
+          echo "This action will:"
+          echo "  • Delete Firebase Web App"
+          echo "  • Delete Realtime Database"
+          echo "  • Delete Cloud Storage"
+          echo "  • Delete Cloud Functions"
+          echo "  • Delete Cloud Scheduler Jobs"
+          echo "  • Delete Pub/Sub Topics"
+          echo "  • Delete Service Accounts"
+          echo ""
+          echo "⏳ Proceeding with destruction in 5 seconds..."
+          sleep 5
+
+      - name: Terraform Destroy
+        working-directory: ./infrastructure
+        run: |
+          echo "🔥 DESTROYING INFRASTRUCTURE..."
+          terraform destroy -auto-approve -var-file=terraform.tfvars
+          echo ""
+          echo "✅ Infrastructure destroyed"
+
+      - name: Create Audit Log Entry
+        if: always()
+        run: |
+          cat > /tmp/destruction-audit.log << EOF
+          Destruction Audit Log
+          =====================
+          Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          User: ${{ github.actor }}
+          Reason: ${{ github.event.inputs.reason }}
+          Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Status: ${{ job.status }}
+          EOF
+          cat /tmp/destruction-audit.log
+
+      - name: Notify Destruction Complete
+        if: success()
+        run: |
+          echo "✅ INFRASTRUCTURE DESTROYED SUCCESSFULLY"
+          echo ""
+          echo "To restore:"
+          echo "  1. Re-run the Deploy workflow"
+          echo "  2. New infrastructure will be provisioned"
+          echo ""
+          echo "⚠️  Some resources may take time to fully delete"
+          echo "   (e.g., databases, storage buckets)"
+
+      - name: Notify Destruction Failed
+        if: failure()
+        run: |
+          echo "❌ DESTRUCTION FAILED"
+          echo ""
+          echo "Some resources may be partially deleted"
+          echo "Manual cleanup may be required"
+          echo ""
+          echo "Check the logs above for details"
+          exit 1

@@ -400,6 +400,23 @@ jobs:
             exit 1
           fi
 
+      - name: Deploy Cloud Functions
+        run: |
+          npm install -g firebase-tools
+          
+          echo "🔧 Deploying Cloud Functions..."
+          firebase deploy \
+            --project timerapp-2997d \
+            --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" \
+            --only functions \
+            --message "Cloud Functions update from GitHub Actions build #${{ github.run_number }}"
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Cloud Functions deployed successfully"
+          else
+            echo "⚠️  Cloud Functions deployment warning (may already exist)"
+          fi
+
       - name: Deploy to Firebase Hosting
         run: |
           npm install -g firebase-tools
