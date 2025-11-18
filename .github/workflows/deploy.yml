@@ -116,8 +116,8 @@ jobs:
             fi
             
             # Debug: Show what we got (masked)
-            echo "✅ Extracted values for main branch deployment:"
-            echo "  apiKey: ${API_KEY:0:10}***"
+            echo "Extracted values:"
+            echo "  apiKey: ${API_KEY:0:10}..."
             echo "  authDomain: $AUTH_DOMAIN"
             echo "  databaseURL: $DATABASE_URL"
             echo "  projectId: $PROJECT_ID"
@@ -128,24 +128,22 @@ jobs:
             echo "ℹ️  Not a main branch push - outputs may be empty (this is expected for PRs)"
           fi
           
-          # Write outputs (these must be written before masking)
-          # Even if empty, write them to avoid undefined output errors
-          {
-            echo "api_key=$API_KEY"
-            echo "auth_domain=$AUTH_DOMAIN"
-            echo "database_url=$DATABASE_URL"
-            echo "project_id=$PROJECT_ID"
-            echo "storage_bucket=$STORAGE_BUCKET"
-            echo "messaging_sender_id=$MESSAGING_SENDER_ID"
-            echo "app_id=$APP_ID"
-          } >> $GITHUB_OUTPUT
+          # Write outputs - these must match the job outputs definition
+          # Output names: api_key, auth_domain, database_url, project_id, storage_bucket, messaging_sender_id, app_id
+          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
+          echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
+          echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
+          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
+          echo "storage_bucket=$STORAGE_BUCKET" >> $GITHUB_OUTPUT
+          echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
+          echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
           
           # Mask sensitive values in logs (only API_KEY is truly sensitive)
           if [ -n "$API_KEY" ]; then
             echo "::add-mask::$API_KEY"
           fi
           
-          echo "✅ Credentials extraction complete"
+          echo "✅ All 7 credentials extracted successfully"
 
       - name: Debug Raw Terraform Output
         working-directory: ./infrastructure
@@ -153,6 +151,17 @@ jobs:
           echo "🔍 Debugging raw Terraform output..."
           terraform output -json firebase_config || echo "❌ Failed to retrieve firebase_config output"
           echo "✅ Debugging complete."
+
+      - name: Verify Job Outputs Are Set
+        run: |
+          echo "🔍 Verifying job outputs are available..."
+          echo "firebase-api-key: ${{ steps.extract-creds.outputs.api_key }}"
+          echo "firebase-auth-domain: ${{ steps.extract-creds.outputs.auth_domain }}"
+          echo "firebase-database-url: ${{ steps.extract-creds.outputs.database_url }}"
+          echo "firebase-project-id: ${{ steps.extract-creds.outputs.project_id }}"
+          echo "firebase-storage-bucket: ${{ steps.extract-creds.outputs.storage_bucket }}"
+          echo "firebase-messaging-sender-id: ${{ steps.extract-creds.outputs.messaging_sender_id }}"
+          echo "firebase-app-id: ${{ steps.extract-creds.outputs.app_id }}"
 
   # STAGE 2: Build React App with Firebase Credentials
   build:
