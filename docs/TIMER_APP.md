@@ -362,3 +362,194 @@ Study Session:
 ---
 
 **Happy Timing! 🎯**
+
+## Phase 1-3: Room Lifecycle Management
+
+### Overview
+Implemented room cleanup feature with stale participant detection and timer expiration UI.
+
+### Phase 1: Stale Participant Detection ✅
+
+Participants with no presence update for **5+ minutes** are marked as "stale" and automatically removed from the room's participant list. If the room owner is stale, a flag `ownerDisconnected = true` is set on the room.
+
+**Configuration**: 5-minute stale threshold (configurable in `functions/index.js`), runs every 15 minutes via scheduled Cloud Function.
+
+### Phase 3: Timer Expiration UI with Extension ✅
+
+#### For Room Owner:
+- Shows timer countdown (2-min grace period before auto-close)
+- Dropdown to select extension (5, 10, 15, 20, 25, or 30 minutes)
+- "Extend Timer" button to add time
+- "Close Room Now" button to close immediately
+
+#### For Non-Owners:
+- Shows "Owner is deciding..." message
+- "Leave Room" option
+- Cannot extend or close (owner-only privilege)
+
+**Implementation Files**:
+- `src/components/FocusRooms/RoomExpirationModal.js` - Modal component
+- `src/services/firebase/FirebaseService.js` - `extendRoomTimer()` method
+- `src/hooks/useFocusRoom.js` - `extendTimer()` hook function
+- `src/App.js` - Integration and event handling
+
+## 5 New Features Implementation ✅
+
+### Task 1: Cancel Button for Timer Creation ✅
+
+Added `cancelCreateTimer()` function that resets form state and closes the modal. Timer creation UI displays two buttons side-by-side: "Create Timer" and "Cancel". The cancel button uses an X icon and resets all form fields (name, duration, unit, color, group, scene).
+
+**File**: `src/App.js`
+
+### Task 2: Hide Sequences in Composite Group ✅
+
+Modified `filteredGroups` logic to exclude "Sequences" when `activeMainTab === 'composite'`. Sequences remain available in the main "timer" tab.
+
+**File**: `src/App.js`
+
+### Task 3: Phase 2a Room Scheduling ✅
+
+**Database Schema Changes**:
+- Added `scheduledFor` field (timestamp) to room object
+- Added `status` field with values: "scheduled", "active", "completed"
+- Rooms with future `scheduledFor` are created with status="scheduled"
+
+**UI/UX Enhancements**:
+- Date/time picker in CreateRoomModal (toggle with "Schedule for Later" button)
+- Visual indicator (📅 Scheduled badge) on scheduled rooms
+- Displays scheduled time instead of timer countdown
+- "Not Ready" button state prevents joining before scheduled time
+- Export button available for scheduled rooms (for calendar integration)
+
+**Cloud Functions**:
+- New `activateScheduledRooms()` function runs on schedule (default: every 15 minutes)
+- Automatically changes status from "scheduled" → "active" when `now >= scheduledFor`
+- Retries with exponential backoff for robustness
+- Logs all activations for debugging
+
+**Files Modified**:
+- `src/services/firebase/FirebaseService.js` - Updated `createFocusRoom()` to support scheduling
+- `src/components/FocusRooms/CreateRoomModal.js` - Added date/time picker UI
+- `src/App.js` - Updated room display to show scheduled status
+- `functions/index.js` - Added `activateScheduledRooms()` Cloud Function
+
+### Task 4: Room Creation Limits ✅
+
+**Implementation in `FirebaseService.createFocusRoom()`**:
+- **Per-user limit**: Checks if user already has an active room (via `userRooms/{userId}`)
+- **Global limit**: Counts all non-completed rooms and prevents creation if >= 100
+- Throws descriptive error messages for both cases
+
+**Error Messages**:
+1. Per-user: "You already have an active room. Leave your current room before creating a new one."
+2. Global: "Maximum number of active rooms (100) has been reached. Please try again later."
+
+**File**: `src/services/firebase/FirebaseService.js`
+
+### Task 5: Calendar Export Feature ✅
+
+**Calendar Service Functions** (`src/services/calendar/calendarService.js`):
+1. **`generateICSContent(room)`** - Generates RFC 5545 compliant ICS format
+2. **`downloadICSFile(room)`** - Download .ics file locally
+3. **`generateGoogleCalendarURL(room)`** - Generate Google Calendar link
+4. **`downloadMultipleRoomsAsICS(rooms)`** - Batch export for multiple rooms
+
+**UI Components**:
+- **Export Button** on scheduled rooms (green "Export" button)
+- **Calendar Export Modal** with two options:
+  - "Download .ics File" - Local file download for import later
+  - "Add to Google Calendar" - Direct Google Calendar integration
+  - Cancel option to dismiss modal
+- **Toast Notifications** for success/failure feedback
+
+**Export Flow**:
+1. User clicks "Export" button on scheduled room
+2. Modal opens showing room details and two export options
+3. **Option A**: Download .ics file (can import to Outlook, Apple Calendar, etc.)
+4. **Option B**: Open Google Calendar directly and add event
+
+**Files Created/Modified**:
+- New: `src/services/calendar/calendarService.js` - Calendar export utilities
+- Modified: `src/App.js` - UI integration, state management, handlers
+
+## Deployment Guide
+
+### Pre-Deployment Checklist
+- [ ] Review all changes in feature documentation
+- [ ] Run tests for all features
+- [ ] Verify Firebase Database Rules are up-to-date
+- [ ] Ensure Cloud Functions have correct environment variables
+- [ ] Backup current Firebase Realtime Database
+
+### Deployment Steps
+
+#### 1. Deploy Frontend (React App)
+
+```bash
+cd /Users/cemakpolat/Development/timer-app
+npm install
+npm run build
+firebase deploy --only hosting
+```
+
+#### 2. Deploy Cloud Functions
+
+```bash
+cd functions
+npm install
+firebase deploy --only functions
+```
+
+#### 3. Verify Deployment
+
+```bash
+firebase functions:log
+```
+
+### Feature Validation After Deployment
+
+#### Task 1: Cancel Button
+- [ ] Open app in browser
+- [ ] Go to Timer tab → Create button
+- [ ] Verify "Cancel" button appears next to "Create Timer"
+- [ ] Click Cancel and verify form closes
+
+#### Task 2: Hide Sequences
+- [ ] Go to Timer tab → create a sequence
+- [ ] Switch to Composite tab
+- [ ] Try to create a timer → verify "Sequences" not in group dropdown
+- [ ] Switch back to Timer tab → verify "Sequences" appears
+
+#### Task 3: Room Scheduling
+- [ ] Go to Focus Rooms → Create Room
+- [ ] Toggle "Schedule for Later" button
+- [ ] Pick a future date/time
+- [ ] Create room
+- [ ] Verify room shows "📅 Scheduled" badge
+- [ ] Verify "Not Ready" button (disabled)
+
+#### Task 4: Room Limits
+- [ ] Create one active room
+- [ ] Try creating another → verify error: "You already have an active room"
+- [ ] Leave the room
+- [ ] Create new room → verify success
+
+#### Task 5: Calendar Export
+- [ ] Create a scheduled room
+- [ ] Look for green "Export" button on the room card
+- [ ] Click Export → verify modal opens
+- [ ] Click "Download .ics File" → verify file downloads
+- [ ] Click "Add to Google Calendar" → verify Google Calendar opens
+
+### Rollback Procedure
+
+If issues occur:
+
+```bash
+firebase deploy --only hosting
+cd functions && npm install && firebase deploy --only functions
+```
+
+---
+
+**Happy Timing! 🎯**
