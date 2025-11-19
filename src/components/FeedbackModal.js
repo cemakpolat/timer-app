@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModal } from '../context/ModalContext';
 import { X, Send, Lightbulb } from 'lucide-react';
 
 /**
@@ -11,11 +12,13 @@ const FeedbackModal = ({ theme, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' or 'error'
 
+  const { alert } = useModal();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!suggestion.trim()) {
-      alert('Please enter your suggestion');
+      await alert('Please enter your suggestion');
       return;
     }
 
@@ -24,13 +27,16 @@ const FeedbackModal = ({ theme, onClose }) => {
 
     try {
       // Create mailto link as backend fallback
-      const subject = encodeURIComponent('T2Get Suggestion');
+      const subject = encodeURIComponent('Suggestion');
       const body = encodeURIComponent(
         `Name: ${name || 'Anonymous'}\nEmail: ${email || 'Not provided'}\n\nSuggestion:\n${suggestion}`
       );
 
-      // Open mailto link
-      window.location.href = `mailto:suggestion@t2get.com?subject=${subject}&body=${body}`;
+      // Open mailto link (fallback)
+      window.location.href = `mailto:suggestion@support.local?subject=${subject}&body=${body}`;
+
+      // Non-blocking toast to inform the user
+      try { window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Email client opened', type: 'info', ttl: 3000 } })); } catch (e) {}
 
       setSubmitStatus('success');
 
@@ -121,10 +127,10 @@ const FeedbackModal = ({ theme, onClose }) => {
           border: `1px solid ${theme.accent}20`
         }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: theme.accent }}>
-            About T2Get
+            About
           </h3>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-            T2Get is a focus and productivity app designed to help you achieve your goals.
+            This app is a focus and productivity tool designed to help you achieve your goals.
             With Pomodoro timers, interval training, collaborative focus rooms, and achievement tracking,
             we're building tools that help you stay motivated and productive.
           </p>
@@ -250,7 +256,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               fontSize: 14,
               fontWeight: 600
             }}>
-              ✗ Something went wrong. Please try again or email us directly at suggestion@t2get.com
+              ✗ Something went wrong. Please try again or email us directly at suggestion@support.local
             </div>
           )}
 
@@ -297,7 +303,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             marginTop: 12,
             textAlign: 'center'
           }}>
-            Your feedback will be sent to suggestion@t2get.com
+            Your feedback will be sent to suggestion@support.local
           </div>
         </form>
       </div>

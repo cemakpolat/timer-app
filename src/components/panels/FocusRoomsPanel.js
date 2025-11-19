@@ -1,5 +1,6 @@
-import React from 'react';
-import { Users, Plus, Clock, Calendar, Play, Send, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Plus, Clock, Calendar, Play, Send, Search, X } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
 import RoomExpirationModal from '../FocusRooms/RoomExpirationModal';
 import RealtimeServiceFactory from '../../services/RealtimeServiceFactory';
@@ -34,6 +35,16 @@ import RealtimeServiceFactory from '../../services/RealtimeServiceFactory';
  * - getParticipantCount: Function to get number of participants
  * - isRoomFull: Function to check if room is full
  */
+
+const ROOM_TAGS = [
+  { id: 'work', label: 'Work', color: '#ef4444', emoji: '💼' },
+  { id: 'study', label: 'Study', color: '#3b82f6', emoji: '📚' },
+  { id: 'creative', label: 'Creative', color: '#f59e0b', emoji: '🎨' },
+  { id: 'fitness', label: 'Fitness', color: '#10b981', emoji: '💪' },
+  { id: 'wellness', label: 'Wellness', color: '#8b5cf6', emoji: '🧘' },
+  { id: 'other', label: 'Other', color: '#6b7280', emoji: '⭐' }
+];
+
 function FocusRoomsPanel({
   theme,
   currentRoom,
@@ -49,6 +60,7 @@ function FocusRoomsPanel({
   deleteRoom,
   setShowRoomSettings,
   setCalendarExportRoom,
+  setShowCreateRoomModal,
   handleSaveRoomSettings,
   sendMessage,
   startRoomTimer,
@@ -58,10 +70,38 @@ function FocusRoomsPanel({
   handleExportToGoogleCalendar,
   formatTime,
   getParticipantCount,
-  isRoomFull,
-  setToastMessage,
-  setShowToast
+  isRoomFull
 }) {
+  const { showToast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
+  const sortBy = 'participants'; // Default sort by participants
+
+  // Filter and sort rooms
+  const filteredRooms = rooms
+    .filter(room => {
+      // Filter by search term
+      const matchesSearch = !searchTerm ||
+        room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (room.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Filter by selected tags
+      const matchesTags = selectedTags.length === 0 || selectedTags.includes(room.tag || 'other');
+
+      return matchesSearch && matchesTags;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'newest':
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        case 'participants':
+        default:
+          return (getParticipantCount(b) || 0) - (getParticipantCount(a) || 0);
+      }
+    });
+
   return (
     <>
       {!currentRoom ? (
@@ -92,17 +132,113 @@ function FocusRoomsPanel({
               </button>
             </div>
 
-            {roomsLoading ? (
+            {/* Search and Filter Bar */}
+            <div style={{ marginBottom: 24 }}>
+              {/* Search Input */}
+              <div style={{ position: 'relative', marginBottom: 16 }}>
+                <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)' }} />
+                <input
+                  type="text"
+                  placeholder="Search rooms by name or description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    padding: '12px 12px 12px 40px',
+                    color: theme.text,
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.5)',
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Tag Filters */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {ROOM_TAGS.map(tag => {
+                    const isSelected = selectedTags.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedTags(selectedTags.filter(t => t !== tag.id));
+                          } else {
+                            setSelectedTags([...selectedTags, tag.id]);
+                          }
+                        }}
+                        style={{
+                          background: isSelected ? tag.color + '20' : 'transparent',
+                          border: `1px solid ${isSelected ? tag.color : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 9999,
+                          padding: '4px 10px',
+                          color: isSelected ? '#000' : theme.text,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {tag.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Room Count */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+                  {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''} found
+                </span>
+              </div>
+            </div>
+
+            {roomsLoading && rooms.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
                 Loading rooms...
               </div>
-            ) : rooms.length === 0 ? (
+            ) : roomsLoading && rooms.length > 0 ? (
+              <div style={{ textAlign: 'center', padding: 12, color: 'rgba(255,255,255,0.5)' }}>
+                Updating rooms...
+              </div>
+            ) : filteredRooms.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
-                No active rooms. Create one to get started!
+                {rooms.length === 0 ? 'No active rooms. Create one to get started!' : 'No rooms match your search criteria.'}
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 12 }}>
-                {rooms.map(room => (
+              <div style={{ 
+                display: 'grid', 
+                gap: 12,
+                maxHeight: '500px',
+                overflowY: 'auto',
+                paddingRight: 4
+              }}>
+                {filteredRooms.map(room => (
                   <div
                     key={room.id}
                     style={{
@@ -218,20 +354,16 @@ function FocusRoomsPanel({
                 >
                   Leave Room
                 </button>
-                {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
+                {currentRoom && RealtimeServiceFactory.getServiceSafe()?.currentUserId === currentRoom.createdBy && (
                   <button
                     onClick={async () => {
                       try {
                         await deleteRoom(currentRoom.id);
-                        setToastMessage('Room deleted');
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 3000);
+                        showToast('Room deleted', 'success', 3000);
                         await leaveRoom();
                       } catch (err) {
                         const msg = err?.message || 'Failed to delete room';
-                        setToastMessage(msg);
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 5000);
+                        showToast(msg, 'error', 5000);
                       }
                     }}
                     style={{
@@ -248,7 +380,7 @@ function FocusRoomsPanel({
                     Delete Room
                   </button>
                 )}
-                {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
+                {currentRoom && RealtimeServiceFactory.getServiceSafe()?.currentUserId === currentRoom.createdBy && (
                   <button
                     onClick={() => setShowRoomSettings(true)}
                     style={{

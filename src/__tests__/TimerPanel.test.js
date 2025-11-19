@@ -108,22 +108,9 @@ describe('TimerPanel Component', () => {
 
     render(<TimerPanel {...propsWithValues} />);
     
-    // The play button is the one with just the Play icon inside HH:MM:SS group
-    // It's the 4th button after the 3 input fields
-    const buttons = screen.getAllByRole('button');
-    // Last button in the timer input group should be the play button
-    const playButton = buttons.find(btn => {
-      const svg = btn.querySelector('svg');
-      return svg && btn.style.background.includes('59, 130, 246'); // accent color
-    });
-    
-    if (playButton) {
-      fireEvent.click(playButton);
-      // 1 hour + 30 min + 45 sec = 3600 + 1800 + 45 = 5445 seconds
-      expect(mockProps.startTimer).toHaveBeenCalledWith(5445);
-    } else {
-      // Skip test if button not found - component may be structured differently
-      expect(mockProps.startTimer).not.toHaveBeenCalled();
-    }
+    const playButton = screen.getByTestId('start-timer-button');
+    fireEvent.click(playButton);
+    // 1 hour + 30 min + 45 sec = 3600 + 1800 + 45 = 5445 seconds
+    expect(mockProps.startTimer).toHaveBeenCalledWith(5445);
   });
 });

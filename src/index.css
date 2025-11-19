@@ -11,3 +11,14 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Mobile optimization - reduce spacing on small screens */
+@media (max-width: 640px) {
+  * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  }
+  
+  input, textarea, select, button {
+    font-size: 14px !important;
+  }
+}

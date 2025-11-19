@@ -112,6 +112,7 @@ const TimerPanel = ({
         />
         <button
           onClick={handleStartTimer}
+          data-testid="start-timer-button"
           style={{ 
             background: theme.accent, 
             border: 'none', 

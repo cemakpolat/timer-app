@@ -162,4 +162,6 @@ class ShareService {
   }
 }
 
-export default new ShareService();
+const shareService = new ShareService();
+
+export default shareService;

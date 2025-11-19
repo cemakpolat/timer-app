@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Users, Clock, Zap } from 'lucide-react';
+import { X, Users, Clock } from 'lucide-react';
+import { useModal } from '../../context/ModalContext';
 
 /**
  * Modal for creating a new focus room
@@ -7,50 +8,64 @@ import { X, Users, Clock, Zap } from 'lucide-react';
 const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => {
   const [roomName, setRoomName] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(10);
-  const [timerType, setTimerType] = useState('single'); // 'single' or 'composite'
+  const [timerTab, setTimerTab] = useState('new'); // 'new' or 'available'
   const [duration, setDuration] = useState(25);
-  const [selectedComposite, setSelectedComposite] = useState(null);
+  const [selectedTimer, setSelectedTimer] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [emptyRoomDelay, setEmptyRoomDelay] = useState(2); // minutes
   const [scheduleRoom, setScheduleRoom] = useState(false); // Phase 2a: enable scheduling
   const [scheduledDate, setScheduledDate] = useState(''); // Date in YYYY-MM-DD format
   const [scheduledTime, setScheduledTime] = useState(''); // Time in HH:mm format
+  const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
 
-  // Get composite timers (sequences)
-  const compositeTimers = savedTimers.filter(t => t.group === 'Sequences');
+  // Get all available timers (including composite timers)
+  const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
+
+  // Available tags for rooms (simple text tags)
+  const availableTags = [
+    { value: 'work', label: 'Work' },
+    { value: 'study', label: 'Study' },
+    { value: 'fitness', label: 'Fitness' },
+    { value: 'meditation', label: 'Meditation' },
+    { value: 'creative', label: 'Creative' },
+    { value: 'social', label: 'Social' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const { alert } = useModal();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!roomName.trim()) {
-      alert('Please enter a room name');
+      await alert('Please enter a room name');
       return;
     }
 
     if (!displayName.trim()) {
-      alert('Please enter your display name');
+      await alert('Please enter your display name');
       return;
     }
 
-    if (timerType === 'composite' && !selectedComposite) {
-      alert('Please select a composite timer');
+    if (timerTab === 'available' && !selectedTimer) {
+      await alert('Please select a timer');
       return;
     }
 
     // Phase 2a: Validate scheduling inputs if enabled
     if (scheduleRoom) {
       if (!scheduledDate || !scheduledTime) {
-        alert('Please select both date and time for scheduling');
+        await alert('Please select both date and time for scheduling');
         return;
       }
       // Parse date and time into a timestamp
       const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
       if (isNaN(scheduledDateTime.getTime())) {
-        alert('Invalid date or time');
+        await alert('Invalid date or time');
         return;
       }
       if (scheduledDateTime.getTime() <= Date.now()) {
-        alert('Scheduled time must be in the future');
+        await alert('Scheduled time must be in the future');
         return;
       }
     }
@@ -58,7 +73,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
     const roomData = {
       name: roomName.trim(),
       maxParticipants: parseInt(maxParticipants),
-      creatorName: displayName.trim()
+      creatorName: displayName.trim(),
+      tag: selectedTag // Add tag to room data
     };
 
     // emptyRoomDelay is in minutes; convert to seconds for the service
@@ -72,17 +88,22 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
       roomData.scheduledFor = scheduledDateTime.getTime();
     }
 
-    if (timerType === 'single') {
+    if (timerTab === 'new') {
       roomData.duration = parseInt(duration) * 60; // Convert to seconds
       roomData.timerType = 'single';
     } else {
-      roomData.timerType = 'composite';
-      roomData.compositeTimer = selectedComposite;
-      // Calculate total duration from steps
-      const totalSeconds = selectedComposite.steps.reduce((sum, step) => {
-        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-      }, 0);
-      roomData.duration = totalSeconds;
+      // Using an available timer
+      roomData.timerType = selectedTimer.isSequence ? 'composite' : 'single';
+      if (selectedTimer.isSequence) {
+        roomData.compositeTimer = selectedTimer;
+        const totalSeconds = selectedTimer.steps.reduce((sum, step) => {
+          return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+        }, 0);
+        roomData.duration = totalSeconds;
+      } else {
+        const timerDurationSec = selectedTimer.unit === 'sec' ? selectedTimer.duration : selectedTimer.duration * 60;
+        roomData.duration = timerDurationSec;
+      }
     }
 
     try {
@@ -91,24 +112,29 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
     } catch (err) {
       // Show inline feedback if creation failed (e.g., duplicate name or permission error)
       const msg = err?.message || 'Failed to create room';
-      alert(msg);
+      await alert(msg);
     }
   };
 
+  // 3 presets + an editable custom slot (4 boxes total)
   const presetDurations = [
-    { label: '5 min', value: 5, emoji: '☕' },
-    { label: '15 min', value: 15, emoji: '⚡' },
-    { label: '25 min', value: 25, emoji: '🍅' },
-    { label: '45 min', value: 45, emoji: '📚' },
-    { label: '60 min', value: 60, emoji: '🎯' }
+    { label: '5m', value: 5 },
+    { label: '15m', value: 15 },
+    { label: '25m', value: 25 }
   ];
 
+  // 3 presets + editable last box
   const presetParticipants = [
     { label: '2', value: 2 },
     { label: '5', value: 5 },
-    { label: '10', value: 10 },
-    { label: '20', value: 20 }
+    { label: '10', value: 10 }
   ];
+
+  // In-modal custom editors (replace window.prompt)
+  const [showDurationEditor, setShowDurationEditor] = useState(false);
+  const [tempDuration, setTempDuration] = useState(duration);
+  const [showParticipantsEditor, setShowParticipantsEditor] = useState(false);
+  const [tempParticipants, setTempParticipants] = useState(maxParticipants);
 
   return (
     <div
@@ -120,7 +146,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: 20
+        padding: 16
       }}
       onClick={onClose}
     >
@@ -128,8 +154,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         className="create-room-modal-content"
         style={{
           background: theme.card,
-          borderRadius: 24,
-          padding: 32,
+          position: 'relative',
+          borderRadius: 20,
+          padding: 20,
           maxWidth: 500,
           width: '100%',
           maxHeight: '90vh',
@@ -138,8 +165,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Create Focus Room</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Create Focus Room</h2>
           <button
             onClick={onClose}
             style={{
@@ -162,8 +189,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
 
         <form onSubmit={handleSubmit}>
           {/* Room Name */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)' }}>
               Room Name *
             </label>
             <input
@@ -175,10 +202,10 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${roomName ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 12,
-                padding: 14,
+                borderRadius: 10,
+                padding: 12,
                 color: 'white',
-                fontSize: 15,
+                fontSize: 14,
                 outline: 'none',
                 transition: 'all 0.2s',
                 boxSizing: 'border-box'
@@ -188,8 +215,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           </div>
 
           {/* Your Display Name */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)' }}>
               Your Display Name *
             </label>
             <input
@@ -201,10 +228,10 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${displayName ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 12,
-                padding: 14,
+                borderRadius: 10,
+                padding: 12,
                 color: 'white',
-                fontSize: 15,
+                fontSize: 14,
                 outline: 'none',
                 transition: 'all 0.2s',
                 boxSizing: 'border-box'
@@ -212,217 +239,249 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
             />
           </div>
 
-          {/* Timer Type Selection */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Clock size={16} /> Timer Type
+          {/* Room Tag */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)', display: 'block' }}>
+              Room Category
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setTimerType('single')}
-                style={{
-                  background: timerType === 'single' ? theme.accent : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${timerType === 'single' ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 12,
-                  padding: 14,
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6
-                }}
-              >
-                <Clock size={16} /> Single Timer
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimerType('composite')}
-                style={{
-                  background: timerType === 'composite' ? theme.accent : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${timerType === 'composite' ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 12,
-                  padding: 14,
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6
-                }}
-              >
-                <Zap size={16} /> Composite Timer
-              </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {availableTags.map((tag) => (
+                <button
+                  key={tag.value}
+                  type="button"
+                  onClick={() => setSelectedTag(tag.value)}
+                  style={{
+                    background: selectedTag === tag.value ? theme.accent : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${selectedTag === tag.value ? theme.accent : 'rgba(255,255,255,0.08)'}`,
+                    borderRadius: 9999,
+                    padding: '6px 12px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {tag.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Single Timer Duration */}
-          {timerType === 'single' && (
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Clock size={16} /> Session Duration
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
-                {presetDurations.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => setDuration(preset.value)}
-                    style={{
-                      background: duration === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
-                      border: `2px solid ${duration === preset.value ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                      borderRadius: 12,
-                      padding: '10px 8px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <span style={{ fontSize: 16 }}>{preset.emoji}</span>
-                    <span>{preset.label}</span>
-                  </button>
-                ))}
-              </div>
-              <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, Math.min(180, parseInt(e.target.value) || 1)))}
-                min="1"
-                max="180"
+          {/* Timer Selection Tabs */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Clock size={14} /> Session Timer
+            </label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, borderBottom: `1px solid rgba(255,255,255,0.1)` }}>
+              <button
+                type="button"
+                onClick={() => setTimerTab('new')}
                 style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8,
-                  padding: 10,
-                  color: 'white',
-                  fontSize: 14,
-                  textAlign: 'center',
-                  boxSizing: 'border-box'
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: timerTab === 'new' ? `2px solid ${theme.accent}` : `2px solid transparent`,
+                  padding: '6px 10px',
+                  color: timerTab === 'new' ? theme.accent : 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
                 }}
-              />
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6, textAlign: 'center' }}>
-                Custom duration (1-180 minutes)
-              </div>
+              >
+                New Timer
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimerTab('available')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: timerTab === 'available' ? `2px solid ${theme.accent}` : `2px solid transparent`,
+                  padding: '8px 12px',
+                  color: timerTab === 'available' ? theme.accent : 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Available Timers
+              </button>
             </div>
-          )}
 
-          {/* Composite Timer Selection */}
-          {timerType === 'composite' && (
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Zap size={16} /> Select Composite Timer
-              </label>
-              {compositeTimers.length === 0 ? (
-                <div style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '2px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
-                  padding: 16,
-                  textAlign: 'center',
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: 14
-                }}>
-                  No composite timers available. Create one in the Timer tab first.
+            {/* New Timer Tab */}
+            {timerTab === 'new' && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                  {presetDurations.map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setDuration(preset.value)}
+                        style={{
+                          background: duration === preset.value ? theme.accent : 'rgba(255,255,255,0.06)',
+                          border: `1px solid ${duration === preset.value ? theme.accent : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: 10,
+                          padding: '10px 6px',
+                          minHeight: 44,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                    {/* Editable Custom Time Box (last) - opens in-modal editor */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => { setTempDuration(duration); setShowDurationEditor(true); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTempDuration(duration); setShowDurationEditor(true); } }}
+                      style={{
+                        background: !presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${!presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 10,
+                        padding: '10px 6px',
+                        minHeight: 44,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ fontSize: 13 }}>{!presetDurations.some(p => p.value === duration) ? `${duration}m` : 'Custom'}</span>
+                    </div>
                 </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {compositeTimers.map((timer) => {
-                    const totalSeconds = timer.steps.reduce((sum, step) => {
-                      return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-                    }, 0);
-                    const totalMinutes = Math.floor(totalSeconds / 60);
-                    const isSelected = selectedComposite?.name === timer.name;
+              </div>
+            )}
+
+            {/* Available Timers Tab */}
+            {timerTab === 'available' && (
+              <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {availableTimers.length === 0 ? (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    padding: 12,
+                    textAlign: 'center',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: 12
+                  }}>
+                    No timers available yet. Create timers in the Timer tab first.
+                  </div>
+                ) : (
+                  availableTimers.map((timer, idx) => {
+                    const isSelected = selectedTimer?.name === timer.name;
+                    const isComposite = timer.isSequence || timer.group === 'Sequences';
+                    let displayDuration = `${timer.duration} ${timer.unit || 'min'}`;
+                    if (isComposite && timer.steps) {
+                      const totalSec = timer.steps.reduce((sum, step) => {
+                        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+                      }, 0);
+                      displayDuration = `${Math.floor(totalSec / 60)}m`;
+                    }
 
                     return (
                       <button
-                        key={timer.name}
+                        key={idx}
                         type="button"
-                        onClick={() => setSelectedComposite(timer)}
+                        onClick={() => setSelectedTimer(timer)}
                         style={{
                           background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: `2px solid ${isSelected ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                          borderRadius: 12,
-                          padding: 14,
+                          border: `1px solid ${isSelected ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                          borderRadius: 8,
+                          padding: '8px 10px',
                           color: 'white',
                           cursor: 'pointer',
-                          fontSize: 14,
+                          fontSize: 12,
                           transition: 'all 0.2s',
-                          textAlign: 'left'
+                          textAlign: 'left',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
                         }}
                       >
-                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{timer.name}</div>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-                          {timer.steps.length} steps • {totalMinutes} min total
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: 2 }}>{timer.name}</div>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>
+                            {timer.group || 'Other'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {isComposite && (
+                            <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+                              Composite
+                            </span>
+                          )}
+                          <span style={{ fontSize: 11, fontWeight: 600 }}>{displayDuration}</span>
                         </div>
                       </button>
                     );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                  })
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Max Participants */}
-          <div style={{ marginBottom: 32 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Users size={16} /> Max Participants
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Users size={14} /> Max Participants
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {presetParticipants.map((preset) => (
                 <button
                   key={preset.value}
                   type="button"
                   onClick={() => setMaxParticipants(preset.value)}
                   style={{
-                    background: maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
-                    border: `2px solid ${maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: 12,
-                    padding: 12,
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    transition: 'all 0.2s'
-                  }}
+                      background: maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
+                      border: `2px solid ${maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 10,
+                      padding: '10px 6px',
+                      minHeight: 44,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      transition: 'all 0.2s'
+                    }}
                 >
                   {preset.label}
                 </button>
               ))}
-            </div>
-            <input
-              type="number"
-              value={maxParticipants}
-              onChange={(e) => setMaxParticipants(Math.max(2, Math.min(50, parseInt(e.target.value) || 2)))}
-              min="2"
-              max="50"
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                padding: 10,
-                color: 'white',
-                fontSize: 14,
-                textAlign: 'center',
-                boxSizing: 'border-box'
-              }}
-            />
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6, textAlign: 'center' }}>
-              Custom size (2-50 people)
+              {/* Editable participants box (last) - opens in-modal editor */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { setTempParticipants(maxParticipants); setShowParticipantsEditor(true); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTempParticipants(maxParticipants); setShowParticipantsEditor(true); } }}
+                style={{
+                  background: !presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.18)' : 'rgba(255,255,255,0.05)',
+                  border: `2px solid ${!presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.5)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 10,
+                  padding: '10px 6px',
+                  minHeight: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{!presetParticipants.some(p => p.value === maxParticipants) ? String(maxParticipants) : 'Custom'}</span>
+              </div>
             </div>
           </div>
 
@@ -537,19 +596,23 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
             <div style={{ fontSize: 14, color: 'white', lineHeight: 1.6 }}>
               <div><strong>{roomName || 'Unnamed Room'}</strong></div>
               <div>Host: {displayName || 'Anonymous'}</div>
-              {timerType === 'single' ? (
+              {timerTab === 'new' ? (
                 <div>Duration: {duration} minutes</div>
-              ) : (
+              ) : selectedTimer ? (
                 <>
-                  <div>Timer: {selectedComposite?.name || 'Not selected'}</div>
-                  {selectedComposite && (
+                  <div>Timer: {selectedTimer.name}</div>
+                  {selectedTimer.isSequence || selectedTimer.group === 'Sequences' ? (
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-                      {selectedComposite.steps.length} steps • {Math.floor(selectedComposite.steps.reduce((sum, step) => {
-                        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-                      }, 0) / 60)} min total
+                      Composite • {selectedTimer.steps?.length} steps
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                      {selectedTimer.duration} {selectedTimer.unit || 'min'}
                     </div>
                   )}
                 </>
+              ) : (
+                <div>Timer: Not selected</div>
               )}
               <div>Capacity: Up to {maxParticipants} people</div>
               {scheduleRoom && scheduledDate && scheduledTime && (
@@ -604,6 +667,63 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
             </button>
           </div>
         </form>
+
+        {/* In-modal editors (rendered inside modal content) */}
+        {showDurationEditor && (
+          <div style={{ position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
+            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Session Length</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>Enter duration in minutes (max 180)</div>
+              <input
+                type="number"
+                value={tempDuration}
+                onChange={(e) => setTempDuration(Math.max(1, Math.min(180, parseInt(e.target.value || 0))))}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setShowDurationEditor(false);
+                  if (e.key === 'Enter') {
+                    const val = parseInt(tempDuration, 10);
+                    if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val));
+                    setShowDurationEditor(false);
+                  }
+                }}
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: 'white', boxSizing: 'border-box', marginBottom: 12 }}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: 'white' }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showParticipantsEditor && (
+          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
+            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Max Participants</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>Enter a number between 2 and 100</div>
+              <input
+                type="number"
+                value={tempParticipants}
+                onChange={(e) => setTempParticipants(Math.max(2, Math.min(100, parseInt(e.target.value || 0))))}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setShowParticipantsEditor(false);
+                  if (e.key === 'Enter') {
+                    const val = parseInt(tempParticipants, 10);
+                    if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val));
+                    setShowParticipantsEditor(false);
+                  }
+                }}
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: 'white', boxSizing: 'border-box', marginBottom: 12 }}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowParticipantsEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempParticipants, 10); if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val)); setShowParticipantsEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: 'white' }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
