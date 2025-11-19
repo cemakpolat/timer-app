@@ -8,7 +8,6 @@
 - [x] Create reusable components following the REFACTORING.md guide:
   - [x] TimerPanel.js - Core timer functionality (~190 lines)
   - [x] IntervalPanel.js - Pomodoro/work-rest cycles (~120 lines)
-  - [ ] StopwatchPanel.js - Elapsed time tracking - **Not needed yet**
   - [x] CompositePanel.js - Sequence builder and display (~210 lines)
   - [x] ThemeManager.js - Theme selection and custom theme creation (~240 lines)
   - [x] FocusRoomsPanel.js - Room list and management (330 lines) - **Phase 2 COMPLETED**
@@ -24,8 +23,7 @@
 - [x] Create unit tests for core timer logic:
   - [x] Timer countdown functionality (10 tests in TimerPanel.test.js)
   - [x] Interval timer state transitions (9 tests in IntervalPanel.test.js)
-  - [ ] Stopwatch elapsed time calculation - **Not needed yet**
-  - [ ] Sequence timer progression - **Future enhancement**
+  - [x] Sequence progression and compositing (tests in CompositePanel.test.js)
 - [x] Created timerUtils.js with reusable functions (formatTime, calculateTotalSeconds, etc.)
 - [x] Added 24 comprehensive utility function tests
 - [x] All 45 tests passing across 4 test suites
