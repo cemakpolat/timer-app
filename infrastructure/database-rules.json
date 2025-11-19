@@ -35,7 +35,7 @@
         "id": { ".validate": "newData.isString()" },
         "name": { ".validate": "newData.isString() && newData.val().length > 0" },
         "description": { ".validate": "newData.isString() || newData.val() === null" },
-        "tag": { ".validate": "newData.isString() && ['work', 'study', 'creative', 'fitness', 'wellness', 'other'].indexOf(newData.val()) !== -1" },
+        "tag": { ".validate": "newData.isString() && (newData.val() === 'work' || newData.val() === 'study' || newData.val() === 'creative' || newData.val() === 'fitness' || newData.val() === 'wellness' || newData.val() === 'other')" },
         "template": { ".validate": "newData.isString() || newData.val() === null" },
         "createdBy": { ".validate": "newData.isString()" },
         "creatorName": { ".validate": "newData.isString() || newData.val() === null" },
@@ -45,7 +45,7 @@
         "goal": { ".validate": "newData.isString() || newData.val() === null" },
         "breakDuration": { ".validate": "newData.isNumber() || newData.val() === null" },
         "cycles": { ".validate": "newData.isNumber() || newData.val() === null" },
-        "status": { ".validate": "newData.isString() && ['waiting', 'in-progress', 'completed'].indexOf(newData.val()) !== -1" },
+        "status": { ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'in-progress' || newData.val() === 'completed')" },
         "completedCycles": { ".validate": "newData.isNumber() || newData.val() === null" },
         "participants": {
           "$userId": {
