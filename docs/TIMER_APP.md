@@ -319,6 +319,70 @@ Study Session:
 - Privacy-preserving
 - Opt-in via settings
 
+### Daily Challenge
+
+**Complete Daily Goals**:
+1. Go to "Stats & History" → "Achievements" tab
+2. View your daily challenge at the bottom
+3. Complete the specified goal (e.g., "Complete 3 timers today")
+4. Track progress with visual progress bar
+5. Get rewarded when completed ✅
+
+**Features**:
+- Dynamic challenges that change daily
+- Progress tracking with visual indicators
+- Achievement integration
+- Motivational goal setting
+
+**Example Challenges**:
+- "Complete 3 timers today"
+- "Focus for 90 minutes total"
+- "Try a new timer scene"
+- "Create and save a custom timer"
+
+### Custom Theme Creation
+
+**Create Unlimited Themes**:
+1. Click the theme selector button (🎨)
+2. Choose from 5 built-in themes or click "Add Theme"
+3. Use the color picker to customize:
+   - Background color
+   - Card color
+   - Accent color
+   - Text color
+4. Name your theme and save
+5. Switch between themes instantly
+
+**Features**:
+- Full color customization
+- Unlimited custom themes
+- Live preview before saving
+- Delete unwanted themes
+- Persist across sessions
+
+**Color Picker Options**:
+- Hex color input
+- Visual color wheel
+- RGB sliders
+- Color presets
+
+### Sound Settings
+
+**Customize Audio Experience**:
+1. Click the sound button (🔊) in the top-right
+2. Choose alarm sound type:
+   - 🔔 Bell (default)
+   - 🎵 Chime
+   - 🔇 Silent
+3. Adjust volume with slider (0-100%)
+4. Settings apply to all timers
+
+**Features**:
+- Multiple alarm sound options
+- Volume control
+- Persistent settings
+- Preview sounds before selecting
+
 ## Troubleshooting
 
 ### Timer Won't Start
@@ -540,6 +604,27 @@ firebase functions:log
 - [ ] Click Export → verify modal opens
 - [ ] Click "Download .ics File" → verify file downloads
 - [ ] Click "Add to Google Calendar" → verify Google Calendar opens
+
+#### Additional Features Validation
+
+##### Daily Challenge
+- [ ] Go to Stats & History → Achievements tab
+- [ ] Scroll to bottom → verify Daily Challenge section
+- [ ] Check progress bar updates as you complete timers
+- [ ] Verify challenge completion shows ✅
+
+##### Custom Themes
+- [ ] Click theme selector button (🎨)
+- [ ] Click "Add Theme" → verify color picker modal opens
+- [ ] Customize colors and name theme
+- [ ] Save theme → verify it appears in theme list
+- [ ] Switch to custom theme → verify colors apply
+
+##### Sound Settings
+- [ ] Click sound button (🔊) in top-right
+- [ ] Verify dropdown with sound type selector and volume slider
+- [ ] Change sound type and volume
+- [ ] Start a timer → verify settings apply to alarm
 
 ### Rollback Procedure
 
