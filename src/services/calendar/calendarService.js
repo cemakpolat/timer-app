@@ -171,3 +171,179 @@ ${vevents}END:VCALENDAR`;
   link.click();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Generate an .ics file content from a timer with scheduled date/time
+ * @param {Object} timer - Timer object with name, duration
+ * @param {Date} scheduledDate - When to schedule this timer
+ * @returns {string} - ICS file content
+ */
+export function generateTimerICSContent(timer, scheduledDate) {
+  if (!timer || !scheduledDate) {
+    throw new Error('Timer and scheduled date are required');
+  }
+
+  const timerId = `timer-${timer.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
+  const timerName = timer.name || 'Timer';
+  
+  // Convert timestamps to ICS format (YYYYMMDDTHHMMSSZ)
+  const startDate = new Date(scheduledDate);
+  const durationMinutes = timer.duration || 25; // default 25 min
+  const durationMs = durationMinutes * 60 * 1000;
+  const endDate = new Date(startDate.getTime() + durationMs);
+
+  const formatDate = (date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+
+  const startISO = formatDate(startDate);
+  const endISO = formatDate(endDate);
+
+  // Sanitize timer name for ICS
+  const sanitizedName = timerName.replace(/"/g, '\\"').replace(/[\r\n]/g, ' ');
+  const group = timer.group ? ` (${timer.group})` : '';
+
+  // Build ICS content
+  const uid = `${timerId}@timerapp.local`;
+  const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Timer App//Timer Calendar Export//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Timer: ${sanitizedName}
+X-WR-TIMEZONE:UTC
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${startISO}
+DTEND:${endISO}
+SUMMARY:${sanitizedName}${group}
+DESCRIPTION:Timer duration: ${durationMinutes} minute(s). Scene: ${timer.scene || 'none'}.
+LOCATION:Timer App
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+END:VCALENDAR`;
+
+  return icsContent;
+}
+
+/**
+ * Download an .ics file for a timer with scheduled date
+ * @param {Object} timer - Timer object
+ * @param {Date} scheduledDate - When to schedule this timer
+ */
+export function downloadTimerAsICS(timer, scheduledDate) {
+  try {
+    const icsContent = generateTimerICSContent(timer, scheduledDate);
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${timer.name.replace(/\s+/g, '_')}-${new Date(scheduledDate).toISOString().split('T')[0]}.ics`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading timer ICS file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a Google Calendar URL for a timer
+ * @param {Object} timer - Timer object
+ * @param {Date} scheduledDate - When to schedule this timer
+ * @returns {string} - Google Calendar URL
+ */
+export function generateTimerGoogleCalendarURL(timer, scheduledDate) {
+  if (!timer || !scheduledDate) {
+    throw new Error('Timer and scheduled date are required');
+  }
+
+  const startDate = new Date(scheduledDate);
+  const durationMinutes = timer.duration || 25;
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+
+  // Format dates for Google Calendar: YYYYMMDDTHHMMSS
+  const formatGoogleDate = (date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0];
+  };
+
+  const startFormatted = formatGoogleDate(startDate);
+  const endFormatted = formatGoogleDate(endDate);
+  const group = timer.group ? ` (${timer.group})` : '';
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `${timer.name}${group}`,
+    details: `Timer: ${timer.duration} minute(s). Scene: ${timer.scene || 'none'}.`,
+    location: 'Timer App',
+    dates: `${startFormatted}Z/${endFormatted}Z`
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/**
+ * Batch export multiple timers with scheduled dates to .ics file
+ * @param {Array} timers - Array of timer objects with scheduledDate property
+ * @returns {void} Downloads combined .ics file
+ */
+export function downloadMultipleTimersAsICS(timers) {
+  if (!timers || timers.length === 0) {
+    throw new Error('No timers to export');
+  }
+
+  // Filter timers with scheduledDate timestamp
+  const validTimers = timers.filter(t => t && t.scheduledDate);
+  if (validTimers.length === 0) {
+    throw new Error('No scheduled timers to export');
+  }
+
+  // Build VCALENDAR with multiple VEVENTs
+  const formatDate = (date) => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+
+  let vevents = '';
+  validTimers.forEach((timer, index) => {
+    const startDate = new Date(timer.scheduledDate);
+    const durationMinutes = timer.duration || 25;
+    const durationMs = durationMinutes * 60 * 1000;
+    const endDate = new Date(startDate.getTime() + durationMs);
+
+    const sanitizedName = timer.name.replace(/"/g, '\\"').replace(/[\r\n]/g, ' ');
+    const group = timer.group ? ` (${timer.group})` : '';
+    const uid = `timer-${index}-${Date.now()}@timerapp.local`;
+
+    vevents += `BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${formatDate(startDate)}
+DTEND:${formatDate(endDate)}
+SUMMARY:${sanitizedName}${group}
+DESCRIPTION:Timer duration: ${durationMinutes} minute(s). Scene: ${timer.scene || 'none'}.
+LOCATION:Timer App
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+`;
+  });
+
+  const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Timer App//Timer Calendar Export//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Scheduled Timers - ${new Date().toLocaleDateString()}
+X-WR-TIMEZONE:UTC
+${vevents}END:VCALENDAR`;
+
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `scheduled-timers-${new Date().toISOString().split('T')[0]}.ics`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
