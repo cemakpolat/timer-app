@@ -274,6 +274,22 @@ input[type='number'] {
   }
 }
 
+  /* Tab label visibility: show text on desktop, icons-only on mobile */
+  .tab-label {
+    display: inline-block;
+  }
+
+  @media (max-width: 768px) {
+    .tab-label {
+      display: none !important;
+    }
+
+    /* Slightly increase icon size on mobile for better tap targets */
+    .tab-icon {
+      font-size: 18px !important;
+    }
+  }
+
 @media (max-width: 480px) {
   /* Extra small screens - further adjustments */
   .hh-mm-ss-input-group input {

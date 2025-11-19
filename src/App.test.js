@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders app title', () => {
+test('renders settings button', () => {
   render(<App />);
-  const titleElement = screen.getByText(/T2Get/i);
-  expect(titleElement).toBeInTheDocument();
+  const settingsButton = screen.getByTitle(/Settings/i);
+  expect(settingsButton).toBeInTheDocument();
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Sparkles, Target, Mail, Download, Upload, History } from 'lucide-react';
+import { Award, Sparkles, Target, Mail, History } from 'lucide-react';
 
 /**
  * AchievementsPanel Component
@@ -153,35 +153,10 @@ function AchievementsPanel({
         )}
       </div>
 
-      {/* Export/Import Data */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>💾 Backup & Restore</h2>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            onClick={exportData}
-            style={{ flex: 1, minWidth: 200, background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <Download size={16} /> Export Data
-          </button>
-          <label style={{ flex: 1, minWidth: 200 }}>
-            <input
-              type="file"
-              accept=".json"
-              onChange={importData}
-              style={{ display: 'none' }}
-            />
-            <div style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Upload size={16} /> Import Data
-            </div>
-          </label>
-        </div>
-        <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-          Backup all your timers, stats, and achievements
-        </div>
-      </div>
+      {/* Backup & Restore moved to Settings - removed here */}
 
-      {/* History Log */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+      {/* History Log (hidden for now) */}
+      <div style={{ display: 'none', background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <History size={18} /> Recent History

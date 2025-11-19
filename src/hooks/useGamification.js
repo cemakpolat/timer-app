@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useToast } from '../context/ToastContext';
 import { useLocalStorage } from './useLocalStorage';
 import { STORAGE_KEYS, ACHIEVEMENTS, LIMITS } from '../utils/constants';
 import { getTodayString, getYesterdayString } from '../utils/helpers';
@@ -12,15 +13,21 @@ export const useGamification = () => {
   const [currentStreak, setCurrentStreak] = useLocalStorage(STORAGE_KEYS.CURRENT_STREAK, 0);
   const [lastCompletionDate, setLastCompletionDate] = useLocalStorage(STORAGE_KEYS.LAST_COMPLETION_DATE, null);
   const [achievements, setAchievements] = useLocalStorage(STORAGE_KEYS.ACHIEVEMENTS, []);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const { showToast } = useToast();
 
-  // Display toast notification
-  const showNotification = useCallback((message, duration = 3000) => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), duration);
-  }, []);
+  // Display toast notification using global ToastProvider
+  const showNotification = useCallback((message, duration = 3000, type = 'info') => {
+    try {
+      showToast(message, type, duration);
+    } catch (err) {
+      // fallback: dispatch global event
+      try {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message, type, ttl: duration } }));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [showToast]);
 
   // Check and unlock achievement
   const checkAchievement = useCallback((achievementId, achievementData) => {
@@ -137,8 +144,6 @@ export const useGamification = () => {
     currentStreak,
     lastCompletionDate,
     achievements,
-    showToast,
-    toastMessage,
     addToHistory,
     clearHistory,
     getRecentTimers,

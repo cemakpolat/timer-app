@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, X, Tag, Users, Clock } from 'lucide-react';
+import { Search, Plus, Users, Clock } from 'lucide-react';
 
 /**
  * RoomDiscoveryPanel Component
@@ -131,38 +131,37 @@ export default function RoomDiscoveryPanel({
               key={tag.id}
               onClick={() => toggleTag(tag.id)}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '8px 12px',
+                padding: '4px 10px',
                 background: selectedTags.includes(tag.id) 
-                  ? `${tag.color}30`
-                  : 'rgba(255,255,255,0.05)',
+                  ? `${tag.color}20`
+                  : 'transparent',
                 border: selectedTags.includes(tag.id)
                   ? `1px solid ${tag.color}`
-                  : '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 20,
-                color: selectedTags.includes(tag.id) ? tag.color : 'rgba(255,255,255,0.7)',
+                  : '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 9999,
+                color: selectedTags.includes(tag.id) ? '#000' : 'rgba(255,255,255,0.7)',
                 cursor: 'pointer',
                 fontSize: 13,
-                fontWeight: 500,
-                transition: 'all 0.2s',
+                fontWeight: 600,
+                transition: 'all 0.15s',
                 whiteSpace: 'nowrap'
               }}
               onMouseEnter={(e) => {
-                e.target.style.borderColor = tag.color;
-                e.target.style.background = `${tag.color}15`;
+                e.currentTarget.style.borderColor = tag.color;
+                e.currentTarget.style.background = `${tag.color}10`;
               }}
               onMouseLeave={(e) => {
-                e.target.style.borderColor = selectedTags.includes(tag.id)
+                e.currentTarget.style.borderColor = selectedTags.includes(tag.id)
                   ? tag.color
-                  : 'rgba(255,255,255,0.1)';
-                e.target.style.background = selectedTags.includes(tag.id)
-                  ? `${tag.color}30`
-                  : 'rgba(255,255,255,0.05)';
+                  : 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.background = selectedTags.includes(tag.id)
+                  ? `${tag.color}20`
+                  : 'transparent';
               }}
             >
-              <span>{tag.emoji}</span>
               {tag.label}
             </button>
           ))}

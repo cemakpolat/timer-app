@@ -30,7 +30,23 @@
     "focusRooms": {
       ".read": true,
       "$roomId": {
-        ".write": "auth != null",
+        ".write": "auth != null && (root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid || !root.child('focusRooms').child($roomId).exists())",
+        ".validate": "newData.hasChildren(['id', 'name', 'createdBy']) || newData.val() === null",
+        "id": { ".validate": "newData.isString()" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "description": { ".validate": "newData.isString() || newData.val() === null" },
+        "tag": { ".validate": "newData.isString() && ['work', 'study', 'creative', 'fitness', 'wellness', 'other'].indexOf(newData.val()) !== -1" },
+        "template": { ".validate": "newData.isString() || newData.val() === null" },
+        "createdBy": { ".validate": "newData.isString()" },
+        "creatorName": { ".validate": "newData.isString() || newData.val() === null" },
+        "createdAt": { ".validate": "newData.isString() || newData.val() === null" },
+        "maxParticipants": { ".validate": "newData.isNumber() && newData.val() > 0" },
+        "duration": { ".validate": "newData.isNumber() && newData.val() > 0" },
+        "goal": { ".validate": "newData.isString() || newData.val() === null" },
+        "breakDuration": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "cycles": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "status": { ".validate": "newData.isString() && ['waiting', 'in-progress', 'completed'].indexOf(newData.val()) !== -1" },
+        "completedCycles": { ".validate": "newData.isNumber() || newData.val() === null" },
         "participants": {
           "$userId": {
             ".write": "auth != null && (auth.uid == $userId || root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid)",
@@ -38,10 +54,17 @@
           }
         },
         "messages": {
-          ".write": "auth != null"
+          "$messageId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['userId', 'text', 'timestamp']) || newData.val() === null"
+          }
         },
         "timer": {
           ".write": "auth != null"
+        },
+        "completed": {
+          ".write": "auth != null && root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid",
+          ".validate": "newData.isBoolean() || newData.val() === null"
         }
       }
     },
