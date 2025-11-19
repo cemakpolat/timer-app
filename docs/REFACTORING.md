@@ -198,45 +198,4 @@ export default function TimerApp() {
       <div style={{ /* tab buttons */ }}>
         {/* Tab buttons: Timer, Interval, Stopwatch, Composite, Stats, etc. */}
       </div>
-
-      {/* Main content area */}
-      {activeMainTab === 'timer' && <TimerPanel {...timerLogic} theme={themeManager.theme} />}
-      {activeMainTab === 'interval' && <IntervalPanel {...timerLogic} theme={themeManager.theme} />}
-      {activeMainTab === 'stopwatch' && <StopwatchPanel {...timerLogic} theme={themeManager.theme} />}
-      {activeMainTab === 'focus' && <FocusRoomsPanel rooms={rooms} currentRoom={currentRoom} theme={themeManager.theme} {...focusRoomHandlers} />}
-      {activeMainTab === 'themes' && <ThemeManager {...themeManager} />}
-
-      {/* Toasts and modals */}
-      {showToast && <Toast message={toastMessage} />}
-      {/* ... other modals */}
-    </div>
-  );
-}
 ```
-
-**Final App.js size:** ~400–500 lines (down from 2863).
-
-## Benefits of Modularization
-
-| Benefit | Impact |
-|---------|--------|
-| **Maintainability** | Single responsibility principle: each component/hook does one thing |
-| **Reusability** | Components can be used in other projects or views |
-| **Testability** | Smaller units are easier to unit-test |
-| **Performance** | React.memo can be applied per-component to prevent unnecessary re-renders |
-| **Readability** | New developers can understand the structure quickly |
-| **Collaboration** | Multiple developers can work on different components without conflicts |
-
-## Next Steps
-
-1. ✅ **Create TimerPanel, IntervalPanel, StopwatchPanel** (done)
-2. ⏳ **Create useTimerLogic hook** — Extract ~400 lines of timer state & logic
-3. ⏳ **Create useThemeManager hook** — Extract ~150 lines of theme state
-4. ⏳ **Create CompositePanel** — Move sequence builder UI (~200 lines)
-5. ⏳ **Create ThemeManager component** — Move theme selection & creation UI (~150 lines)
-6. ⏳ **Create SavedTimers component** — Move saved timers list UI (~150 lines)
-7. ⏳ **Create FocusRoomsPanel component** — Move rooms list UI (~200 lines)
-8. ⏳ **Refactor App.js** — Wire together extracted modules (~400 lines final)
-9. ⏳ **Test & verify** — Ensure no functionality is lost during refactoring
-
-Would you like me to start with **useTimerLogic hook extraction** next?

@@ -45,7 +45,7 @@ The app will open at `http://localhost:3000`
 - **⚡ Interval Timer** - Pomodoro technique with customizable work/rest cycles
 - **🔗 Chain Timers (Sequences)** - Build multi-step timer sequences with visual progress
 - **💾 Saved Timers** - Save favorite timers with colors, groups, and custom names
-- **🎨 5 Beautiful Themes** - Midnight, Ocean, Forest, Purple, Warm Grey
+- **🎨 Unlimited Custom Themes** - 5 built-in themes plus unlimited custom color schemes
 - **🎬 Immersive Scenes** - 8 contextual backgrounds that transform your focus environment
 
 ### Engagement & Gamification
@@ -59,6 +59,9 @@ The app will open at `http://localhost:3000`
 - **📩 Time Capsule** - Write messages to your future self
 - **🔴 "Active Now" Counter** - See how many people are focusing right now
 - **📜 History Tracking** - Last 10 completed sessions with timestamps
+- **🎯 Daily Challenge** - Complete daily goals for extra motivation
+- **🎨 Custom Theme Creation** - Create unlimited custom themes with color picker
+- **🔊 Sound Settings** - Customize alarm sounds and volume levels
 
 ### Sharing & Portability
 - **🔗 URL-Based Sharing** - Share timer setups via encoded links

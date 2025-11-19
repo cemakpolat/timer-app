@@ -505,3 +505,508 @@ NEW_KEY=$(openssl rand -base64 32)
 ---
 
 **For more help**: [GitHub Actions Docs](https://docs.github.com/en/actions) | [Firebase Deployment](https://firebase.google.com/docs/hosting/deploying)
+
+## CI/CD Credentials & Debugging
+
+### Current Problem
+GitHub Actions workflow was not passing Firebase credentials from infrastructure job to build job. All `REACT_APP_FIREBASE_*` environment variables were empty in build stage.
+
+### Root Causes (in order)
+
+#### Cause #1: Terraform State File Not Committed to Git
+**Symptom**: `terraform output firebase_config` returns empty in GitHub Actions
+
+**Why**: GitHub Actions checks out fresh repository. If `terraform.tfstate` not in git, no resources exist in that workspace.
+
+**How to Check**:
+```bash
+git log --oneline infrastructure/terraform.tfstate
+```
+
+Should show recent commits. If not, state file not in git.
+
+**Fix**:
+```bash
+cd infrastructure
+git add terraform.tfstate .terraform.lock.hcl
+git commit -m "infrastructure: Track Terraform state in git"
+git push
+```
+
+#### Cause #2: Firebase Resources Not Created Yet
+**Symptom**: `terraform plan` in GitHub Actions would show "will be created"
+
+**Why**: Maybe `enable_firebase = false` in tfvars, or first deploy hasn't run
+
+**How to Check**:
+```bash
+cat infrastructure/terraform.tfvars | grep enable_firebase
+```
+
+Should show: `enable_firebase = true`
+
+#### Cause #3: Sensitive Output Causing Issues
+**Symptom**: `terraform output -json` returns error or empty
+
+**Why**: Outputs marked `sensitive = true` might need special handling
+
+**Check Firebase outputs**:
+```bash
+cd infrastructure
+terraform output -json firebase_config
+terraform output firebase_api_key
+terraform output firebase_database_url
+```
+
+### Debugging Steps (Run These Locally First)
+
+#### Step 1: Verify State File Exists
+```bash
+ls -la /Users/cemakpolat/Development/timer-app/infrastructure/terraform.tfstate
+```
+
+Should show file with recent timestamp.
+
+#### Step 2: Verify Firebase Output
+```bash
+cd infrastructure
+terraform output -json firebase_config | jq '.'
+```
+
+Should show valid JSON with all 7 values.
+
+#### Step 3: Check if State is in Git
+```bash
+git log --all -- infrastructure/terraform.tfstate | head -5
+```
+
+Should show recent commits with state file.
+
+#### Step 4: Manually Test Extraction
+```bash
+cd infrastructure
+OUTPUT=$(terraform output -json firebase_config)
+echo "$OUTPUT" | jq '.databaseURL'
+```
+
+Should output: `https://timerapp-2997d-terraform-rtdb.firebaseio.com`
+
+### What the Latest Workflow Changes Do
+
+The workflow now has better debugging:
+
+1. **Verify Terraform State** step - Checks if `terraform.tfstate` exists
+2. **List All Terraform Outputs** step - Shows what `terraform output` returns
+3. **Extract Firebase Credentials** step - Tries to extract and write to outputs
+4. **Build stage debug** - Shows which env vars are received
+
+### How to View GitHub Actions Logs
+
+1. Go to: https://github.com/cemakpolat/timer-app/actions
+2. Click latest workflow run
+3. Click "infrastructure" job
+4. Expand each step to see output
+
+Look for:
+- ✅ "terraform.tfstate exists" - State file is available
+- ✅ "firebase_config =" - Output was found
+- ✅ "Credentials set as outputs" - Extraction succeeded
+- ✅ In build job: env vars are SET (not missing)
+
+### Most Likely Fix
+
+Based on the symptoms, the most likely issue is **terraform.tfstate not in git**.
+
+**To fix:**
+```bash
+cd /Users/cemakpolat/Development/timer-app/infrastructure
+
+# Check if state file exists locally
+ls -la terraform.tfstate
+
+# If it exists, add to git
+git add terraform.tfstate .terraform.lock.hcl
+git status  # Should show both files as new/modified
+
+# Commit and push
+git commit -m "infrastructure: Add Terraform state to git for CI/CD"
+git push origin main
+
+# Now trigger workflow
+git commit --allow-empty -m "trigger: Test workflow with state file"
+git push origin main
+```
+
+Then watch the workflow at: https://github.com/cemakpolat/timer-app/actions
+
+## Firebase Hosting Deployment Setup
+
+### Overview
+Your GitHub Actions workflow is now configured to automatically deploy the built React app to Firebase Hosting on every push to `main` branch.
+
+**3-Stage Pipeline:**
+1. ✅ **Infrastructure** - Deploy Firebase resources via Terraform
+2. ✅ **Build** - Compile React app with Firebase credentials
+3. ✅ **Deploy** - Push built app to Firebase Hosting
+
+### Setup Steps
+
+#### Step 1: Generate Firebase Deploy Token
+
+Run this command locally to generate a deployment token:
+
+```bash
+firebase login:ci
+```
+
+This will:
+- Open a browser window asking for authentication
+- Generate a long-lived token for CI/CD
+- Display the token in your terminal
+
+**⚠️ Keep this token secret!**
+
+#### Step 2: Add Token to GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to **Settings → Secrets and variables → Actions**
+3. Click **New repository secret**
+4. Name: `FIREBASE_DEPLOY_TOKEN`
+5. Paste the token you generated
+6. Click **Add secret**
+
+**URL:** https://github.com/cemakpolat/timer-app/settings/secrets/actions
+
+### How It Works
+
+#### Workflow Stages
+
+```
+┌─────────────────────────────┐
+│  STAGE 1: Infrastructure    │
+│  - Authenticate to GCP      │
+│  - terraform init           │
+│  - terraform apply          │
+│  - Extract credentials      │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│  STAGE 2: Build             │
+│  - npm install              │
+│  - npm run build            │
+│  - Upload build artifacts   │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│  STAGE 3: Deploy            │
+│  - Download build artifacts │
+│  - Download decrypted credentials │
+│  - firebase deploy          │
+│  - Push to hosting          │
+└─────────────────────────────┘
+```
+
+#### Trigger Conditions
+
+The deployment stage runs **only when:**
+- ✅ Branch is `main`
+- ✅ Event is a push (not a pull request)
+- ✅ Build stage succeeds
+
+This means:
+- **Pull requests** → Builds test code but doesn't deploy
+- **Commits to main** → Full deployment pipeline runs
+- **Other branches** → Infrastructure & build stages run (no deploy)
+
+### Deployment URL
+
+Once deployed, your app will be live at:
+
+**🌍 https://timerapp-2997d.web.app**
+
+You can also access it via the project URL:
+- https://timerapp-2997d.firebaseapp.com (older format)
+
+### Configuration Files
+
+#### `.firebaserc`
+Specifies the Firebase project:
+```json
+{
+  "projects": {
+    "default": "timerapp-2997d"
+  }
+}
+```
+
+#### `firebase.json`
+Configures hosting deployment:
+- **public**: Points to `build/` folder (built React app)
+- **rewrites**: Routes all requests to `index.html` (SPA routing)
+- **headers**: Sets cache control for static assets
+  - JS/CSS/fonts: Cached 1 year (immutable)
+  - HTML: Cached 1 hour (must revalidate for updates)
+
+### Manual Deployment (Optional)
+
+If you need to deploy manually without GitHub Actions:
+
+```bash
+# Login locally
+firebase login
+
+# Build the app
+npm run build
+
+# Deploy to Firebase Hosting
+firebase deploy --only hosting --project timerapp-2997d
+```
+
+### Environment Variables in Deployment
+
+During the build stage, these Firebase credentials are injected:
+
+```
+REACT_APP_FIREBASE_API_KEY
+REACT_APP_FIREBASE_AUTH_DOMAIN
+REACT_APP_FIREBASE_DATABASE_URL
+REACT_APP_FIREBASE_PROJECT_ID
+REACT_APP_FIREBASE_STORAGE_BUCKET
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+REACT_APP_FIREBASE_APP_ID
+```
+
+These are:
+- ✅ **Masked in logs** (shown as `***`)
+- ✅ **Embedded in built app** (public, safe to expose)
+- ✅ **Extracted from Terraform** (no hardcoding)
+
+### Monitoring Deployments
+
+#### GitHub Actions Dashboard
+View deployment logs at:
+https://github.com/cemakpolat/timer-app/actions
+
+**Each run shows:**
+- Infrastructure stage status
+- Build stage output
+- Deployment logs
+- Live URL after successful deploy
+
+#### Firebase Console
+Monitor hosting at:
+https://console.firebase.google.com/project/timerapp-2997d/hosting
+
+**Features:**
+- Deployment history
+- Rollback to previous versions
+- Traffic analytics
+- Custom domain setup (when ready)
+
+### Common Tasks
+
+#### Rollback to Previous Deployment
+1. Go to Firebase Console → Hosting
+2. Find the deployment you want
+3. Click the three dots → **Promote**
+
+#### Add Custom Domain
+1. Firebase Console → Hosting → Connect domain
+2. Point your domain's DNS to Firebase
+3. SSL certificate auto-provisioned
+
+#### Check Deployment Size
+```bash
+du -sh build/
+```
+Firebase has a 1GB free tier per month (more than enough).
+
+## Infrastructure Destroy Workflow
+
+### Overview
+
+The destroy workflow provides a safe, controlled way to delete all GCP infrastructure. It's designed with multiple safety layers to prevent accidental destruction.
+
+### Safety Features
+
+#### 1. Admin-Only Access
+- Only repository admins/owners can trigger the workflow
+- GitHub Actions prevents non-admins from running `workflow_dispatch` events
+- Enforced by GitHub repository settings
+
+#### 2. Explicit Confirmation
+- Requires typing exact confirmation string: `destroy-all`
+- Typos or incorrect strings will abort the process
+- Prevents accidental clicks
+
+#### 3. Reason Logging
+- Requires specifying a reason for destruction
+- Reason is logged in audit trail
+- Helps track why infrastructure was destroyed
+
+#### 4. Pre-Destruction Review
+- Displays full Terraform destruction plan BEFORE any deletions
+- Shows exactly what will be destroyed
+- 5-second pause for final review
+
+#### 5. Audit Trail
+- Logs destruction event with:
+  - Timestamp
+  - User who triggered it
+  - Reason provided
+  - GitHub Actions workflow run ID
+  - Final status (success/failure)
+
+### How to Use
+
+#### Step 1: Trigger the Workflow
+
+```
+1. Go to GitHub repository
+2. Click "Actions" tab
+3. Select "Destroy Infrastructure (Admin Only)"
+4. Click "Run workflow"
+```
+
+#### Step 2: Fill in Requirements
+
+```
+Confirmation: destroy-all
+   (EXACTLY this string - typos will be rejected)
+
+Reason: e.g., "Cleanup old environment" or "Cost reduction test"
+   (This is logged for audit purposes)
+```
+
+#### Step 3: Review the Plan
+
+The workflow will:
+1. Initialize Terraform
+2. Show destruction plan
+3. Display resources to be deleted
+4. Wait 5 seconds before proceeding
+5. Await final confirmation
+
+#### Step 4: Destruction Executes
+
+Once confirmed, Terraform destroys:
+- ✅ Firebase Web Apps
+- ✅ Realtime Database
+- ✅ Cloud Storage
+- ✅ Cloud Functions
+- ✅ Cloud Scheduler Jobs
+- ✅ Pub/Sub Topics
+- ✅ IAM Service Accounts
+- ✅ Workload Identity configuration
+
+#### Step 5: Post-Destruction
+
+After successful destruction:
+- ✅ Audit log is created
+- ✅ Workflow completes
+- ✅ Infrastructure is gone
+
+**To restore**: Simply run the normal Deploy workflow (push to main branch)
+
+### What Gets Destroyed
+
+#### Firebase Services
+- Web App configuration
+- Realtime Database (data will be lost!)
+- Cloud Storage bucket
+- Authentication settings
+
+#### Cloud Functions
+- All deployed functions
+- Function storage buckets
+- Scheduled jobs
+
+#### IAM & Permissions
+- Service accounts
+- IAM role bindings
+- Workload Identity pools/providers
+
+#### Monitoring
+- Cloud Scheduler jobs
+- Pub/Sub topics
+
+### Important Warnings
+
+#### ⚠️ Data Loss
+```
+Destroying the Realtime Database will DELETE ALL DATA
+There is NO automatic backup or recovery
+Only proceed if you have manually backed up important data
+```
+
+#### ⚠️ Downtime
+```
+All users will lose access to the application
+Consider scheduling this during maintenance window
+Notify users before destruction
+```
+
+#### ⚠️ Re-provisioning Time
+```
+After destruction, re-provisioning takes 10-20 minutes
+- GCP services initialization: 5-10 min
+- Terraform apply: 5-10 min
+- Firebase deployment: 2-5 min
+```
+
+### Recovery After Destruction
+
+#### Option 1: Restore from Git
+
+```bash
+# 1. Ensure all code is committed
+git status
+
+# 2. Trigger the normal deploy workflow
+git push origin main
+
+# 3. GitHub Actions will:
+#    - Provision new infrastructure
+#    - Deploy database rules
+#    - Deploy Cloud Functions
+#    - Deploy React app to hosting
+#    - Everything will be back online
+
+# Expected time: 15-20 minutes
+```
+
+#### Option 2: Manual Restoration
+
+```bash
+# 1. Create GCP credentials
+gcloud auth application-default login
+
+# 2. Deploy infrastructure
+cd infrastructure
+terraform apply -var-file=terraform.tfvars
+
+# 3. Deploy database rules
+firebase deploy --only database --project timerapp-2997d
+
+# 4. Deploy Cloud Functions
+firebase deploy --only functions --project timerapp-2997d
+
+# 5. Deploy React app
+npm run build
+firebase deploy --only hosting --project timerapp-2997d
+```
+
+### Audit Trail
+
+All destruction events are logged. To check audit logs:
+
+```
+GitHub > Repository > Settings > Audit log
+Filter by: Destroy Infrastructure workflow runs
+```
+
+View details:
+- Who triggered it
+- When it was triggered
+- Success or failure status
+- Workflow run ID for full logs

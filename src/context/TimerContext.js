@@ -70,7 +70,7 @@ export const TimerProvider = ({ children }) => {
   // Import timers from share link
   const importTimers = useCallback((importData) => {
     try {
-      const { group, timers } = importData;
+      const { timers } = importData;
 
       // Filter out duplicates
       const existingNames = new Set(savedTimers.map(t => t.name));

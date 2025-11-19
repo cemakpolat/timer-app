@@ -188,10 +188,11 @@ const useFocusRoom = () => {
       let service;
       try {
         // Ensure a realtime service is initialized. For joining a room we require a real backend (no mock fallback).
-        if (!RealtimeServiceFactory.currentService) {
+        service = RealtimeServiceFactory.getServiceSafe();
+        if (!service) {
           await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: false });
+          service = RealtimeServiceFactory.getService();
         }
-        service = RealtimeServiceFactory.getService();
       } catch (err) {
         setError('Service not ready');
         setLoading(false);
@@ -264,16 +265,19 @@ const useFocusRoom = () => {
       setLoading(true);
       let service;
       try {
-        // Creating rooms requires real Firebase backend
-        if (!RealtimeServiceFactory.currentService) {
+        // Creating rooms requires real Firebase backend (allowFallback=false)
+        service = RealtimeServiceFactory.getServiceSafe();
+        if (!service) {
+          // Service not initialized yet, create it
           await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: false });
+          service = RealtimeServiceFactory.getService();
         }
-        service = RealtimeServiceFactory.getService();
       } catch (err) {
         // Service not initialized yet
+        console.error('Service initialization error:', err);
         setError('Service not ready. Please wait a moment and try again.');
         setLoading(false);
-        return;
+        throw err;
       }
 
       const room = await service.createFocusRoom(roomData);

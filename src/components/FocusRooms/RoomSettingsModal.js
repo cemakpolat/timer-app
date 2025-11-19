@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useModal } from '../../context/ModalContext';
 
 const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
   const initialMinutes = room && typeof room.emptyRoomRemovalDelaySec === 'number' ? Math.round(room.emptyRoomRemovalDelaySec / 60) : 2;
   const [emptyRoomDelay, setEmptyRoomDelay] = useState(initialMinutes);
+  const { alert } = useModal();
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -20,8 +22,8 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
       onClose();
     } catch (err) {
       const msg = err?.message || 'Failed to save settings';
-      // fallback: simple alert to inform user
-      alert(msg);
+      // fallback: use modal alert to inform user
+      await alert(msg);
     }
   };
 

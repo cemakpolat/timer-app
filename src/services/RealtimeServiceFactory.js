@@ -111,13 +111,21 @@ class RealtimeServiceFactory {
   }
 
   /**
-   * Get current service instance
+   * Get current service instance (throws if not initialized)
    */
   static getService() {
     if (!this.currentService) {
       throw new Error('Service not initialized. Call createService() first.');
     }
     return this.currentService;
+  }
+
+  /**
+   * Get current service instance safely (returns null if not initialized)
+   * Use this to avoid throwing errors when service may not be ready
+   */
+  static getServiceSafe() {
+    return this.currentService || null;
   }
 
   /**

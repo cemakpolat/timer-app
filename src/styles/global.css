@@ -218,6 +218,112 @@ input[type='number'] {
   }
 }
 
+/* Mobile Responsive Improvements */
+@media (max-width: 768px) {
+  /* Timer input group - stack vertically on mobile */
+  .hh-mm-ss-input-group {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  .hh-mm-ss-input-group input {
+    width: calc(33.333% - 8px) !important;
+    min-width: 60px !important;
+  }
+
+  .hh-mm-ss-input-group button {
+    width: 100% !important;
+    padding: 14px 20px !important;
+  }
+
+  /* Grid adjustments for mobile */
+  .grid-col-sm-3-to-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Touch-friendly button sizes */
+  button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* Improved modal spacing on mobile */
+  .modal-content {
+    padding: 24px 16px !important;
+    max-width: 95vw !important;
+  }
+
+  /* Better font sizes for mobile readability */
+  h1 {
+    font-size: 32px !important;
+  }
+
+  h2 {
+    font-size: 20px !important;
+  }
+
+  /* Tab navigation horizontal scroll */
+  .tab-navigation {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tab-navigation::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+  /* Tab label visibility: show text on desktop, icons-only on mobile */
+  .tab-label {
+    display: inline-block;
+  }
+
+  @media (max-width: 768px) {
+    .tab-label {
+      display: none !important;
+    }
+
+    /* Slightly increase icon size on mobile for better tap targets */
+    .tab-icon {
+      font-size: 18px !important;
+    }
+  }
+
+@media (max-width: 480px) {
+  /* Extra small screens - further adjustments */
+  .hh-mm-ss-input-group input {
+    font-size: 16px !important;
+    padding: 12px 6px !important;
+  }
+
+  /* Prevent zoom on input focus on iOS */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Stack cards vertically on very small screens */
+  .card-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Landscape mobile orientation */
+@media (max-height: 600px) and (orientation: landscape) {
+  /* Reduce vertical spacing in landscape mode */
+  .timer-display {
+    font-size: 48px !important;
+    margin-bottom: 16px !important;
+  }
+
+  h1 {
+    font-size: 28px !important;
+    margin-bottom: 16px !important;
+  }
+}
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,

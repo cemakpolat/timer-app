@@ -1,14 +1,24 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload } from 'lucide-react';
 import './styles/global.css';
+import { ModalProvider } from './context/ModalContext';
+import { ToastProvider } from './context/ToastContext';
 import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
-import RoomSettingsModal from './components/FocusRooms/RoomSettingsModal';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
-import RoomExpirationModal from './components/FocusRooms/RoomExpirationModal';
 import FeedbackModal from './components/FeedbackModal';
+import LazyLoadingFallback from './components/LazyLoadingFallback';
+import TimerPanel from './components/panels/TimerPanel';
+import IntervalPanel from './components/panels/IntervalPanel';
+import CompositePanel from './components/panels/CompositePanel';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
+import { formatDate } from './utils/formatters';
+
+// Lazy-loaded components
+const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
+const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
+const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
 
 const DEFAULT_THEMES = [
   { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isDefault: true },
@@ -118,7 +128,7 @@ export default function TimerApp() {
   // Firebase connection will be created on-demand when the user creates or joins a focus room.
   useEffect(() => {
     // Subscribe to factory init events so we know when the realtime service becomes available
-    if (RealtimeServiceFactory.currentService) {
+    if (RealtimeServiceFactory.getServiceSafe()) {
       setServiceReady(true);
     }
 
@@ -127,9 +137,7 @@ export default function TimerApp() {
     // Show a toast when the realtime factory reports an error during init
     const onError = (err) => {
       const msg = err && err.message ? `Realtime init failed: ${err.message}` : 'Realtime init failed';
-      setToastMessage(msg);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 5000 } }));
     };
     RealtimeServiceFactory.onError(onError);
 
@@ -173,9 +181,7 @@ export default function TimerApp() {
       await updateRoomSettings(currentRoom.id, updates);
       // Refresh room list so list view reflects settings change
       await fetchRooms();
-      setToastMessage('Room settings saved');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room settings saved', type: 'success', ttl: 3000 } }));
     } catch (err) {
       showRealtimeErrorToast(err, 'Save settings');
       throw err;
@@ -215,9 +221,7 @@ export default function TimerApp() {
       await extendRoomTimer(extensionMs);
       setTimerExpired(false); // Reset expiration state
       setShowRoomExpirationModal(false);
-      setToastMessage('Timer extended successfully');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Timer extended successfully', type: 'success', ttl: 3000 } }));
     } catch (err) {
       console.error('Failed to extend timer:', err);
       showRealtimeErrorToast(err, 'Extend timer');
@@ -258,24 +262,38 @@ export default function TimerApp() {
       return themes[0];
     }
   });
-  const [showThemes, setShowThemes] = useState(false);
+  const [, setShowThemes] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [previewTheme, setPreviewTheme] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
+  // Settings states
+  const [showSettings, setShowSettings] = useState(false);
+  const [showClearCacheModal, setShowClearCacheModal] = useState(false);
+  const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'sound'
+
   // Color picker states
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [, setShowColorPicker] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [newThemeName, setNewThemeName] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [newThemeBg, setNewThemeBg] = useState('#000000');
+  // eslint-disable-next-line no-unused-vars
   const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
+  // eslint-disable-next-line no-unused-vars
   const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
+  // eslint-disable-next-line no-unused-vars
   const [newThemeText, setNewThemeText] = useState('#ffffff');
 
   // Accordion state for timer groups
   const [collapsedGroups, setCollapsedGroups] = useState({});
 
-  // Navigation states
-  const [activeMainTab, setActiveMainTab] = useState('timer'); // timer, interval, stopwatch, composite
-  const [activeFeatureTab, setActiveFeatureTab] = useState(null); // stats, achievements, scenes, or null for main view
+  // Navigation states - RESTRUCTURED: Focus Rooms is now primary
+  const [activeMainTab, setActiveMainTab] = useState('rooms'); // rooms, timer, stats (elevated focus rooms to primary)
+  const [activeFeatureTab, setActiveFeatureTab] = useState(null); // timer, interval, stopwatch, composite, achievements, scenes
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false); // Show room template selector
+  const [selectedTemplate, setSelectedTemplate] = useState(null); // Selected template for room creation
 
   const [mode, setMode] = useState('timer');
   const [isRunning, setIsRunning] = useState(false);
@@ -343,9 +361,8 @@ export default function TimerApp() {
   const [shareLink, setShareLink] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [timerToDelete, setTimerToDelete] = useState(null);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
   const [calendarExportRoom, setCalendarExportRoom] = useState(null); // Task 5: Calendar export modal state
+  
 
   // Helper to show friendly toasts for realtime permission/init errors
   const showRealtimeErrorToast = (err, action = 'Operation') => {
@@ -364,10 +381,7 @@ export default function TimerApp() {
       msg = `${action} failed: ${raw}`;
     }
 
-    setToastMessage(msg);
-    setShowToast(true);
-    // Keep toast a bit longer for actionable guidance
-    setTimeout(() => setShowToast(false), 6000);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 6000 } }));
   };
 
   // NOTE: handleComplete is defined later; we'll update the ref after it's created
@@ -386,18 +400,14 @@ export default function TimerApp() {
     // Validate unique room name (case-insensitive)
     if (rooms.some(r => r.name && roomData.name && r.name.trim().toLowerCase() === roomData.name.trim().toLowerCase())) {
       const msg = 'Room name already in use. Please choose a different name.';
-      setToastMessage(msg);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 4000 } }));
       // Throw to let callers know it failed
       throw new Error(msg);
     }
     try {
       await createRoom(roomData);
       // Feedback on success
-      setToastMessage('Room created');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room created', type: 'success', ttl: 3000 } }));
     } catch (err) {
       console.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
@@ -409,15 +419,11 @@ export default function TimerApp() {
   const handleExportToICS = (room) => {
     try {
       downloadICSFile(room);
-      setToastMessage('Calendar file downloaded');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Calendar file downloaded', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
       console.error('Error exporting to ICS:', err);
-      setToastMessage('Failed to export calendar file');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to export calendar file', type: 'error', ttl: 3000 } }));
     }
   };
 
@@ -425,18 +431,47 @@ export default function TimerApp() {
     try {
       const url = generateGoogleCalendarURL(room);
       window.open(url, '_blank');
-      setToastMessage('Opening Google Calendar');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Opening Google Calendar', type: 'info', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
       console.error('Error exporting to Google Calendar:', err);
-      setToastMessage('Failed to open Google Calendar');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to open Google Calendar', type: 'error', ttl: 3000 } }));
     }
   };
-  
+
+  // Room template handlers
+  const handleSelectTemplate = (template) => {
+    setSelectedTemplate(template);
+    setShowTemplateSelector(false);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Selected template: ${template.name}`, type: 'info', ttl: 2000 } }));
+  };
+
+  const handleCreateRoomFromTemplate = async () => {
+    if (!selectedTemplate) return;
+
+    try {
+      // Create room data from template
+      const roomData = {
+        name: selectedTemplate.name,
+        duration: selectedTemplate.duration,
+        maxParticipants: selectedTemplate.maxParticipants,
+        goal: selectedTemplate.goal,
+        breakDuration: selectedTemplate.breakDuration,
+        cycles: selectedTemplate.cycles,
+        tag: selectedTemplate.tag,
+        template: selectedTemplate.id,
+        creatorName: 'You'
+      };
+
+      await handleCreateRoom(roomData);
+      setShowTemplateSelector(false);
+      setSelectedTemplate(null);
+    } catch (err) {
+      console.error('Template room creation error:', err);
+      // Error handling is done in handleCreateRoom
+    }
+  };
+
   // Load repeat preference from localStorage
   const [repeatEnabled, setRepeatEnabled] = useState(() => {
       try {
@@ -459,7 +494,6 @@ export default function TimerApp() {
     try { return parseFloat(localStorage.getItem('alarmVolume')) || 0.5; }
     catch (error) { return 0.5; }
   });
-  const [showSoundSettings, setShowSoundSettings] = useState(false);
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
 
@@ -523,9 +557,9 @@ export default function TimerApp() {
 
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
   const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
-  // When in composite mode, exclude "Sequences" from the dropdown since sequences are special
+  // When creating new timers, exclude "Sequences" from the dropdown since sequences are special
   const filteredGroups = groups
-    .filter(g => !(activeMainTab === 'composite' && g === 'Sequences'))
+    .filter(g => g !== 'Sequences')
     .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
   const intervalRef = useRef(null);
   const lastActiveTimeRef = useRef(null);
@@ -563,12 +597,10 @@ export default function TimerApp() {
           // Quick timer from URL
           setMode('timer');
           const totalSeconds = (decoded.h || 0) * 3600 + (decoded.m || 0) * 60 + (decoded.s || 0);
-          if (totalSeconds > 0) {
+            if (totalSeconds > 0) {
             setTime(totalSeconds);
             setInitialTime(totalSeconds);
-            setToastMessage(`Timer loaded: ${formatTime(totalSeconds)}`);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
+            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Timer loaded: ${formatTime(totalSeconds)}`, type: 'info', ttl: 3000 } }));
           }
         } else if (decoded.type === 'interval') {
           // Interval timer from URL
@@ -576,9 +608,7 @@ export default function TimerApp() {
           setWork(decoded.work || 40);
           setRest(decoded.rest || 20);
           setRounds(decoded.rounds || 8);
-          setToastMessage(`Interval loaded: ${decoded.work}s / ${decoded.rest}s × ${decoded.rounds}`);
-          setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Interval loaded: ${decoded.work}s / ${decoded.rest}s × ${decoded.rounds}`, type: 'info', ttl: 3000 } }));
         }
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -797,9 +827,7 @@ export default function TimerApp() {
         } else if (lastCompletionDate === yesterdayString) {
             // Consecutive day
             setCurrentStreak(prev => prev + 1);
-            setToastMessage(`🔥 ${currentStreak + 1} day streak!`);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
+            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `🔥 ${currentStreak + 1} day streak!`, type: 'success', ttl: 3000 } }));
         } else if (!lastCompletionDate) {
             // First ever completion
             setCurrentStreak(1);
@@ -831,9 +859,7 @@ export default function TimerApp() {
 
             // Check if challenge completed
             if (newProgress >= dailyChallenge.target && dailyChallenge.progress < dailyChallenge.target) {
-                setToastMessage(`🎯 Daily Challenge Complete!`);
-                setShowToast(true);
-                setTimeout(() => setShowToast(false), 3000);
+                window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `🎯 Daily Challenge Complete!`, type: 'success', ttl: 3000 } }));
             }
     }
   }, [firstTimerDate, currentStreak, lastCompletionDate, dailyChallenge, checkAchievements]);
@@ -998,49 +1024,12 @@ export default function TimerApp() {
   };
   const startInterval = () => { setMode('interval'); setTime(work); setCurrentRound(1); setIsWork(true); setIsRunning(true); };
 
-  // Theme management functions
-  const createCustomTheme = () => {
-    if (!newThemeName.trim()) return;
+  const pauseTimer = () => { setIsRunning(false); };
+  const resetTimer = () => { setIsRunning(false); setTime(initialTime); };
+  const pauseStopwatch = () => { setIsRunning(false); };
+  const resetStopwatch = () => { setIsRunning(false); setTime(0); };
 
-    const newTheme = {
-      name: newThemeName.trim(),
-      bg: newThemeBg,
-      card: newThemeCard,
-      accent: newThemeAccent,
-      text: newThemeText,
-      isDefault: false
-    };
-
-    const updatedThemes = [...themes, newTheme];
-    setThemes(updatedThemes);
-
-    // Save custom themes to localStorage
-    const customThemes = updatedThemes.filter(t => !t.isDefault);
-    localStorage.setItem('customThemes', JSON.stringify(customThemes));
-
-    // Reset form
-    setNewThemeName('');
-    setNewThemeBg('#000000');
-    setNewThemeCard('#1a1a1a');
-    setNewThemeAccent('#3b82f6');
-    setNewThemeText('#ffffff');
-    setShowColorPicker(false);
-  };
-
-  const deleteCustomTheme = (themeName) => {
-    const updatedThemes = themes.filter(t => t.name !== themeName);
-    setThemes(updatedThemes);
-
-    // If deleted theme was active, switch to first theme
-    if (theme.name === themeName) {
-      setTheme(updatedThemes[0]);
-      localStorage.setItem('selectedThemeName', updatedThemes[0].name);
-    }
-
-    // Save custom themes to localStorage
-    const customThemes = updatedThemes.filter(t => !t.isDefault);
-    localStorage.setItem('customThemes', JSON.stringify(customThemes));
-  };
+  // Theme management: Theme UI handled in settings; setters remain for compatibility
   const startSequence = () => {
     if (sequence.length === 0) return;
     setMode('sequence');
@@ -1150,9 +1139,7 @@ export default function TimerApp() {
     link.click();
     URL.revokeObjectURL(url);
 
-    setToastMessage('✅ Data exported successfully!');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Data exported successfully!', type: 'success', ttl: 3000 } }));
   };
 
   // Import data
@@ -1181,20 +1168,69 @@ export default function TimerApp() {
             if (importedTheme) setTheme(importedTheme);
           }
 
-          setToastMessage('✅ Data imported successfully!');
-          setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Data imported successfully!', type: 'success', ttl: 3000 } }));
         } else {
           throw new Error('Invalid backup file');
         }
       } catch (error) {
-        setToastMessage('❌ Failed to import data');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '❌ Failed to import data', type: 'error', ttl: 3000 } }));
       }
     };
     reader.readAsText(file);
     event.target.value = ''; // Reset input
+  };
+
+  // Clear all cache and reset to default state
+  const clearAllCache = () => {
+    try {
+      // Clear localStorage
+      localStorage.clear();
+      
+      // Reset all state to defaults
+      setSaved(defaultSavedTimers);
+      setHistory([]);
+      setTheme(themes[0]);
+      setThemes([...DEFAULT_THEMES]);
+      setCollapsedGroups({});
+      setAchievements({});
+      setMonthlyStats({});
+      setCurrentStreak(0);
+      setLastCompletionDate(null);
+      setTotalCompletions(0);
+      setFirstTimerDate(null);
+      setTimeCapsules([]);
+      
+      // Reset timer states
+      setMode('timer');
+      setIsRunning(false);
+      setTime(0);
+      setInputHours('');
+      setInputMinutes('');
+      setInputSeconds('');
+      setInitialTime(0);
+      setWork(40);
+      setRest(20);
+      setRounds(8);
+      setCurrentRound(1);
+      setIsWork(true);
+      setSequence([]);
+      setCurrentStep(0);
+      setSeqName('');
+      
+      // Reset UI states
+      setActiveMainTab('rooms');
+      setActiveFeatureTab(null);
+      setShowCreateTimer(false);
+      setShowThemes(false);
+      setShowBuilder(false);
+      setShowSettings(false);
+      
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Cache cleared! App reset to initial state.', type: 'success', ttl: 3000 } }));
+      setShowClearCacheModal(false);
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '❌ Failed to clear cache', type: 'error', ttl: 3000 } }));
+    }
   };
 
   const shareCurrentTimer = () => {
@@ -1214,9 +1250,7 @@ export default function TimerApp() {
         rounds: rounds
       };
     } else {
-      setToastMessage('Set up a timer first to share it!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Set up a timer first to share it!', type: 'info', ttl: 3000 } }));
       return;
     }
 
@@ -1225,9 +1259,7 @@ export default function TimerApp() {
     navigator.clipboard.writeText(url);
     setShareLink(url);
     setShowShareModal(true);
-    setToastMessage('Timer link copied to clipboard!');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Timer link copied to clipboard!', type: 'success', ttl: 3000 } }));
   };
 
   const shareTimerGroup = (groupName) => {
@@ -1235,9 +1267,7 @@ export default function TimerApp() {
     const encoded = btoa(JSON.stringify({ group: groupName, timers: groupTimers }));
     const url = `${window.location.origin}${window.location.pathname}?import=${encoded}`;
     setShareLink(url); setShowShareModal(true); navigator.clipboard.writeText(url);
-    setToastMessage('Share link copied to clipboard!');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Share link copied to clipboard!', type: 'success', ttl: 3000 } }));
   };
 
   // Time capsule functions
@@ -1255,17 +1285,12 @@ export default function TimerApp() {
     setTimeCapsules(prev => [...prev, newCapsule]);
     setCapsuleMessage('');
     setShowCapsuleInput(false);
-    setToastMessage('📩 Time capsule created! You\'ll see it in 30 days');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '📩 Time capsule created! You\'ll see it in 30 days', type: 'success', ttl: 3000 } }));
   };
 
   const confirmDelete = (timer) => { setTimerToDelete(timer); setShowDeleteModal(true); };
   const executeDelete = () => { if (timerToDelete) { setSaved(prev => prev.filter(t => t !== timerToDelete)); setTimerToDelete(null); setShowDeleteModal(false); } };
   const formatTime = (sec) => { const m = Math.floor(sec / 60); const s = sec % 60; const h = Math.floor(m / 60); const remM = m % 60; return `${h > 0 ? h.toString().padStart(2, '0') + ':' : ''}${remM.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
-    const formatDate = (isoString) => {
-        return new Date(isoString).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
 
     // Smart suggestions based on history
     const getSmartSuggestions = useCallback(() => {
@@ -1372,6 +1397,8 @@ export default function TimerApp() {
         transition: 'background 1s ease-in-out, color 0.3s ease-in-out'
       }}
     >
+      <ModalProvider theme={theme}>
+      <ToastProvider theme={theme}>
       <style>{`
         @keyframes pulseTimer {
           0%, 100% { transform: scale(1); }
@@ -1440,7 +1467,7 @@ export default function TimerApp() {
         }
       `}</style>
 
-      {showToast && <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: theme.accent, color: 'white', padding: '16px 24px', borderRadius: 12, zIndex: 1000, fontSize: 14, fontWeight: 600 }}>{toastMessage}</div>}
+      {/* Global toasts rendered by ToastProvider (forwarded from legacy calls) */}
 
       {/* Achievement Unlock Popup */}
       {showAchievement && (
@@ -1526,7 +1553,7 @@ export default function TimerApp() {
                     setCurrentRound(1);
                     setMode('timer');
                   }}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: 20, color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '20px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
                 >
                   Done
                 </button>
@@ -1541,7 +1568,7 @@ export default function TimerApp() {
                       startTimer(initialTime);
                     }
                   }}
-                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: 20, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: '20px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
                 >
                   Start Again
                 </button>
@@ -1553,292 +1580,620 @@ export default function TimerApp() {
 
       {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
       {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
-  {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
+      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
 
-      {/* Top Control Bar */}
-      <div style={{ position: 'fixed', top: 20, right: 20, display: 'flex', gap: 8, zIndex: 50 }}>
-        <button
-          onClick={() => setShowFeedbackModal(true)}
+      {/* Clear Cache Confirmation Modal */}
+      {showClearCacheModal && (
+        <div
           style={{
-            background: theme.card,
-            border: 'none',
-            borderRadius: 12,
-            padding: 12,
-            color: theme.accent,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: 20
           }}
-          onMouseEnter={(e) => {
-            e.target.style.background = `${theme.accent}20`;
-            e.target.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = theme.card;
-            e.target.style.transform = 'scale(1)';
-          }}
-          title="Send Feedback"
+          onClick={() => setShowClearCacheModal(false)}
         >
-          <Lightbulb size={20} />
-        </button>
-        <button onClick={() => setShowThemes(!showThemes)} style={{ background: theme.card, border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer' }}><Palette size={20} /></button>
-        <button onClick={() => setShowSoundSettings(!showSoundSettings)} style={{ background: theme.card, border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer' }}>
-          {alarmVolume > 0 ? <Volume2 size={20} /> : <VolumeX size={20} />}
-        </button>
-      </div>
-
-      {/* Theme Dropdown */}
-      {showThemes && (
-        <div style={{ position: 'fixed', top: 70, right: 20, background: theme.card, borderRadius: 16, padding: 16, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', minWidth: 220 }}>
-          {themes.map(t =>
-            <div
-              key={t.name}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}
-            >
-              <button
-                onClick={() => { setTheme(t); setShowThemes(false); setPreviewTheme(null); }}
-                onMouseEnter={() => setPreviewTheme(t)}
-                onMouseLeave={() => setPreviewTheme(null)}
-                style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-              >
-                <div style={{ width: 20, height: 20, borderRadius: 4, background: t.accent }} />
-                {t.name}
-              </button>
-              {!t.isDefault && (
-                <button
-                  onClick={() => deleteCustomTheme(t.name)}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 6, padding: 8, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                  title="Delete theme"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => { setShowColorPicker(true); setShowThemes(false); }}
-            style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 8, padding: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 450,
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <Plus size={16} /> Add Theme
-          </button>
-        </div>
-      )}
-
-      {/* Color Picker Modal */}
-      {showColorPicker && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowColorPicker(false)}>
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Palette size={24} /> Create Custom Theme
-            </h3>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Theme Name</label>
-              <input
-                type="text"
-                value={newThemeName}
-                onChange={(e) => setNewThemeName(e.target.value)}
-                placeholder="My Custom Theme"
-                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14 }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{ fontSize: 32 }}>⚠️</div>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clear All Cache?</h3>
             </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Background Color</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="color"
-                  value={newThemeBg}
-                  onChange={(e) => setNewThemeBg(e.target.value)}
-                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                />
-                <input
-                  type="text"
-                  value={newThemeBg}
-                  onChange={(e) => setNewThemeBg(e.target.value)}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Card Color</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="color"
-                  value={newThemeCard}
-                  onChange={(e) => setNewThemeCard(e.target.value)}
-                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                />
-                <input
-                  type="text"
-                  value={newThemeCard}
-                  onChange={(e) => setNewThemeCard(e.target.value)}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Accent Color</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="color"
-                  value={newThemeAccent}
-                  onChange={(e) => setNewThemeAccent(e.target.value)}
-                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                />
-                <input
-                  type="text"
-                  value={newThemeAccent}
-                  onChange={(e) => setNewThemeAccent(e.target.value)}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 8 }}>Text Color</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  type="color"
-                  value={newThemeText}
-                  onChange={(e) => setNewThemeText(e.target.value)}
-                  style={{ width: 50, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                />
-                <input
-                  type="text"
-                  value={newThemeText}
-                  onChange={(e) => setNewThemeText(e.target.value)}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, color: theme.text, fontSize: 13 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ background: newThemeBg, borderRadius: 12, padding: 16, marginBottom: 24 }}>
-              <div style={{ background: newThemeCard, borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 13, color: newThemeText, marginBottom: 8 }}>Preview</div>
-                <div style={{ width: 60, height: 8, background: newThemeAccent, borderRadius: 4 }} />
-              </div>
-            </div>
-
+            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
+              This action will permanently delete all your data, including:
+            </p>
+            <ul style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 24, marginLeft: 20, lineHeight: 1.8 }}>
+              <li>All saved timers</li>
+              <li>Timer history</li>
+              <li>Custom themes</li>
+              <li>Achievements and statistics</li>
+              <li>All settings</li>
+            </ul>
+            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24, fontWeight: 500 }}>
+              The app will reset to its initial state. This action cannot be undone.
+            </p>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
-                onClick={() => setShowColorPicker(false)}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                onClick={() => setShowClearCacheModal(false)}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: 14,
+                  color: theme.text,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
               >
                 Cancel
               </button>
               <button
-                onClick={createCustomTheme}
-                disabled={!newThemeName.trim()}
-                style={{ flex: 1, background: newThemeName.trim() ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: newThemeName.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newThemeName.trim() ? 1 : 0.5 }}
+                onClick={clearAllCache}
+                style={{
+                  flex: 1,
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: 14,
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
               >
-                Create
+                Clear Everything
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Sound Settings Dropdown */}
-      {showSoundSettings && (
-        <div style={{ position: 'fixed', top: 70, right: 20, background: theme.card, borderRadius: 16, padding: 16, zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', minWidth: 200 }}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 8 }}>Sound Type</label>
-            <select
-              value={alarmSoundType}
-              onChange={(e) => setAlarmSoundType(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 10, color: theme.text, fontSize: 14, cursor: 'pointer' }}
-            >
-              <option value="bell" style={{ background: theme.card }}>🔔 Bell</option>
-              <option value="chime" style={{ background: theme.card }}>🎵 Chime</option>
-              <option value="silent" style={{ background: theme.card }}>🔇 Silent</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 8 }}>Volume: {Math.round(alarmVolume * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={alarmVolume}
-              onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-        </div>
-      )}
-
-
-      <div style={{ maxWidth: 600, margin: '60px auto 0' }}>
-        <h1 style={{
-          textAlign: 'center',
-          fontSize: 42,
-          fontWeight: 800,
-          marginBottom: 24,
-          color: theme.accent,
-          fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-          letterSpacing: '-0.02em',
-          textShadow: `0 0 30px ${theme.accent}40`
+      {/* Main Container with Header and Content */}
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px' }}>
+        
+        {/* Top Header Bar with App Name and Icons */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '20px 0 16px',
+          position: 'sticky',
+          top: 0,
+          background: theme.bg,
+          zIndex: 100
         }}>
-          T2Get
-        </h1>
+          {/* App Name */}
+          <h1 style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 800,
+            background: `linear-gradient(135deg, ${theme.accent} 0%, ${theme.text} 100%)`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            letterSpacing: '-0.02em'
+          }}>
+            T2Get
+          </h1>
 
-        {/* Primary Navigation Tabs */}
+          {/* Icon Buttons */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              style={{
+                background: theme.card,
+                border: 'none',
+                borderRadius: 10,
+                padding: 10,
+                color: theme.accent,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = `${theme.accent}20`;
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = theme.card;
+                e.target.style.transform = 'scale(1)';
+              }}
+              title="Send Feedback"
+            >
+              <Lightbulb size={18} />
+            </button>
+
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                style={{
+                  background: theme.card,
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: 10,
+                  color: theme.text,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = `${theme.accent}20`;
+                  e.target.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = theme.card;
+                  e.target.style.transform = 'scale(1)';
+                }}
+                title="Settings"
+              >
+                <Settings size={18} />
+              </button>
+
+              {/* Settings Dropdown */}
+              {showSettings && (
+                <div style={{
+                  position: 'absolute',
+                  top: 50,
+                  right: 0,
+              background: theme.card,
+              border: `1px solid rgba(255,255,255,0.1)`,
+              borderRadius: 12,
+              padding: settingsView === 'main' ? 4 : 8,
+              minWidth: settingsView === 'main' ? 'auto' : 200,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: settingsView === 'main' ? 2 : 4
+            }}>
+              {settingsView === 'main' && (
+                <>
+                  {/* Theme Option */}
+                  <button
+                    onClick={() => setSettingsView('themes')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Themes"
+                  >
+                    <Palette size={18} />
+                  </button>
+
+                  {/* Sound Settings Option */}
+                  <button
+                    onClick={() => setSettingsView('sound')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Sound Settings"
+                  >
+                    {alarmVolume > 0 ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                  </button>
+
+                  {/* Divider */}
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
+
+                  {/* Export Data Option */}
+                  <button
+                    onClick={() => {
+                      exportData();
+                      setShowSettings(false);
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Export Data"
+                  >
+                    <Download size={18} />
+                  </button>
+
+                  {/* Import Data Option */}
+                  <label style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    color: theme.text,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    transition: 'all 0.2s',
+                    margin: 0,
+                    minWidth: '40px',
+                    minHeight: '40px'
+                  }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Import Data"
+                  >
+                    <Upload size={18} />
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importData}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+
+                  {/* Divider */}
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
+
+                  {/* Clear Cache Option */}
+                  <button
+                    onClick={() => {
+                      setShowClearCacheModal(true);
+                      setShowSettings(false);
+                      setSettingsView('main');
+                    }}
+                    style={{
+                      background: 'rgba(255, 0, 0, 0.1)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: '#ff4444',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.15)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.1)'}
+                    title="Clear Cache"
+                  >
+                    <Trash size={18} />
+                  </button>
+                </>
+              )}
+
+              {settingsView === 'themes' && (
+                <>
+                  {/* Back Button */}
+                  <button
+                    onClick={() => setSettingsView('main')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      marginBottom: 4
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Back</span>
+                  </button>
+
+                  {/* Theme Grid */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: 6,
+                    maxHeight: 300,
+                    overflowY: 'auto',
+                    padding: 4
+                  }}>
+                    {themes.map(t => (
+                      <button
+                        key={t.name}
+                        onClick={() => {
+                          setTheme(t);
+                          setShowSettings(false);
+                          setSettingsView('main');
+                        }}
+                        style={{
+                          background: t.bg,
+                          border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
+                          borderRadius: 8,
+                          padding: 12,
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: t.text,
+                          textAlign: 'center',
+                          transition: 'all 0.2s',
+                          position: 'relative'
+                        }}
+                      >
+                        {t.name}
+                        {theme.name === t.name && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            color: t.accent,
+                            fontSize: 14
+                          }}>✓</div>
+                        )}
+                      </button>
+                    ))}
+                    {/* Add Custom Theme Button */}
+                    <button
+                      onClick={() => {
+                        setShowColorPicker(true);
+                        setShowSettings(false);
+                        setSettingsView('main');
+                      }}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px dashed rgba(255,255,255,0.3)',
+                        borderRadius: 8,
+                        padding: 12,
+                        cursor: 'pointer',
+                        fontSize: 20,
+                        fontWeight: 600,
+                        color: theme.text,
+                        textAlign: 'center',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Create Custom Theme"
+                    >
+                      <Plus size={24} />
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {settingsView === 'sound' && (
+                <>
+                  {/* Back Button */}
+                  <button
+                    onClick={() => setSettingsView('main')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      marginBottom: 8
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Back</span>
+                  </button>
+
+                  {/* Sound Type */}
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Sound Type</label>
+                    <select
+                      value={alarmSoundType}
+                      onChange={(e) => setAlarmSoundType(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        background: 'rgba(255,255,255,0.05)', 
+                        border: '1px solid rgba(255,255,255,0.1)', 
+                        borderRadius: 8, 
+                        padding: 8, 
+                        color: theme.text, 
+                        fontSize: 13, 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      <option value="bell" style={{ background: theme.card }}>🔔 Bell</option>
+                      <option value="chime" style={{ background: theme.card }}>🎵 Chime</option>
+                      <option value="silent" style={{ background: theme.card }}>🔇 Silent</option>
+                    </select>
+                  </div>
+
+                  {/* Volume Control */}
+                  <div>
+                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                      Volume: {Math.round(alarmVolume * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={alarmVolume}
+                      onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
+                      style={{ width: '100%', cursor: 'pointer' }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      </div>
+      </div>
+
+      <div style={{ maxWidth: 600, margin: '20px auto 0', padding: '0' }}>
+
+        {/* Primary Navigation Tabs - RESTRUCTURED */}
         {!isRunning && time === 0 && !isTransitioning && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: theme.card, borderRadius: 16, padding: 8 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: theme.card, borderRadius: 12, padding: 6 }}>
             {[
-              { label: 'Timer', value: 'timer', icon: Clock },
-              { label: 'Interval', value: 'interval', icon: Zap },
-              { label: 'Stopwatch', value: 'stopwatch', icon: Clock },
-              { label: 'Composite', value: 'composite', icon: ChevronRight }
+              { label: 'Focus Rooms', value: 'rooms', icon: Users },
+              { label: 'Timer', value: 'timer', icon: Clock }
             ].map(tab => (
               <button
                 key={tab.value}
                 onClick={() => {
                   setActiveMainTab(tab.value);
-                  if (tab.value === 'stopwatch') {
-                    startStopwatch();
-                  } else if (tab.value === 'composite') {
-                    setMode('sequence');
-                    setShowBuilder(true);
-                  } else {
-                    setMode(tab.value);
-                  }
-                  setActiveFeatureTab(null);
+                  setActiveFeatureTab(null); // Clear feature tab when switching main tabs
                 }}
                 style={{
                   flex: 1,
                   background: activeMainTab === tab.value ? theme.accent : 'transparent',
                   border: 'none',
-                  borderRadius: 12,
-                  padding: '12px 8px',
+                  borderRadius: 10,
+                  padding: '8px 6px',
                   color: theme.text,
                   cursor: 'pointer',
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: 600,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 4,
                   transition: 'all 0.2s'
                 }}
               >
-                <tab.icon size={18} />
-                {tab.label}
+                <tab.icon className="tab-icon" size={16} />
+                <span className="tab-label" style={{ marginTop: 4, fontSize: 11 }}>{tab.label}</span>
               </button>
             ))}
           </div>
         )}
 
-        {/* Secondary Navigation Tabs */}
-        {!isRunning && time === 0 && !isTransitioning && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto' }}>
+        {/* Secondary Navigation Tabs - Timer Sub-tabs */}
+        {!isRunning && time === 0 && !isTransitioning && activeMainTab === 'timer' && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
             {[
-              { label: 'Focus Rooms', value: 'rooms', icon: Users },
-              { label: 'Stats & History', value: 'stats', icon: TrendingUp },
+              { label: 'Interval', value: 'interval', icon: Zap },
+              { label: 'TimerBlocks', value: 'timerblocks', icon: Clock },
+              { label: 'Stopwatch', value: 'stopwatch', icon: RotateCcw },
+              { label: 'Composite', value: 'composite', icon: ChevronRight }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setActiveFeatureTab(tab.value);
+                  if (tab.value === 'composite') {
+                    setMode('sequence');
+                    setShowBuilder(true);
+                  } else {
+                    setMode(tab.value);
+                  }
+                }}
+                title={tab.label}
+                style={{
+                  background: activeFeatureTab === tab.value ? theme.accent : 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 10,
+                  padding: 10,
+                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <tab.icon className="tab-icon" size={18} />
+                <span className="tab-label" style={{ marginLeft: 8, fontSize: 13 }}>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Secondary Navigation Tabs - Other Features */}
+        {!isRunning && time === 0 && !isTransitioning && activeMainTab !== 'timer' && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }}>
+            {activeMainTab === 'rooms' && [
               { label: 'Achievements', value: 'achievements', icon: Award }
             ].map(tab => (
               <button
@@ -1848,34 +2203,36 @@ export default function TimerApp() {
                   flex: 1,
                   background: activeFeatureTab === tab.value ? 'rgba(255,255,255,0.1)' : 'transparent',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
-                  padding: '10px 12px',
+                  borderRadius: 10,
+                  padding: '8px 10px',
                   color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
                   cursor: 'pointer',
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 500,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 6,
+                  gap: 4,
                   whiteSpace: 'nowrap',
                   transition: 'all 0.2s'
                 }}
               >
-                <tab.icon size={14} />
-                {tab.label}
+                <tab.icon className="tab-icon" size={14} />
+                <span className="tab-label" style={{ marginLeft: 8, fontSize: 11 }}>{tab.label}</span>
               </button>
             ))}
           </div>
         )}
 
-        {/* Active Now Indicator */}
-        <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s ease-in-out infinite' }} />
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-            <span style={{ fontWeight: 600, color: theme.accent }}>{activeUsers}</span> people getting focused right now
+        {/* Active Now Indicator - Only show in Focus Rooms tab */}
+        {activeMainTab === 'rooms' && (
+          <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s ease-in-out infinite' }} />
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+              <span style={{ fontWeight: 600, color: theme.accent }}>{activeUsers}</span> people getting focused right now
+            </div>
           </div>
-        </div>
+        )}
 
         {(isRunning || time > 0 || isTransitioning) && (
           <>
@@ -1946,132 +2303,57 @@ export default function TimerApp() {
 
         {!isRunning && time === 0 && !isTransitioning && (
           <>
-            {/* Timer Tab Content */}
-            {activeMainTab === 'timer' && !activeFeatureTab && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h2 style={{ fontSize: 18, margin: 0 }}>Quick Start</h2>
-                  {(inputHours || inputMinutes || inputSeconds) && (
-                    <button onClick={shareCurrentTimer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <Share size={14} /> Share
-                    </button>
-                  )}
-                </div>
-                {/* HH:MM:SS Input Fields - Fixed Size and Centered */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }} className="flex-wrap-sm hh-mm-ss-input-group">
-                  <input
-                    type="number"
-                    placeholder="HH"
-                    value={inputHours}
-                    onChange={(e) => setInputHours(Math.max(0, parseInt(e.target.value) || 0))}
-                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
-                  />
-                  <input
-                    type="number"
-                    placeholder="MM"
-                    value={inputMinutes}
-                    onChange={(e) => setInputMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
-                  />
-                  <input
-                    type="number"
-                    placeholder="SS"
-                    value={inputSeconds}
-                    onChange={(e) => setInputSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                    style={{ width: '70px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', border: `2px solid ${theme.accent}`, borderRadius: 12, padding: '16px 8px', color: theme.text, fontSize: 18, fontWeight: 600 }}
-                  />
-                  <button
-                    onClick={() => {
-                      const h = parseInt(inputHours) || 0;
-                      const m = parseInt(inputMinutes) || 0;
-                      const s = parseInt(inputSeconds) || 0;
-                      const totalSeconds = h * 3600 + m * 60 + s;
-                      if (totalSeconds > 0) startTimer(totalSeconds);
-                    }}
-                    style={{ background: theme.accent, border: 'none', borderRadius: 12, padding: '16px 24px', color: 'white', cursor: 'pointer' }}
-                  >
-                    <Play size={20} />
-                  </button>
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Quick presets:</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
-                  {[{ label: '10s', val: 10, unit: 'sec' }, { label: '30s', val: 30, unit: 'sec' }, { label: '1m', val: 1, unit: 'min' }, { label: '5m', val: 5, unit: 'min' }].map(p => <button key={p.label} onClick={() => startTimer(p.val * (p.unit === 'min' ? 60 : 1))} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14 }}>{p.label}</button>)}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                  {[10, 15, 25, 45].map(m => <button key={m} onClick={() => startTimer(m * 60)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14 }}>{m}m</button>)}
-                </div>
-              </div>
-            )}
-
             {/* Interval Tab Content */}
             {activeMainTab === 'interval' && !activeFeatureTab && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h2 style={{ fontSize: 18, margin: 0 }}>Interval Timer</h2>
-                  <button onClick={shareCurrentTimer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer', fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <Share size={14} /> Share
-                  </button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }} className="grid-col-sm-3-to-1"> {/* Apply new responsive class */}
-                  <div style={{display: 'flex', flexDirection: 'column'}}>
-                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Work (sec)</label>
-                    <input type="number" value={work} onChange={(e) => setWork(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
-                  </div>
-                  <div style={{display: 'flex', flexDirection: 'column'}}>
-                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Rest (sec)</label>
-                    <input type="number" value={rest} onChange={(e) => setRest(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
-                  </div>
-                  <div style={{display: 'flex', flexDirection: 'column'}}>
-                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Rounds</label>
-                    <input type="number" value={rounds} onChange={(e) => setRounds(Math.max(0, parseInt(e.target.value) || 0))} style={inputStyle(theme.accent)} />
-                  </div>
-                </div>
-                <button onClick={startInterval} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Zap size={20} />Start Interval</button>
-              </div>
+              <IntervalPanel
+                theme={theme}
+                work={work}
+                rest={rest}
+                rounds={rounds}
+                setWork={setWork}
+                setRest={setRest}
+                setRounds={setRounds}
+                startInterval={startInterval}
+                shareCurrentTimer={shareCurrentTimer}
+              />
             )}
 
             {/* Composite Tab Content */}
             {activeMainTab === 'composite' && !activeFeatureTab && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h2 style={{ fontSize: 18, margin: 0 }}>Composite Timers</h2>
-                  <button onClick={() => setShowBuilder(!showBuilder)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>{showBuilder ? 'Close' : 'Build'}</button>
-                </div>
-              {showBuilder && (
-                <>
-                  <input type="text" placeholder="Sequence name" value={seqName} onChange={(e) => setSeqName(e.target.value)} style={inputStyle(theme.accent)} />
-                  {sequence.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      {sequence.map((timer, idx) => (
-                        <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <button onClick={() => moveSequenceStep(idx, -1)} disabled={idx === 0} style={{ background: 'transparent', border: 'none', color: idx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)', cursor: idx === 0 ? 'default' : 'pointer', padding: 0 }}><ChevronUp size={16} /></button>
-                                <button onClick={() => moveSequenceStep(idx, 1)} disabled={idx === sequence.length - 1} style={{ background: 'transparent', border: 'none', color: idx === sequence.length - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)', cursor: idx === sequence.length - 1 ? 'default' : 'pointer', padding: 0 }}><ChevronDown size={16} /></button>
-                          </div>
-                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>{idx + 1}.</div>
-                          <div style={{ width: 4, height: 24, borderRadius: 2, background: timer.color }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, marginBottom: 4 }}>{timer.name}</div>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{timer.duration} {timer.unit}</div>
-                          </div>
-                          {idx < sequence.length - 1 && <ChevronRight size={16} style={{ color: 'rgba(255,255,255,0.3)' }} />}
-                          <button onClick={() => setSequence(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 4 }}><X size={16} /></button>
-                        </div>
-                      ))}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={startSequence} style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 8, padding: 12, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}><Play size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Start</button>
-                        <button onClick={saveSequence} disabled={!seqName} style={{ flex: 1, background: seqName ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: seqName ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: seqName ? 1 : 0.5 }}><Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Save</button>
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>💡 Click + on timers below to build sequence</div>
-                </>
-              )}
-              </div>
+              <CompositePanel
+                theme={theme}
+                showBuilder={showBuilder}
+                setShowBuilder={setShowBuilder}
+                seqName={seqName}
+                setSeqName={setSeqName}
+                sequence={sequence}
+                setSequence={setSequence}
+                moveSequenceStep={moveSequenceStep}
+                startSequence={startSequence}
+                saveSequence={saveSequence}
+                inputStyle={inputStyle}
+              />
             )}
 
-            {/* Your Timers Section - Shows on both Timer and Composite tabs */}
-            {!activeFeatureTab && (activeMainTab === 'timer' || activeMainTab === 'composite') && (
+            {/* Composite Panel for Composite tab - moved upwards */}
+            {activeMainTab === 'timer' && activeFeatureTab === 'composite' && (
+              <CompositePanel
+                theme={theme}
+                showBuilder={showBuilder}
+                setShowBuilder={setShowBuilder}
+                seqName={seqName}
+                setSeqName={setSeqName}
+                sequence={sequence}
+                setSequence={setSequence}
+                moveSequenceStep={moveSequenceStep}
+                startSequence={startSequence}
+                saveSequence={saveSequence}
+                inputStyle={inputStyle}
+              />
+            )}
+
+            {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
+            {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && (
               <div style={{ background: theme.card, borderRadius: 24, padding: 32 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
@@ -2243,7 +2525,7 @@ export default function TimerApp() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
-                          {activeMainTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
+                          {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
                           <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: 'white', cursor: 'pointer' }}><Play size={16} /></button>
                           <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
@@ -2255,859 +2537,232 @@ export default function TimerApp() {
             </div>
             )}
 
-            {/* Focus Rooms Tab Content */}
-            {activeFeatureTab === 'rooms' && (
-              <>
-                {!currentRoom ? (
-                  <>
-                    {/* Room List */}
-                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Users size={18} /> Focus Rooms
-                        </h2>
-                        <button
-                          onClick={() => setShowCreateRoomModal(true)}
-                          style={{
-                            background: theme.accent,
-                            border: 'none',
-                            borderRadius: 8,
-                            padding: '8px 16px',
-                            color: theme.text,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            fontWeight: 600,
-                            display: 'flex',
-                            gap: 6,
-                            alignItems: 'center'
-                          }}
-                        >
-                          <Plus size={16} /> Create Room
-                        </button>
-                      </div>
+            {/* Main Content - Suspense Boundary for Lazy-Loaded Components */}
+            <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+              {/* Focus Rooms Main Tab */}
+              {activeMainTab === 'rooms' && !activeFeatureTab && (
+                <FocusRoomsPanel
+                  theme={theme}
+                  currentRoom={currentRoom}
+                  rooms={rooms}
+                  roomsLoading={roomsLoading}
+                  messages={messages}
+                  showRoomSettings={showRoomSettings}
+                  showRoomExpirationModal={showRoomExpirationModal}
+                  calendarExportRoom={calendarExportRoom}
+                  chatInputRef={chatInputRef}
+                  handleJoinRoom={handleJoinRoom}
+                  leaveRoom={leaveRoom}
+                  deleteRoom={deleteRoom}
+                  setShowRoomSettings={setShowRoomSettings}
+                  setCalendarExportRoom={setCalendarExportRoom}
+                  handleSaveRoomSettings={handleSaveRoomSettings}
+                  sendMessage={sendMessage}
+                  startRoomTimer={startRoomTimer}
+                  handleExtendTimer={handleExtendTimer}
+                  handleCloseRoom={handleCloseRoom}
+                  handleExportToICS={handleExportToICS}
+                  handleExportToGoogleCalendar={handleExportToGoogleCalendar}
+                  formatTime={formatTime}
+                  getParticipantCount={getParticipantCount}
+                  isRoomFull={isRoomFull}
+                  setShowCreateRoomModal={setShowCreateRoomModal}
+                />
+              )}
 
-                      {roomsLoading ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
-                          Loading rooms...
-                        </div>
-                      ) : rooms.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
-                          No active rooms. Create one to get started!
-                        </div>
-                      ) : (
-                        <div style={{ display: 'grid', gap: 12 }}>
-                          {rooms.map(room => (
-                            <div
-                              key={room.id}
-                              style={{
-                                background: 'rgba(255,255,255,0.05)',
-                                borderRadius: 16,
-                                padding: 20,
-                                border: `1px solid rgba(255,255,255,0.1)`,
-                                transition: 'all 0.3s'
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    {room.name}
-                                    {room.status === 'scheduled' && (
-                                      <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
-                                        📅 Scheduled
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                      <Users size={14} />
-                                      {getParticipantCount(room)}/{room.maxParticipants}
-                                    </div>
-                                    {room.status === 'scheduled' && room.scheduledFor ? (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Clock size={14} />
-                                        Available: {new Date(room.scheduledFor).toLocaleString()}
-                                      </div>
-                                    ) : room.timer && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Clock size={14} />
-                                        {formatTime(Math.max(0, Math.floor((room.timer.endsAt - Date.now()) / 1000)))} remaining
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                  {room.status === 'scheduled' && room.scheduledFor && (
-                                    <button
-                                      onClick={() => setCalendarExportRoom(room)}
-                                      style={{
-                                        background: 'rgba(34,197,94,0.2)',
-                                        border: '1px solid rgba(34,197,94,0.5)',
-                                        borderRadius: 12,
-                                        padding: '10px 16px',
-                                        color: '#22c55e',
-                                        cursor: 'pointer',
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        transition: 'all 0.2s'
-                                      }}
-                                      onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                                      onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                                      title="Export to calendar"
-                                    >
-                                      <Calendar size={16} /> Export
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleJoinRoom(room.id)}
-                                    disabled={isRoomFull(room) || room.status === 'scheduled'}
-                                    style={{
-                                      background: (isRoomFull(room) || room.status === 'scheduled') ? 'rgba(255,255,255,0.1)' : theme.accent,
-                                      border: 'none',
-                                      borderRadius: 12,
-                                      padding: '10px 20px',
-                                      color: theme.text,
-                                      cursor: (isRoomFull(room) || room.status === 'scheduled') ? 'not-allowed' : 'pointer',
-                                      fontSize: 14,
-                                      fontWeight: 600,
-                                      opacity: (isRoomFull(room) || room.status === 'scheduled') ? 0.5 : 1
-                                    }}
-                                  >
-                                    {isRoomFull(room) ? 'Full' : room.status === 'scheduled' ? 'Not Ready' : 'Join'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Active Room View */}
-                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <div>
-                          <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
-                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                            Host: {currentRoom.creatorName || currentRoom.createdBy}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            onClick={leaveRoom}
-                            style={{
-                              background: 'rgba(255,255,255,0.1)',
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '8px 16px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600
-                            }}
-                          >
-                            Leave Room
-                          </button>
-                          {/* Delete room button visible to room creator when no other joiners */}
-                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
-                            <button
-                                  onClick={async () => {
-                                try {
-                                  await deleteRoom(currentRoom.id);
-                                  setToastMessage('Room deleted');
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 3000);
-                                  // Leave the room locally to clear UI state
-                                  await leaveRoom();
-                                } catch (err) {
-                                  const msg = err?.message || 'Failed to delete room';
-                                  setToastMessage(msg);
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 5000);
-                                }
-                              }}
-                              style={{
-                                background: '#ef4444',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 600
-                              }}
-                            >
-                              Delete Room
-                            </button>
-                          )}
-                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
-                            <button
-                              onClick={() => setShowRoomSettings(true)}
-                              style={{
-                                background: 'rgba(255,255,255,0.06)',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                color: theme.text,
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 600
-                              }}
-                            >
-                              Room Settings
-                            </button>
-                          )}
-                        </div>
-                      </div>
+              {/* Timer Main Tab - Show selected timer type */}
+              {activeMainTab === 'timer' && !activeFeatureTab && (
+                <TimerPanel
+                  theme={theme}
+                  time={time}
+                  initialTime={initialTime}
+                  isRunning={isRunning}
+                  mode={mode}
+                  work={work}
+                  rest={rest}
+                  rounds={rounds}
+                  inputHours={inputHours}
+                  inputMinutes={inputMinutes}
+                  inputSeconds={inputSeconds}
+                  setInputHours={setInputHours}
+                  setInputMinutes={setInputMinutes}
+                  setInputSeconds={setInputSeconds}
+                  setInitialTime={setInitialTime}
+                  setWork={setWork}
+                  setRest={setRest}
+                  setRounds={setRounds}
+                  startTimer={startTimer}
+                  pauseTimer={pauseTimer}
+                  resetTimer={resetTimer}
+                  formatTime={formatTime}
+                  savedTimers={saved}
+                  setSavedTimers={setSaved}
+                  collapsedGroups={collapsedGroups}
+                  setCollapsedGroups={setCollapsedGroups}
+                  confirmDelete={confirmDelete}
+                  activeScene={activeScene}
+                  setActiveScene={setActiveScene}
+                  SCENES={SCENES}
+                  showBuilder={showBuilder}
+                  setShowBuilder={setShowBuilder}
+                  sequence={sequence}
+                  setSequence={setSequence}
+                  startSequence={startSequence}
+                  activeMainTab={activeMainTab}
+                />
+              )}
 
-                      {/* Participants */}
-                      <div style={{ marginBottom: 24 }}>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Participants ({getParticipantCount(currentRoom)}/{currentRoom.maxParticipants})
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {Object.entries(currentRoom.participants || {}).map(([userId, participant]) => (
-                            <div
-                              key={userId}
-                              style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                borderRadius: 8,
-                                padding: '6px 12px',
-                                fontSize: 13,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8
-                              }}
-                            >
-                              {/* small online dot */}
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent }} />
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {/* Avatar component */}
-                                <img src={participant.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(userId)}`} alt={participant.displayName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                                <div>{participant.displayName}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+              {/* Timer Feature Tabs */}
+              {activeMainTab === 'timer' && activeFeatureTab === 'interval' && (
+                <IntervalPanel
+                  theme={theme}
+                  time={time}
+                  isRunning={isRunning}
+                  work={work}
+                  rest={rest}
+                  rounds={rounds}
+                  setWork={setWork}
+                  setRest={setRest}
+                  setRounds={setRounds}
+                  startInterval={startInterval}
+                  pauseTimer={pauseTimer}
+                  resetTimer={resetTimer}
+                  formatTime={formatTime}
+                  activeScene={activeScene}
+                  setActiveScene={setActiveScene}
+                  SCENES={SCENES}
+                />
+              )}
 
-                      {/* Room Timer */}
-                      {currentRoom.timer && (
-                        <div
-                          key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
-                          style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
-                        >
-                          {/* Composite Timer Progress Indicators */}
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                            <>
-                              <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                                {currentRoom.compositeTimer.steps.map((step, idx) => (
-                                  <React.Fragment key={idx}>
-                                    <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                                    {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
-                                  </React.Fragment>
-                                ))}
-                              </div>
-                              <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
-                                {currentRoom.compositeTimer.steps.map((step, idx) => (
-                                  <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                            <div style={{ fontSize: 14, color: currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.color || theme.accent, marginBottom: 8, fontWeight: 600 }}>
-                              {currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.name}
-                            </div>
-                          )}
-                          <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent, marginBottom: 8 }}>
-                            {formatTime(Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000)))}
-                          </div>
-                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                            {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
-                          </div>
-                        </div>
-                      )}
+              {/* Feature Tabs for Rooms */}
+              {activeMainTab === 'rooms' && activeFeatureTab === 'achievements' && (
+                <AchievementsPanel
+                  theme={theme}
+                  ACHIEVEMENTS={ACHIEVEMENTS}
+                  achievements={achievements}
+                  getSmartSuggestions={getSmartSuggestions}
+                  dailyChallenge={dailyChallenge}
+                  timeCapsules={timeCapsules}
+                  showCapsuleInput={showCapsuleInput}
+                  capsuleMessage={capsuleMessage}
+                  history={history}
+                  setShowCapsuleInput={setShowCapsuleInput}
+                  setCapsuleMessage={setCapsuleMessage}
+                  createTimeCapsule={createTimeCapsule}
+                  exportData={exportData}
+                  importData={importData}
+                  formatDate={formatDate}
+                />
+              )}
 
-                      {showRoomSettings && currentRoom && (
-                        <RoomSettingsModal
-                          theme={theme}
-                          room={currentRoom}
-                          onClose={() => setShowRoomSettings(false)}
-                          onSave={handleSaveRoomSettings}
-                        />
-                      )}
-
-                      {/* Room Expiration Modal */}
-                      <RoomExpirationModal
-                        isOpen={showRoomExpirationModal}
-                        roomId={currentRoom?.id}
-                        isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getService()?.currentUserId}
-                        onExtend={handleExtendTimer}
-                        onClose={handleCloseRoom}
-                        gracePeriodSec={120}
-                        maxExtensionMinutes={30}
-                      />
-
-                      {/* Task 5: Calendar Export Modal */}
-                      {calendarExportRoom && (
-                        <div
-                          style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.8)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1000,
-                            padding: 20
-                          }}
-                          onClick={() => setCalendarExportRoom(null)}
-                        >
-                          <div
-                            style={{
-                              background: theme.card,
-                              borderRadius: 24,
-                              padding: 32,
-                              maxWidth: 500,
-                              width: '100%'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
-                              📅 Export "{calendarExportRoom.name}" to Calendar
-                            </h2>
-                            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                                📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
-                              </div>
-                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                                ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
-                              </div>
-                            </div>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
-                              Choose how to export this room to your calendar:
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                              <button
-                                onClick={() => handleExportToICS(calendarExportRoom)}
-                                style={{
-                                  background: 'rgba(34,197,94,0.2)',
-                                  border: '1px solid rgba(34,197,94,0.5)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: '#22c55e',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 8
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                              >
-                                <Download size={18} /> Download .ics File
-                              </button>
-                              <button
-                                onClick={() => handleExportToGoogleCalendar(calendarExportRoom)}
-                                style={{
-                                  background: 'rgba(59,130,246,0.2)',
-                                  border: '1px solid rgba(59,130,246,0.5)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: '#3b82f6',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 8
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(59,130,246,0.3)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
-                              >
-                                <Calendar size={18} /> Add to Google Calendar
-                              </button>
-                              <button
-                                onClick={() => setCalendarExportRoom(null)}
-                                style={{
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: 'rgba(255,255,255,0.6)',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Start Timer Button */}
-                      {!currentRoom.timer && (
-                        <div style={{ marginBottom: 24, textAlign: 'center' }}>
-                          <button
-                            onClick={() => startRoomTimer(currentRoom.duration)}
-                            style={{
-                              background: theme.accent,
-                              border: 'none',
-                              borderRadius: 12,
-                              padding: '16px 32px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              fontSize: 16,
-                              fontWeight: 600,
-                              boxShadow: `0 4px 12px ${theme.accent}40`,
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
-                          >
-                            <Play size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                            Start {currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}
-                          </button>
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
-                            <div style={{ marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                              {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Chat */}
-                      <div>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Chat
-                        </div>
-                        <div
-                          style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            borderRadius: 12,
-                            padding: 16,
-                            marginBottom: 12,
-                            maxHeight: 300,
-                            overflowY: 'auto',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 12
-                          }}
-                        >
-                          {messages.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                              No messages yet. Say hi! 👋
-                            </div>
-                          ) : (
-                            messages.map((msg) => {
-                              const participant = currentRoom.participants?.[msg.userId];
-                              const isMe = msg.userId === RealtimeServiceFactory.getService().currentUserId;
-                              return (
-                                <div
-                                  key={msg.id}
-                                  style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: isMe ? 'flex-end' : 'flex-start'
-                                  }}
-                                >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <img src={participant?.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(msg.userId)}`} alt={participant?.displayName || 'Unknown'} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
-                                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
-                                          {participant?.displayName || 'Unknown'}
-                                        </div>
-                                      </div>
-                                      <div
-                                        style={{
-                                          background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
-                                          borderRadius: 12,
-                                          padding: '8px 12px',
-                                          maxWidth: '70%',
-                                          wordBreak: 'break-word'
-                                        }}
-                                      >
-                                        {msg.text}
-                                      </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input
-                            ref={chatInputRef}
-                            type="text"
-                            placeholder="Type a message..."
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && e.target.value.trim()) {
-                                sendMessage(e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            style={{
-                              flex: 1,
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              borderRadius: 8,
-                              padding: 12,
-                              color: theme.text,
-                              fontSize: 14
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              if (chatInputRef.current && chatInputRef.current.value.trim()) {
-                                sendMessage(chatInputRef.current.value);
-                                chatInputRef.current.value = '';
-                              }
-                            }}
-                            style={{
-                              background: theme.accent,
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '12px 20px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6
-                            }}
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Stats & History Tab Content */}
-            {activeFeatureTab === 'stats' && (
-              <>
-                {/* Stats Card */}
+              {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && (
                 <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>📊 Your Progress</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{currentStreak}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>🔥 Day Streak</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{totalCompletions}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>✅ Completed</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{saved.length}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>⏱️ Saved Timers</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Comparison */}
-            {(() => {
-              const currentMonth = new Date().toISOString().slice(0, 7);
-              const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
-              const currentStats = monthlyStats[currentMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
-              const lastStats = monthlyStats[lastMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
-              const hasLastMonth = lastStats.completions > 0;
-
-              if (!hasLastMonth && currentStats.completions === 0) return null;
-
-              const calcChange = (current, last) => {
-                if (last === 0) return current > 0 ? 100 : 0;
-                return Math.round(((current - last) / last) * 100);
-              };
-
-              return (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <TrendingUp size={18} /> This Month vs Last Month
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Completions</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.completions}</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.completions, lastStats.completions) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.completions, lastStats.completions) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.completions, lastStats.completions))}%
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{Math.floor(currentStats.totalSeconds / 3600)}h</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.totalSeconds, lastStats.totalSeconds))}%
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Best Streak</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.bestStreak} days</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.bestStreak, lastStats.bestStreak))}%
-                        </div>
-                      )}
-                    </div>
+                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
+                  <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
+                    {formatTime(time)}
                   </div>
-                </div>
-              );
-            })()}
-              </>
-            )}
-
-            {/* Achievements Tab Content */}
-            {activeFeatureTab === 'achievements' && (
-              <>
-                {/* Achievements */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Award size={18} /> Achievements
-                  </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                {ACHIEVEMENTS.map(ach => {
-                  const isUnlocked = achievements.includes(ach.id);
-                  return (
-                    <div key={ach.id} style={{ padding: 16, background: isUnlocked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: 12, textAlign: 'center', opacity: isUnlocked ? 1 : 0.5, border: isUnlocked ? `2px solid ${theme.accent}40` : 'none', transition: 'all 0.3s' }}>
-                      <div style={{ fontSize: 32, marginBottom: 8, filter: isUnlocked ? 'none' : 'grayscale(100%)' }}>{ach.icon}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{ach.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{ach.description}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Smart Insights */}
-            {(() => {
-              const suggestions = getSmartSuggestions();
-              if (suggestions.length === 0) return null;
-
-              return (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} /> Your Insights
-                  </h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {suggestions.map((sug, idx) => (
-                      <div key={idx} style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ fontSize: 24 }}>{sug.icon}</div>
-                        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>{sug.text}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Daily Challenge */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Target size={18} /> Daily Challenge
-              </h2>
-              <div style={{ padding: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 16, border: dailyChallenge.progress >= dailyChallenge.target ? `2px solid ${theme.accent}` : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <div style={{ fontSize: 32 }}>{dailyChallenge.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{dailyChallenge.text}</div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
-                      Progress: {dailyChallenge.progress} / {dailyChallenge.target}
-                      {dailyChallenge.progress >= dailyChallenge.target && ' ✅'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, (dailyChallenge.progress / dailyChallenge.target) * 100)}%`, height: '100%', background: theme.accent, transition: 'width 0.3s' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Time Capsule */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Mail size={18} /> Time Capsule
-              </h2>
-              <div style={{ marginBottom: 16, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-                Write a message to your future self. You'll see it in 30 days!
-              </div>
-              {!showCapsuleInput ? (
-                <button
-                  onClick={() => setShowCapsuleInput(true)}
-                  style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                >
-                  📩 Create Time Capsule
-                </button>
-              ) : (
-                <div>
-                  <textarea
-                    value={capsuleMessage}
-                    onChange={(e) => setCapsuleMessage(e.target.value)}
-                    placeholder="Write your message here..."
-                    style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 16, color: theme.text, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button
-                      onClick={createTimeCapsule}
-                      disabled={!capsuleMessage.trim()}
-                      style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 12, padding: 12, color: 'white', cursor: capsuleMessage.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: capsuleMessage.trim() ? 1 : 0.5 }}
-                    >
-                      Send to Future
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                    <button onClick={startStopwatch} disabled={isRunning} style={{ background: isRunning ? 'rgba(255,255,255,0.1)' : theme.accent, border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                      <Play size={20} />
                     </button>
-                    <button
-                      onClick={() => { setShowCapsuleInput(false); setCapsuleMessage(''); }}
-                      style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                    >
-                      Cancel
+                    <button onClick={pauseStopwatch} disabled={!isRunning} style={{ background: !isRunning ? 'rgba(255,255,255,0.1)' : '#f59e0b', border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: !isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                      <Pause size={20} />
+                    </button>
+                    <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: '16px 32px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
+                      <RotateCcw size={20} />
                     </button>
                   </div>
                 </div>
               )}
-              {timeCapsules.filter(c => !c.opened).length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                  📦 You have {timeCapsules.filter(c => !c.opened).length} unopened capsule{timeCapsules.filter(c => !c.opened).length > 1 ? 's' : ''} waiting
-                </div>
+
+              {activeMainTab === 'timer' && activeFeatureTab === 'achievements' && (
+                <AchievementsPanel theme={theme} formatDate={formatDate} />
               )}
-            </div>
-
-            {/* Export/Import Data */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>💾 Backup & Restore</h2>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  onClick={exportData}
-                  style={{ flex: 1, minWidth: 200, background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  <Download size={16} /> Export Data
-                </button>
-                <label style={{ flex: 1, minWidth: 200 }}>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importData}
-                    style={{ display: 'none' }}
-                  />
-                  <div style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Upload size={16} /> Import Data
-                  </div>
-                </label>
-              </div>
-              <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                Backup all your timers, stats, and achievements
-              </div>
-            </div>
-
-            {/* History Log */}
-             <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                   <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><History size={18}/> Recent History</h2>
-                   {history.length > 0 && <button onClick={() => setHistory([])} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
-               </div>
-               {history.length === 0 ? (
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', padding: 20 }}>No recently completed timers.</div>
-               ) : (
-                   <div>
-                       {history.map(entry => (
-                           <div key={entry.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-                               <div style={{ flexGrow: 1, minWidth: '150px' }}>
-                                   <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.name || entry.type}</div>
-                                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{entry.details}</div>
-                               </div>
-                               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', flexShrink: 0, marginTop: window.innerWidth <= 480 ? 4 : 0 }}>{formatDate(entry.completedAt)}</div>
-                           </div>
-                       ))}
-                   </div>
-               )}
-            </div>
-              </>
-            )}
-
-            {/* Scenes & Themes Tab Content */}
-            {activeFeatureTab === 'scenes' && (
-              <>
-                {/* Immersive Scenes */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} /> Immersive Scenes
-                  </h2>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-                    Choose a scene that matches your timer activity. Scenes change the visual ambiance to help you focus.
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                    {Object.entries(SCENES).map(([key, scene]) => (
-                      <div
-                        key={key}
-                        style={{
-                          padding: 16,
-                          background: key === 'none' ? 'rgba(255,255,255,0.05)' : scene.bg,
-                          borderRadius: 12,
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          border: activeScene === key ? `2px solid ${theme.accent}` : 'none',
-                          transition: 'all 0.3s',
-                          position: 'relative'
-                        }}
-                        onClick={() => setActiveScene(key)}
-                      >
-                        <div style={{ fontSize: 32, marginBottom: 8 }}>{scene.emoji}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{scene.name}</div>
-                        {scene.description && (
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{scene.description}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Theme Selector */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Palette size={18} /> Color Themes
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
-                    {themes.map(t => (
-                      <div
-                        key={t.name}
-                        onClick={() => setTheme(t)}
-                        style={{
-                          padding: 20,
-                          background: t.card,
-                          borderRadius: 12,
-                          cursor: 'pointer',
-                          border: theme.name === t.name ? `2px solid ${t.accent}` : 'none',
-                          transition: 'all 0.3s',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: t.accent, margin: '0 auto 12px' }} />
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+            </Suspense>
           </>
         )}
-      </div>
+{/* Room Template Selector Modal */}
+        {showTemplateSelector && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            padding: 20,
+            overflowY: 'auto'
+          }}>
+            <div style={{
+              background: theme.bg,
+              borderRadius: 24,
+              width: '100%',
+              maxWidth: 1200,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative'
+            }}>
+              {/* Close Button */}
+              <button
+                onClick={() => setShowTemplateSelector(false)}
+                style={{
+                  position: 'sticky',
+                  top: 20,
+                  right: 20,
+                  float: 'right',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: 8,
+                  color: 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 20,
+                  zIndex: 10
+                }}
+              >
+                ✕
+              </button>
+
+              <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+                <RoomTemplateSelector
+                  theme={theme}
+                  onSelectTemplate={handleSelectTemplate}
+                  onSkip={() => setShowTemplateSelector(false)}
+                />
+              </Suspense>
+
+              <>
+                {selectedTemplate && (
+                  <div style={{ padding: 20, borderTop: `1px solid rgba(255,255,255,0.1)`, textAlign: 'center', background: theme.card }}>
+                    <button
+                      onClick={handleCreateRoomFromTemplate}
+                      style={{
+                        background: theme.accent,
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: 12,
+                        padding: '12px 24px',
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        fontWeight: 600,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      Create Room from {selectedTemplate.name}
+                    </button>
+                  </div>
+                )}
+              </>
+            </div> {/* This div closes the main content container (the one with maxWidth: 600) */}
+            </div>
+        )}
+        </div>
+      </ToastProvider>
+      </ModalProvider>
     </div>
   );
-}
+  
+  }
