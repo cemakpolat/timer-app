@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Sparkles, Download, Upload, Target, Mail, Users, Send, Lightbulb, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, History, Award, TrendingUp, Download, Upload, Target, Mail, Users, Send, Lightbulb, Calendar } from 'lucide-react';
 import './styles/global.css';
 import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
@@ -8,9 +8,14 @@ import RoomSettingsModal from './components/FocusRooms/RoomSettingsModal';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import RoomExpirationModal from './components/FocusRooms/RoomExpirationModal';
 import FeedbackModal from './components/FeedbackModal';
+import LazyLoadingFallback from './components/LazyLoadingFallback';
 import TimerPanel from './components/panels/TimerPanel';
 import IntervalPanel from './components/panels/IntervalPanel';
 import CompositePanel from './components/panels/CompositePanel';
+const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
+const StatsPanel = lazy(() => import('./components/panels/StatsPanel'));
+const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
+const ScenesPanel = lazy(() => import('./components/panels/ScenesPanel'));
 import ThemeManager from './components/ThemeManager';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 
@@ -2053,856 +2058,86 @@ export default function TimerApp() {
             </div>
             )}
 
-            {/* Focus Rooms Tab Content */}
-            {activeFeatureTab === 'rooms' && (
-              <>
-                {!currentRoom ? (
-                  <>
-                    {/* Room List */}
-                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Users size={18} /> Focus Rooms
-                        </h2>
-                        <button
-                          onClick={() => setShowCreateRoomModal(true)}
-                          style={{
-                            background: theme.accent,
-                            border: 'none',
-                            borderRadius: 8,
-                            padding: '8px 16px',
-                            color: theme.text,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            fontWeight: 600,
-                            display: 'flex',
-                            gap: 6,
-                            alignItems: 'center'
-                          }}
-                        >
-                          <Plus size={16} /> Create Room
-                        </button>
-                      </div>
-
-                      {roomsLoading ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
-                          Loading rooms...
-                        </div>
-                      ) : rooms.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
-                          No active rooms. Create one to get started!
-                        </div>
-                      ) : (
-                        <div style={{ display: 'grid', gap: 12 }}>
-                          {rooms.map(room => (
-                            <div
-                              key={room.id}
-                              style={{
-                                background: 'rgba(255,255,255,0.05)',
-                                borderRadius: 16,
-                                padding: 20,
-                                border: `1px solid rgba(255,255,255,0.1)`,
-                                transition: 'all 0.3s'
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    {room.name}
-                                    {room.status === 'scheduled' && (
-                                      <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
-                                        📅 Scheduled
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                      <Users size={14} />
-                                      {getParticipantCount(room)}/{room.maxParticipants}
-                                    </div>
-                                    {room.status === 'scheduled' && room.scheduledFor ? (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Clock size={14} />
-                                        Available: {new Date(room.scheduledFor).toLocaleString()}
-                                      </div>
-                                    ) : room.timer && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Clock size={14} />
-                                        {formatTime(Math.max(0, Math.floor((room.timer.endsAt - Date.now()) / 1000)))} remaining
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                  {room.status === 'scheduled' && room.scheduledFor && (
-                                    <button
-                                      onClick={() => setCalendarExportRoom(room)}
-                                      style={{
-                                        background: 'rgba(34,197,94,0.2)',
-                                        border: '1px solid rgba(34,197,94,0.5)',
-                                        borderRadius: 12,
-                                        padding: '10px 16px',
-                                        color: '#22c55e',
-                                        cursor: 'pointer',
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        transition: 'all 0.2s'
-                                      }}
-                                      onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                                      onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                                      title="Export to calendar"
-                                    >
-                                      <Calendar size={16} /> Export
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleJoinRoom(room.id)}
-                                    disabled={isRoomFull(room) || room.status === 'scheduled'}
-                                    style={{
-                                      background: (isRoomFull(room) || room.status === 'scheduled') ? 'rgba(255,255,255,0.1)' : theme.accent,
-                                      border: 'none',
-                                      borderRadius: 12,
-                                      padding: '10px 20px',
-                                      color: theme.text,
-                                      cursor: (isRoomFull(room) || room.status === 'scheduled') ? 'not-allowed' : 'pointer',
-                                      fontSize: 14,
-                                      fontWeight: 600,
-                                      opacity: (isRoomFull(room) || room.status === 'scheduled') ? 0.5 : 1
-                                    }}
-                                  >
-                                    {isRoomFull(room) ? 'Full' : room.status === 'scheduled' ? 'Not Ready' : 'Join'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Active Room View */}
-                    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <div>
-                          <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
-                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                            Host: {currentRoom.creatorName || currentRoom.createdBy}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            onClick={leaveRoom}
-                            style={{
-                              background: 'rgba(255,255,255,0.1)',
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '8px 16px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600
-                            }}
-                          >
-                            Leave Room
-                          </button>
-                          {/* Delete room button visible to room creator when no other joiners */}
-                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
-                            <button
-                                  onClick={async () => {
-                                try {
-                                  await deleteRoom(currentRoom.id);
-                                  setToastMessage('Room deleted');
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 3000);
-                                  // Leave the room locally to clear UI state
-                                  await leaveRoom();
-                                } catch (err) {
-                                  const msg = err?.message || 'Failed to delete room';
-                                  setToastMessage(msg);
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 5000);
-                                }
-                              }}
-                              style={{
-                                background: '#ef4444',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 600
-                              }}
-                            >
-                              Delete Room
-                            </button>
-                          )}
-                          {currentRoom && RealtimeServiceFactory.currentService?.currentUserId === currentRoom.createdBy && (
-                            <button
-                              onClick={() => setShowRoomSettings(true)}
-                              style={{
-                                background: 'rgba(255,255,255,0.06)',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                color: theme.text,
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 600
-                              }}
-                            >
-                              Room Settings
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Participants */}
-                      <div style={{ marginBottom: 24 }}>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Participants ({getParticipantCount(currentRoom)}/{currentRoom.maxParticipants})
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {Object.entries(currentRoom.participants || {}).map(([userId, participant]) => (
-                            <div
-                              key={userId}
-                              style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                borderRadius: 8,
-                                padding: '6px 12px',
-                                fontSize: 13,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8
-                              }}
-                            >
-                              {/* small online dot */}
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent }} />
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {/* Avatar component */}
-                                <img src={participant.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(userId)}`} alt={participant.displayName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                                <div>{participant.displayName}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Room Timer */}
-                      {currentRoom.timer && (
-                        <div
-                          key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
-                          style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
-                        >
-                          {/* Composite Timer Progress Indicators */}
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                            <>
-                              <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                                {currentRoom.compositeTimer.steps.map((step, idx) => (
-                                  <React.Fragment key={idx}>
-                                    <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                                    {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
-                                  </React.Fragment>
-                                ))}
-                              </div>
-                              <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
-                                {currentRoom.compositeTimer.steps.map((step, idx) => (
-                                  <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                            <div style={{ fontSize: 14, color: currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.color || theme.accent, marginBottom: 8, fontWeight: 600 }}>
-                              {currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.name}
-                            </div>
-                          )}
-                          <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent, marginBottom: 8 }}>
-                            {formatTime(Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000)))}
-                          </div>
-                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                            {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
-                          </div>
-                        </div>
-                      )}
-
-                      {showRoomSettings && currentRoom && (
-                        <RoomSettingsModal
-                          theme={theme}
-                          room={currentRoom}
-                          onClose={() => setShowRoomSettings(false)}
-                          onSave={handleSaveRoomSettings}
-                        />
-                      )}
-
-                      {/* Room Expiration Modal */}
-                      <RoomExpirationModal
-                        isOpen={showRoomExpirationModal}
-                        roomId={currentRoom?.id}
-                        isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getService()?.currentUserId}
-                        onExtend={handleExtendTimer}
-                        onClose={handleCloseRoom}
-                        gracePeriodSec={120}
-                        maxExtensionMinutes={30}
-                      />
-
-                      {/* Task 5: Calendar Export Modal */}
-                      {calendarExportRoom && (
-                        <div
-                          style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.8)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1000,
-                            padding: 20
-                          }}
-                          onClick={() => setCalendarExportRoom(null)}
-                        >
-                          <div
-                            style={{
-                              background: theme.card,
-                              borderRadius: 24,
-                              padding: 32,
-                              maxWidth: 500,
-                              width: '100%'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
-                              📅 Export "{calendarExportRoom.name}" to Calendar
-                            </h2>
-                            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                                📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
-                              </div>
-                              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                                ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
-                              </div>
-                            </div>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
-                              Choose how to export this room to your calendar:
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                              <button
-                                onClick={() => handleExportToICS(calendarExportRoom)}
-                                style={{
-                                  background: 'rgba(34,197,94,0.2)',
-                                  border: '1px solid rgba(34,197,94,0.5)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: '#22c55e',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 8
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                              >
-                                <Download size={18} /> Download .ics File
-                              </button>
-                              <button
-                                onClick={() => handleExportToGoogleCalendar(calendarExportRoom)}
-                                style={{
-                                  background: 'rgba(59,130,246,0.2)',
-                                  border: '1px solid rgba(59,130,246,0.5)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: '#3b82f6',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 8
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(59,130,246,0.3)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
-                              >
-                                <Calendar size={18} /> Add to Google Calendar
-                              </button>
-                              <button
-                                onClick={() => setCalendarExportRoom(null)}
-                                style={{
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  borderRadius: 12,
-                                  padding: 16,
-                                  color: 'rgba(255,255,255,0.6)',
-                                  cursor: 'pointer',
-                                  fontSize: 15,
-                                  fontWeight: 600,
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Start Timer Button */}
-                      {!currentRoom.timer && (
-                        <div style={{ marginBottom: 24, textAlign: 'center' }}>
-                          <button
-                            onClick={() => startRoomTimer(currentRoom.duration)}
-                            style={{
-                              background: theme.accent,
-                              border: 'none',
-                              borderRadius: 12,
-                              padding: '16px 32px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              fontSize: 16,
-                              fontWeight: 600,
-                              boxShadow: `0 4px 12px ${theme.accent}40`,
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
-                          >
-                            <Play size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                            Start {currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}
-                          </button>
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
-                            <div style={{ marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                              {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Chat */}
-                      <div>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Chat
-                        </div>
-                        <div
-                          style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            borderRadius: 12,
-                            padding: 16,
-                            marginBottom: 12,
-                            maxHeight: 300,
-                            overflowY: 'auto',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 12
-                          }}
-                        >
-                          {messages.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                              No messages yet. Say hi! 👋
-                            </div>
-                          ) : (
-                            messages.map((msg) => {
-                              const participant = currentRoom.participants?.[msg.userId];
-                              const isMe = msg.userId === RealtimeServiceFactory.getService().currentUserId;
-                              return (
-                                <div
-                                  key={msg.id}
-                                  style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: isMe ? 'flex-end' : 'flex-start'
-                                  }}
-                                >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <img src={participant?.avatarUrl || `https://api.dicebear.com/8.x/identicon/svg?seed=${encodeURIComponent(msg.userId)}`} alt={participant?.displayName || 'Unknown'} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
-                                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
-                                          {participant?.displayName || 'Unknown'}
-                                        </div>
-                                      </div>
-                                      <div
-                                        style={{
-                                          background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
-                                          borderRadius: 12,
-                                          padding: '8px 12px',
-                                          maxWidth: '70%',
-                                          wordBreak: 'break-word'
-                                        }}
-                                      >
-                                        {msg.text}
-                                      </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input
-                            ref={chatInputRef}
-                            type="text"
-                            placeholder="Type a message..."
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && e.target.value.trim()) {
-                                sendMessage(e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            style={{
-                              flex: 1,
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              borderRadius: 8,
-                              padding: 12,
-                              color: theme.text,
-                              fontSize: 14
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              if (chatInputRef.current && chatInputRef.current.value.trim()) {
-                                sendMessage(chatInputRef.current.value);
-                                chatInputRef.current.value = '';
-                              }
-                            }}
-                            style={{
-                              background: theme.accent,
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '12px 20px',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6
-                            }}
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Stats & History Tab Content */}
-            {activeFeatureTab === 'stats' && (
-              <>
-                {/* Stats Card */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>📊 Your Progress</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{currentStreak}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>🔥 Day Streak</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{totalCompletions}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>✅ Completed</div>
-                </div>
-                <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{saved.length}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>⏱️ Saved Timers</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Comparison */}
-            {(() => {
-              const currentMonth = new Date().toISOString().slice(0, 7);
-              const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
-              const currentStats = monthlyStats[currentMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
-              const lastStats = monthlyStats[lastMonth] || { completions: 0, totalSeconds: 0, bestStreak: 0 };
-              const hasLastMonth = lastStats.completions > 0;
-
-              if (!hasLastMonth && currentStats.completions === 0) return null;
-
-              const calcChange = (current, last) => {
-                if (last === 0) return current > 0 ? 100 : 0;
-                return Math.round(((current - last) / last) * 100);
-              };
-
-              return (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <TrendingUp size={18} /> This Month vs Last Month
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Completions</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.completions}</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.completions, lastStats.completions) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.completions, lastStats.completions) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.completions, lastStats.completions))}%
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{Math.floor(currentStats.totalSeconds / 3600)}h</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.totalSeconds, lastStats.totalSeconds) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.totalSeconds, lastStats.totalSeconds))}%
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Best Streak</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.bestStreak} days</div>
-                      {hasLastMonth && (
-                        <div style={{ fontSize: 12, color: calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
-                          {calcChange(currentStats.bestStreak, lastStats.bestStreak) >= 0 ? '↑' : '↓'} {Math.abs(calcChange(currentStats.bestStreak, lastStats.bestStreak))}%
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-              </>
-            )}
-
-            {/* Achievements Tab Content */}
-            {activeFeatureTab === 'achievements' && (
-              <>
-                {/* Achievements */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Award size={18} /> Achievements
-                  </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                {ACHIEVEMENTS.map(ach => {
-                  const isUnlocked = achievements.includes(ach.id);
-                  return (
-                    <div key={ach.id} style={{ padding: 16, background: isUnlocked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: 12, textAlign: 'center', opacity: isUnlocked ? 1 : 0.5, border: isUnlocked ? `2px solid ${theme.accent}40` : 'none', transition: 'all 0.3s' }}>
-                      <div style={{ fontSize: 32, marginBottom: 8, filter: isUnlocked ? 'none' : 'grayscale(100%)' }}>{ach.icon}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{ach.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{ach.description}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Smart Insights */}
-            {(() => {
-              const suggestions = getSmartSuggestions();
-              if (suggestions.length === 0) return null;
-
-              return (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} /> Your Insights
-                  </h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {suggestions.map((sug, idx) => (
-                      <div key={idx} style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ fontSize: 24 }}>{sug.icon}</div>
-                        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>{sug.text}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Daily Challenge */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Target size={18} /> Daily Challenge
-              </h2>
-              <div style={{ padding: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 16, border: dailyChallenge.progress >= dailyChallenge.target ? `2px solid ${theme.accent}` : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <div style={{ fontSize: 32 }}>{dailyChallenge.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{dailyChallenge.text}</div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
-                      Progress: {dailyChallenge.progress} / {dailyChallenge.target}
-                      {dailyChallenge.progress >= dailyChallenge.target && ' ✅'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, (dailyChallenge.progress / dailyChallenge.target) * 100)}%`, height: '100%', background: theme.accent, transition: 'width 0.3s' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Time Capsule */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Mail size={18} /> Time Capsule
-              </h2>
-              <div style={{ marginBottom: 16, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-                Write a message to your future self. You'll see it in 30 days!
-              </div>
-              {!showCapsuleInput ? (
-                <button
-                  onClick={() => setShowCapsuleInput(true)}
-                  style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                >
-                  📩 Create Time Capsule
-                </button>
-              ) : (
-                <div>
-                  <textarea
-                    value={capsuleMessage}
-                    onChange={(e) => setCapsuleMessage(e.target.value)}
-                    placeholder="Write your message here..."
-                    style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 16, color: theme.text, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button
-                      onClick={createTimeCapsule}
-                      disabled={!capsuleMessage.trim()}
-                      style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 12, padding: 12, color: 'white', cursor: capsuleMessage.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: capsuleMessage.trim() ? 1 : 0.5 }}
-                    >
-                      Send to Future
-                    </button>
-                    <button
-                      onClick={() => { setShowCapsuleInput(false); setCapsuleMessage(''); }}
-                      style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+            {/* Feature Tabs - Suspense Boundary for Lazy-Loaded Components */}
+            <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+              {/* Focus Rooms Tab Content */}
+              {activeFeatureTab === 'rooms' && (
+                <FocusRoomsPanel
+                  theme={theme}
+                  currentRoom={currentRoom}
+                  rooms={rooms}
+                  roomsLoading={roomsLoading}
+                  messages={messages}
+                  showRoomSettings={showRoomSettings}
+                  showRoomExpirationModal={showRoomExpirationModal}
+                  calendarExportRoom={calendarExportRoom}
+                  chatInputRef={chatInputRef}
+                  handleJoinRoom={handleJoinRoom}
+                  leaveRoom={leaveRoom}
+                  deleteRoom={deleteRoom}
+                  setShowRoomSettings={setShowRoomSettings}
+                  setCalendarExportRoom={setCalendarExportRoom}
+                  handleSaveRoomSettings={handleSaveRoomSettings}
+                  sendMessage={sendMessage}
+                  startRoomTimer={startRoomTimer}
+                  handleExtendTimer={handleExtendTimer}
+                  handleCloseRoom={handleCloseRoom}
+                  handleExportToICS={handleExportToICS}
+                  handleExportToGoogleCalendar={handleExportToGoogleCalendar}
+                  formatTime={formatTime}
+                  getParticipantCount={getParticipantCount}
+                  isRoomFull={isRoomFull}
+                  setToastMessage={setToastMessage}
+                  setShowToast={setShowToast}
+                  setShowCreateRoomModal={setShowCreateRoomModal}
+                />
               )}
-              {timeCapsules.filter(c => !c.opened).length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                  📦 You have {timeCapsules.filter(c => !c.opened).length} unopened capsule{timeCapsules.filter(c => !c.opened).length > 1 ? 's' : ''} waiting
-                </div>
+
+              {/* Stats & History Tab Content */}
+              {activeFeatureTab === 'stats' && (
+                <StatsPanel
+                  theme={theme}
+                  currentStreak={currentStreak}
+                  totalCompletions={totalCompletions}
+                  saved={saved}
+                  monthlyStats={monthlyStats}
+                />
               )}
-            </div>
 
-            {/* Export/Import Data */}
-            <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-              <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>💾 Backup & Restore</h2>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  onClick={exportData}
-                  style={{ flex: 1, minWidth: 200, background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  <Download size={16} /> Export Data
-                </button>
-                <label style={{ flex: 1, minWidth: 200 }}>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importData}
-                    style={{ display: 'none' }}
-                  />
-                  <div style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Upload size={16} /> Import Data
-                  </div>
-                </label>
-              </div>
-              <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                Backup all your timers, stats, and achievements
-              </div>
-            </div>
+              {/* Achievements Tab Content */}
+              {activeFeatureTab === 'achievements' && (
+                <AchievementsPanel
+                  theme={theme}
+                  ACHIEVEMENTS={ACHIEVEMENTS}
+                  achievements={achievements}
+                  getSmartSuggestions={getSmartSuggestions}
+                  dailyChallenge={dailyChallenge}
+                  timeCapsules={timeCapsules}
+                  showCapsuleInput={showCapsuleInput}
+                  capsuleMessage={capsuleMessage}
+                  history={history}
+                  setShowCapsuleInput={setShowCapsuleInput}
+                  setCapsuleMessage={setCapsuleMessage}
+                  createTimeCapsule={createTimeCapsule}
+                  exportData={exportData}
+                  importData={importData}
+                  setHistory={setHistory}
+                  formatDate={formatDate}
+                />
+              )}
 
-            {/* History Log */}
-             <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                   <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><History size={18}/> Recent History</h2>
-                   {history.length > 0 && <button onClick={() => setHistory([])} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
-               </div>
-               {history.length === 0 ? (
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', padding: 20 }}>No recently completed timers.</div>
-               ) : (
-                   <div>
-                       {history.map(entry => (
-                           <div key={entry.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-                               <div style={{ flexGrow: 1, minWidth: '150px' }}>
-                                   <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.name || entry.type}</div>
-                                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{entry.details}</div>
-                               </div>
-                               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', flexShrink: 0, marginTop: window.innerWidth <= 480 ? 4 : 0 }}>{formatDate(entry.completedAt)}</div>
-                           </div>
-                       ))}
-                   </div>
-               )}
-            </div>
-              </>
-            )}
-
-            {/* Scenes & Themes Tab Content */}
-            {activeFeatureTab === 'scenes' && (
-              <>
-                {/* Immersive Scenes */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} /> Immersive Scenes
-                  </h2>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-                    Choose a scene that matches your timer activity. Scenes change the visual ambiance to help you focus.
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                    {Object.entries(SCENES).map(([key, scene]) => (
-                      <div
-                        key={key}
-                        style={{
-                          padding: 16,
-                          background: key === 'none' ? 'rgba(255,255,255,0.05)' : scene.bg,
-                          borderRadius: 12,
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          border: activeScene === key ? `2px solid ${theme.accent}` : 'none',
-                          transition: 'all 0.3s',
-                          position: 'relative'
-                        }}
-                        onClick={() => setActiveScene(key)}
-                      >
-                        <div style={{ fontSize: 32, marginBottom: 8 }}>{scene.emoji}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{scene.name}</div>
-                        {scene.description && (
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{scene.description}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Theme Selector */}
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Palette size={18} /> Color Themes
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
-                    {themes.map(t => (
-                      <div
-                        key={t.name}
-                        onClick={() => setTheme(t)}
-                        style={{
-                          padding: 20,
-                          background: t.card,
-                          borderRadius: 12,
-                          cursor: 'pointer',
-                          border: theme.name === t.name ? `2px solid ${t.accent}` : 'none',
-                          transition: 'all 0.3s',
-                          textAlign: 'center'
-                        }}
-                      >
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: t.accent, margin: '0 auto 12px' }} />
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+              {/* Scenes & Themes Tab Content */}
+              {activeFeatureTab === 'scenes' && (
+                <ScenesPanel
+                  SCENES={SCENES}
+                  activeScene={activeScene}
+                  setActiveScene={setActiveScene}
+                  theme={theme}
+                  setTheme={setTheme}
+                  themes={themes}
+                />
+              )}
+            </Suspense>
           </>
         )}
       </div>
