@@ -31,6 +31,7 @@ import RealtimeServiceFactory from '../../services/RealtimeServiceFactory';
  * - handleCloseRoom: Function to close room
  * - handleExportToICS: Function to export to .ics file
  * - handleExportToGoogleCalendar: Function to export to Google Calendar
+ * - handleShareRoomLink: Function to share room link
  * - formatTime: Function to format seconds as HH:MM:SS
  * - getParticipantCount: Function to get number of participants
  * - isRoomFull: Function to check if room is full
@@ -68,6 +69,7 @@ function FocusRoomsPanel({
   handleCloseRoom,
   handleExportToICS,
   handleExportToGoogleCalendar,
+  handleShareRoomLink,
   formatTime,
   getParticipantCount,
   isRoomFull
@@ -238,6 +240,7 @@ function FocusRoomsPanel({
                 overflowY: 'auto',
                 paddingRight: 4
               }}>
+                {console.log('Filtered rooms:', filteredRooms.map(r => ({ id: r.id, name: r.name, scheduledFor: r.scheduledFor, status: r.status })))}
                 {filteredRooms.map(room => (
                   <div
                     key={room.id}
@@ -279,8 +282,13 @@ function FocusRoomsPanel({
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {room.scheduledFor && (
-                          <button
-                            onClick={() => setCalendarExportRoom(room)}
+                          <>
+                            {console.log('Rendering export button for room:', room.name, 'scheduledFor:', room.scheduledFor)}
+                            <button
+                            onClick={() => {
+                              console.log('Export button clicked for room:', room.name, room.id);
+                              setCalendarExportRoom(room);
+                            }}
                             style={{
                               background: 'rgba(34,197,94,0.2)',
                               border: '1px solid rgba(34,197,94,0.5)',
@@ -301,6 +309,7 @@ function FocusRoomsPanel({
                           >
                             <Calendar size={16} /> Export
                           </button>
+                          </>
                         )}
                         <button
                           onClick={() => handleJoinRoom(room.id)}
@@ -491,7 +500,9 @@ function FocusRoomsPanel({
 
             {/* Calendar Export Modal */}
             {calendarExportRoom && (
-              <div
+              <>
+                {console.log('Rendering export modal for room:', calendarExportRoom.name)}
+                <div
                 style={{
                   position: 'fixed',
                   inset: 0,
@@ -574,6 +585,28 @@ function FocusRoomsPanel({
                       📅 Add to Google Calendar
                     </button>
                     <button
+                      onClick={() => handleShareRoomLink(calendarExportRoom)}
+                      style={{
+                        background: 'rgba(168,85,247,0.2)',
+                        border: '1px solid rgba(168,85,247,0.5)',
+                        borderRadius: 12,
+                        padding: 16,
+                        color: '#a855f7',
+                        cursor: 'pointer',
+                        fontSize: 15,
+                        fontWeight: 600,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(168,85,247,0.3)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(168,85,247,0.2)'}
+                    >
+                      🔗 Share Link
+                    </button>
+                    <button
                       onClick={() => setCalendarExportRoom(null)}
                       style={{
                         background: 'rgba(255,255,255,0.05)',
@@ -594,6 +627,7 @@ function FocusRoomsPanel({
                   </div>
                 </div>
               </div>
+              </>
             )}
 
             {/* Start Timer Button */}
