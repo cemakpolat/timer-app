@@ -92,9 +92,10 @@ export function generateGoogleCalendarURL(room) {
   const durationSeconds = room.duration || 1500; // default 25 min
   const endDate = new Date(room.scheduledFor + durationSeconds * 1000);
 
-  // Format dates for Google Calendar: YYYYMMDDTHHMMSS
+  // Format dates for Google Calendar: YYYYMMDDTHHMMSSZ (UTC format)
   const formatGoogleDate = (date) => {
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0];
+    // Convert to ISO string, remove dashes and colons, remove milliseconds, add Z
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   };
 
   const startFormatted = formatGoogleDate(startDate);
@@ -105,7 +106,7 @@ export function generateGoogleCalendarURL(room) {
     text: room.name,
     details: `Focus room hosted by ${room.creatorName || 'Focus Room Host'}. Maximum participants: ${room.maxParticipants || 10}.`,
     location: 'Timer App Focus Room',
-    dates: `${startFormatted}Z/${endFormatted}Z`
+    dates: `${startFormatted}/${endFormatted}`
   });
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
