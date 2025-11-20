@@ -240,6 +240,7 @@ function FocusRoomsPanel({
                 overflowY: 'auto',
                 paddingRight: 4
               }}>
+                {console.log('Filtered rooms:', filteredRooms.map(r => ({ id: r.id, name: r.name, scheduledFor: r.scheduledFor, status: r.status })))}
                 {filteredRooms.map(room => (
                   <div
                     key={room.id}
@@ -281,8 +282,13 @@ function FocusRoomsPanel({
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {room.scheduledFor && (
-                          <button
-                            onClick={() => setCalendarExportRoom(room)}
+                          <>
+                            {console.log('Rendering export button for room:', room.name, 'scheduledFor:', room.scheduledFor)}
+                            <button
+                            onClick={() => {
+                              console.log('Export button clicked for room:', room.name, room.id);
+                              setCalendarExportRoom(room);
+                            }}
                             style={{
                               background: 'rgba(34,197,94,0.2)',
                               border: '1px solid rgba(34,197,94,0.5)',
@@ -303,6 +309,7 @@ function FocusRoomsPanel({
                           >
                             <Calendar size={16} /> Export
                           </button>
+                          </>
                         )}
                         <button
                           onClick={() => handleJoinRoom(room.id)}
@@ -493,7 +500,9 @@ function FocusRoomsPanel({
 
             {/* Calendar Export Modal */}
             {calendarExportRoom && (
-              <div
+              <>
+                {console.log('Rendering export modal for room:', calendarExportRoom.name)}
+                <div
                 style={{
                   position: 'fixed',
                   inset: 0,
@@ -618,6 +627,7 @@ function FocusRoomsPanel({
                   </div>
                 </div>
               </div>
+              </>
             )}
 
             {/* Start Timer Button */}
