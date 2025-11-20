@@ -63,14 +63,33 @@ END:VCALENDAR`;
  */
 export function downloadICSFile(room) {
   try {
+    console.log('Starting ICS download for room:', room.name);
     const icsContent = generateICSContent(room);
+    console.log('ICS content generated, length:', icsContent.length);
+    
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    console.log('Blob created, size:', blob.size);
+    
     const url = URL.createObjectURL(blob);
+    console.log('Object URL created:', url);
+    
     const link = document.createElement('a');
     link.href = url;
     link.download = `${room.name.replace(/\s+/g, '_')}-${new Date(room.scheduledFor).toISOString().split('T')[0]}.ics`;
+    
+    // Important: append to DOM before clicking for broader browser compatibility
+    document.body.appendChild(link);
+    console.log('Link added to DOM, downloading as:', link.download);
+    
     link.click();
-    URL.revokeObjectURL(url);
+    console.log('Link clicked');
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      console.log('Cleanup complete');
+    }, 100);
   } catch (error) {
     console.error('Error downloading ICS file:', error);
     throw error;
