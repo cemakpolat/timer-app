@@ -47,26 +47,14 @@ resource "google_storage_bucket" "firebase_storage" {
 # Rules file: infrastructure/database-rules.json
 # Deploy with: firebase deploy --only database:rules
 
-# Enable Anonymous Authentication
-# This allows users to sign in anonymously without providing credentials
-resource "google_identity_platform_config" "default" {
+# Enable Anonymous Authentication via Identity Platform
+# This resource ensures the identity platform is properly configured
+resource "google_identity_platform_config" "auth" {
   provider = google-beta
   count    = var.enable_firebase ? 1 : 0
   project  = var.project_id
 
-  # Enable Anonymous sign-in provider
-  sign_in_config {
-    allow_duplicate_emails = false
-  }
-
   depends_on = [google_project_service.identity_toolkit]
-}
-
-# Enable the Anonymous provider specifically
-resource "google_identity_platform_inbound_saml_config" "anonymous" {
-  provider = google-beta
-  count    = 0  # Note: SAML config not needed for anonymous; anonymous is enabled via sign_in_config above
-  project  = var.project_id
 }
 
 # Output Firebase Config (for use in app) - SENSITIVE: Will not display in terraform output
