@@ -9,7 +9,8 @@
  */
 export function generateICSContent(room) {
   if (!room || !room.scheduledFor) {
-    throw new Error('Room must have a scheduledFor timestamp');
+    console.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
+    throw new Error('Room must have a scheduledFor timestamp to export. Please ensure the room has a scheduled date/time.');
   }
 
   const roomId = room.id || 'room';
@@ -83,7 +84,8 @@ export function downloadICSFile(room) {
  */
 export function generateGoogleCalendarURL(room) {
   if (!room || !room.scheduledFor) {
-    throw new Error('Room must have a scheduledFor timestamp');
+    console.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
+    throw new Error('Room must have a scheduledFor timestamp to export. Please ensure the room has a scheduled date/time.');
   }
 
   const startDate = new Date(room.scheduledFor);

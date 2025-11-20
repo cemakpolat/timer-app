@@ -278,7 +278,7 @@ function FocusRoomsPanel({
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        {room.status === 'scheduled' && room.scheduledFor && (
+                        {room.scheduledFor && (
                           <button
                             onClick={() => setCalendarExportRoom(room)}
                             style={{
