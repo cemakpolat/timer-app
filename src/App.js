@@ -1685,7 +1685,7 @@ export default function TimerApp() {
           padding: '20px 0 16px',
           position: 'sticky',
           top: 0,
-          background: theme.bg,
+          background: 'transparent',
           zIndex: 100
         }}>
           {/* App Name */}
