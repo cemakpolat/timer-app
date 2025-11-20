@@ -53,3 +53,9 @@ resource "google_project_service" "cloudbuild" {
   service = "cloudbuild.googleapis.com"
   project = var.project_id
 }
+
+resource "google_project_service" "identity_toolkit" {
+  service = "identitytoolkit.googleapis.com"
+  project = var.project_id
+}
+
