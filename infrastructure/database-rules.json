@@ -12,6 +12,12 @@
       "$uid": {
         ".read": true,
         ".write": "auth != null && auth.uid == $uid",
+        "displayName": {
+           ".validate": "newData.isString() || newData.val() === null"
+        },
+        "createdAt": {
+           ".validate": "newData.isNumber() || newData.isString() || newData.val() === null"
+        },
         "avatarUrl": {
           ".validate": "newData.isString() || newData.val() === null"
         },
@@ -32,24 +38,24 @@
       "$roomId": {
         ".write": "auth != null",
         ".validate": "!newData.exists() || newData.hasChildren(['id', 'createdBy']) || (!newData.child('id').exists() && !newData.child('createdBy').exists())", 
+        
         "id": { ".validate": "newData.isString()" },
         "name": { ".validate": "newData.isString() && newData.val().length > 0" },
         "description": { ".validate": "newData.isString() || newData.val() === null" },
         
-        "tag": { 
-          ".validate": "!newData.exists() || newData.val() === null || (newData.isString() && (newData.val() === 'work' || newData.val() === 'study' || newData.val() === 'creative' || newData.val() === 'fitness' || newData.val() === 'wellness' || newData.val() === 'other'))" 
-        },
+        "tag": { ".validate": "newData.isString() || newData.val() === null" },
 
         "template": { ".validate": "newData.isString() || newData.val() === null" },
         "createdBy": { ".validate": "newData.isString()" },
         "creatorName": { ".validate": "newData.isString() || newData.val() === null" },
-        "createdAt": { ".validate": "newData.isString() || newData.val() === null" },
+        "createdAt": { ".validate": "newData.isString() || newData.isNumber() || newData.val() === null" },
+        
         "maxParticipants": { ".validate": "newData.isNumber() && newData.val() > 0" },
         "duration": { ".validate": "newData.isNumber() && newData.val() > 0" },
         "goal": { ".validate": "newData.isString() || newData.val() === null" },
         "breakDuration": { ".validate": "newData.isNumber() || newData.val() === null" },
         "cycles": { ".validate": "newData.isNumber() || newData.val() === null" },
-        "status": { ".validate": "newData.val() === null || (newData.isString() && (newData.val() === 'waiting' || newData.val() === 'in-progress' || newData.val() === 'completed' || newData.val() === 'active' || newData.val() === 'scheduled'))" },
+        "status": { ".validate": "newData.isString() || newData.val() === null" },
         "completedCycles": { ".validate": "newData.isNumber() || newData.val() === null" },
         "scheduledFor": { ".validate": "newData.isNumber() || newData.val() === null" },
         "emptyRoomRemovalDelaySec": { ".validate": "newData.isNumber() || newData.val() === null" },
