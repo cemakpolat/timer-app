@@ -287,9 +287,10 @@ class FirebaseService extends IRealtimeService {
     const room = {
       id: roomId,
       name: roomData.name || 'Focus Room',
+      tag: roomData.tag || 'other',
       createdBy: this.currentUserId,
       creatorName,
-      createdAt: now,
+      createdAt: new Date(now).toISOString(),
       maxParticipants: roomData.maxParticipants || 10,
       duration: roomData.duration || 1500, // 25 min default
       // Phase 2a: Room scheduling
