@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
@@ -8,7 +8,6 @@ import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
-import InfoModal from './components/InfoModal';
 import LazyLoadingFallback from './components/LazyLoadingFallback';
 import TimerPanel from './components/panels/TimerPanel';
 import IntervalPanel from './components/panels/IntervalPanel';
@@ -267,7 +266,6 @@ export default function TimerApp() {
   // eslint-disable-next-line no-unused-vars
   const [previewTheme, setPreviewTheme] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Settings states
   const [showSettings, setShowSettings] = useState(false);
@@ -1584,7 +1582,6 @@ export default function TimerApp() {
       {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
-      {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
 
       {/* Clear Cache Confirmation Modal */}
       {showClearCacheModal && (
@@ -1685,7 +1682,7 @@ export default function TimerApp() {
           padding: '20px 0 16px',
           position: 'sticky',
           top: 0,
-          background: 'transparent',
+          background: theme.bg,
           zIndex: 100
         }}>
           {/* App Name */}
@@ -1704,33 +1701,6 @@ export default function TimerApp() {
 
           {/* Icon Buttons */}
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button
-              onClick={() => setShowInfoModal(true)}
-              style={{
-                background: theme.card,
-                border: 'none',
-                borderRadius: 10,
-                padding: 10,
-                color: theme.accent,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = `${theme.accent}20`;
-                e.target.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = theme.card;
-                e.target.style.transform = 'scale(1)';
-              }}
-              title="App Features"
-            >
-              <Info size={18} />
-            </button>
-
             <button
               onClick={() => setShowFeedbackModal(true)}
               style={{
