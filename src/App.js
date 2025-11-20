@@ -419,13 +419,15 @@ export default function TimerApp() {
 
   // Task 5: Calendar export handlers
   const handleExportToICS = (room) => {
+    console.log('handleExportToICS called with room:', room?.name);
     try {
       downloadICSFile(room);
+      console.log('downloadICSFile completed successfully');
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Calendar file downloaded', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
       console.error('Error exporting to ICS:', err);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to export calendar file', type: 'error', ttl: 3000 } }));
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to export calendar file: ' + err.message, type: 'error', ttl: 5000 } }));
     }
   };
 
