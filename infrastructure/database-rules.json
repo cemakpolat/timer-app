@@ -47,6 +47,11 @@
         "cycles": { ".validate": "newData.isNumber() || newData.val() === null" },
         "status": { ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'in-progress' || newData.val() === 'completed' || newData.val() === 'active' || newData.val() === 'scheduled')" },
         "completedCycles": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "scheduledFor": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "emptyRoomRemovalDelaySec": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "timerStartedAt": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "timerEndsAt": { ".validate": "newData.isNumber() || newData.val() === null" },
+        "isPublic": { ".validate": "newData.isBoolean()" },
         "participants": {
           "$userId": {
             ".write": "auth != null && (auth.uid == $userId || root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid)",
