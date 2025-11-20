@@ -31,7 +31,7 @@
       ".read": true,
       "$roomId": {
         ".write": "auth != null",
-        ".validate": "newData.child('createdBy').val() === auth.uid || newData.val() === null",
+        ".validate": "newData.child('createdBy').val() === auth.uid || !newData.child('createdBy').exists() || newData.val() === null",
         "id": { ".validate": "newData.isString()" },
         "name": { ".validate": "newData.isString() && newData.val().length > 0" },
         "description": { ".validate": "newData.isString() || newData.val() === null" },
