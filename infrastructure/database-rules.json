@@ -45,7 +45,7 @@
         "goal": { ".validate": "newData.isString() || newData.val() === null" },
         "breakDuration": { ".validate": "newData.isNumber() || newData.val() === null" },
         "cycles": { ".validate": "newData.isNumber() || newData.val() === null" },
-        "status": { ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'in-progress' || newData.val() === 'completed')" },
+        "status": { ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'in-progress' || newData.val() === 'completed' || newData.val() === 'active' || newData.val() === 'scheduled')" },
         "completedCycles": { ".validate": "newData.isNumber() || newData.val() === null" },
         "participants": {
           "$userId": {
