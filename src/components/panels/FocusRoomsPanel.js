@@ -31,6 +31,7 @@ import RealtimeServiceFactory from '../../services/RealtimeServiceFactory';
  * - handleCloseRoom: Function to close room
  * - handleExportToICS: Function to export to .ics file
  * - handleExportToGoogleCalendar: Function to export to Google Calendar
+ * - handleShareRoomLink: Function to share room link
  * - formatTime: Function to format seconds as HH:MM:SS
  * - getParticipantCount: Function to get number of participants
  * - isRoomFull: Function to check if room is full
@@ -68,6 +69,7 @@ function FocusRoomsPanel({
   handleCloseRoom,
   handleExportToICS,
   handleExportToGoogleCalendar,
+  handleShareRoomLink,
   formatTime,
   getParticipantCount,
   isRoomFull
@@ -572,6 +574,28 @@ function FocusRoomsPanel({
                       onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
                     >
                       📅 Add to Google Calendar
+                    </button>
+                    <button
+                      onClick={() => handleShareRoomLink(calendarExportRoom)}
+                      style={{
+                        background: 'rgba(168,85,247,0.2)',
+                        border: '1px solid rgba(168,85,247,0.5)',
+                        borderRadius: 12,
+                        padding: 16,
+                        color: '#a855f7',
+                        cursor: 'pointer',
+                        fontSize: 15,
+                        fontWeight: 600,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(168,85,247,0.3)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(168,85,247,0.2)'}
+                    >
+                      🔗 Share Link
                     </button>
                     <button
                       onClick={() => setCalendarExportRoom(null)}

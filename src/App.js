@@ -15,6 +15,7 @@ import IntervalPanel from './components/panels/IntervalPanel';
 import CompositePanel from './components/panels/CompositePanel';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 import { formatDate } from './utils/formatters';
+import shareService from './services/shareService';
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -443,6 +444,18 @@ export default function TimerApp() {
     }
   };
 
+  const handleShareRoomLink = (room) => {
+    try {
+      const link = shareService.generateRoomShareLink(room.id);
+      navigator.clipboard.writeText(link);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room link copied to clipboard', type: 'success', ttl: 3000 } }));
+      setCalendarExportRoom(null);
+    } catch (err) {
+      console.error('Error sharing room link:', err);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to copy link', type: 'error', ttl: 3000 } }));
+    }
+  };
+
   // Room template handlers
   const handleSelectTemplate = (template) => {
     setSelectedTemplate(template);
@@ -589,10 +602,11 @@ export default function TimerApp() {
   // Update active users count every 30 seconds with realistic variation
   // Active users now managed by usePresence hook
 
-  // Parse URL parameters for shared timers (run once)
+  // Parse URL parameters for shared timers and rooms (run once)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedTimer = params.get('timer');
+    const joinRoomParam = params.get('joinRoom');
 
     if (sharedTimer) {
       try {
@@ -618,6 +632,19 @@ export default function TimerApp() {
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (error) {
         console.error('Failed to parse shared timer:', error);
+      }
+    }
+
+    if (joinRoomParam) {
+      try {
+        // Switch to rooms tab
+        setActiveMainTab('rooms');
+        // Join the room
+        handleJoinRoom(joinRoomParam);
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('Failed to join room from URL:', error);
       }
     }
   }, []);
@@ -2595,6 +2622,7 @@ export default function TimerApp() {
                   handleCloseRoom={handleCloseRoom}
                   handleExportToICS={handleExportToICS}
                   handleExportToGoogleCalendar={handleExportToGoogleCalendar}
+                  handleShareRoomLink={handleShareRoomLink}
                   formatTime={formatTime}
                   getParticipantCount={getParticipantCount}
                   isRoomFull={isRoomFull}

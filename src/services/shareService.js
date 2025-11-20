@@ -36,6 +36,20 @@ class ShareService {
   }
 
   /**
+   * Generate share link for focus room
+   * @param {string} roomId - Room ID
+   * @returns {string} Share URL
+   */
+  generateRoomShareLink(roomId) {
+    try {
+      const url = `${window.location.origin}${window.location.pathname}?joinRoom=${roomId}`;
+      return url;
+    } catch (error) {
+      console.error('Error generating room share link:', error);
+      return null;
+    }
+  }
+  /**
    * Parse share link from URL
    * @param {string} url - URL or encoded string
    * @returns {Object|null} Parsed share data
