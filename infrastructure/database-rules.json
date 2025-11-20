@@ -30,8 +30,8 @@
     "focusRooms": {
       ".read": true,
       "$roomId": {
-        ".write": "auth != null && (root.child('focusRooms').child($roomId).child('createdBy').val() === auth.uid || !root.child('focusRooms').child($roomId).exists())",
-        ".validate": "newData.hasChildren(['id', 'name', 'createdBy']) || newData.val() === null",
+        ".write": "auth != null",
+        ".validate": "(newData.hasChildren(['id', 'name', 'createdBy']) && newData.child('createdBy').val() === auth.uid) || newData.val() === null",
         "id": { ".validate": "newData.isString()" },
         "name": { ".validate": "newData.isString() && newData.val().length > 0" },
         "description": { ".validate": "newData.isString() || newData.val() === null" },
