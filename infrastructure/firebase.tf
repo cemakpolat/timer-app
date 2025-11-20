@@ -47,8 +47,7 @@ resource "google_storage_bucket" "firebase_storage" {
 # Rules file: infrastructure/database-rules.json
 # Deploy with: firebase deploy --only database:rules
 
-# Note: Identity Platform and Anonymous Authentication are already enabled in Firebase Console
-# No need to manage them via Terraform as they're already provisioned
+
 
 # Output Firebase Config (for use in app) - SENSITIVE: Will not display in terraform output
 output "firebase_config" {
