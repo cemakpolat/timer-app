@@ -286,22 +286,20 @@ function FocusRoomsPanel({
                             style={{
                               background: 'rgba(34,197,94,0.2)',
                               border: '1px solid rgba(34,197,94,0.5)',
-                              borderRadius: 12,
-                              padding: '10px 16px',
+                              borderRadius: 8,
+                              padding: '8px',
                               color: '#22c55e',
                               cursor: 'pointer',
-                              fontSize: 14,
-                              fontWeight: 600,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 6,
+                              justifyContent: 'center',
                               transition: 'all 0.2s'
                             }}
                             onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
                             onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                            title="Export to calendar"
+                            title="Export room to calendar"
                           >
-                            <Calendar size={16} /> Export
+                            <Calendar size={16} />
                           </button>
                         )}
                         <button
