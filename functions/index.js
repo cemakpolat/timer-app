@@ -233,39 +233,15 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
     for (const [roomId, room] of Object.entries(rooms)) {
       try {
         if (!room) continue;
-        
+
         // Clean up empty rooms (no participants, regardless of timer state)
         const participants = room.participants || {};
         let participantIds = Object.keys(participants);
-        
-        // If room is empty, check if it should be deleted based on grace period
-        if (participantIds.length === 0) {
-          const createdAt = room.createdAt || Date.now();
-          const ageMs = now - createdAt;
-          
-          // Use the room's configured grace period (default: 2 minutes)
-          const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
-          const emptyRoomThresholdMs = delaySec * 1000;
-          
-          if (ageMs > emptyRoomThresholdMs) {
-            console.log(`Deleting empty room ${roomId} (created at ${new Date(createdAt).toISOString()}, age: ${Math.floor(ageMs / 1000)}s, threshold: ${delaySec}s)`);
-            deletions.push({ roomId, room });
-            continue;
-          }
-        }
-        
-        // If room has no timer end time, skip normal cleanup (room is still active/scheduled)
-        if (!room.timer || !room.timer.endsAt) continue;
-        
-        // compute delay
-        const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
-        const deadline = room.timer.endsAt + (delaySec * 1000);
-        if (now < deadline) continue; // not eligible yet
 
-        // FIRST: Remove stale participants (5+ min no presence update)
+        // FIRST: Remove stale participants from ALL rooms (not just ended timers)
         if (participantIds.length > 0) {
           const { staleParticipants, ownerStale } = await removeStaleParticipants(roomId, room, presence, now);
-          
+
           if (staleParticipants.length > 0) {
             // Re-fetch the room to get updated participant list
             const updatedSnap = await retryWithBackoff(
@@ -277,7 +253,7 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
               const updatedRoom = updatedSnap.val();
               participantIds = Object.keys(updatedRoom.participants || {});
               console.log(`After removing stale participants, room ${roomId} has ${participantIds.length} active participants`);
-              
+
               // If owner was stale and removed, mark room for potential deletion
               if (ownerStale) {
                 console.log(`Owner ${room.createdBy} is stale in room ${roomId}. Setting ownerDisconnected flag.`);
@@ -293,28 +269,53 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
           }
         }
 
-        // SECOND: Check if room is now empty after stale removal
+        // SECOND: If room is now empty after stale removal, check if it should be deleted
         if (participantIds.length === 0) {
-          console.log(`Deleting empty room ${roomId} (no active participants, timer ended at ${room.timer.endsAt})`);
-          deletions.push({ roomId, room });
-          continue;
-        }
+          const createdAt = room.createdAt || Date.now();
+          const ageMs = now - createdAt;
 
-        // THIRD: If participants exist but all are inactive, still delete
-        let anyActive = false;
-        for (const uid of participantIds) {
-          const p = presence[uid];
-          if (p && p.lastSeen && (now - p.lastSeen) < PRESENCE_INACTIVE_THRESHOLD_MS) {
-            anyActive = true;
-            break;
+          // Use the room's configured grace period (default: 2 minutes)
+          const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
+          const emptyRoomThresholdMs = delaySec * 1000;
+
+          if (ageMs > emptyRoomThresholdMs) {
+            console.log(`Deleting empty room ${roomId} (created at ${new Date(createdAt).toISOString()}, age: ${Math.floor(ageMs / 1000)}s, threshold: ${delaySec}s)`);
+            deletions.push({ roomId, room });
+            continue;
           }
         }
 
-        if (!anyActive) {
-          console.log(`Deleting room ${roomId} (all participants inactive after timer end)`);
-          deletions.push({ roomId, room });
-        } else {
-          console.log(`Skipping room ${roomId}: active participants detected after timer end`);
+        // THIRD: If room has participants but all are inactive (no recent presence), delete it
+        if (participantIds.length > 0) {
+          let anyActive = false;
+          for (const uid of participantIds) {
+            const p = presence[uid];
+            if (p && p.lastSeen && (now - p.lastSeen) < PRESENCE_INACTIVE_THRESHOLD_MS) {
+              anyActive = true;
+              break;
+            }
+          }
+
+          if (!anyActive) {
+            console.log(`Deleting room ${roomId} (all ${participantIds.length} participants inactive for ${PRESENCE_INACTIVE_THRESHOLD_MS / 1000}s)`);
+            deletions.push({ roomId, room });
+            continue;
+          }
+        }
+
+        // FOURTH: Handle rooms with ended timers (existing logic)
+        if (!room.timer || !room.timer.endsAt) continue;
+
+        // compute delay
+        const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;
+        const deadline = room.timer.endsAt + (delaySec * 1000);
+        if (now < deadline) continue; // not eligible yet
+
+        // At this point, timer has ended and grace period passed
+        // Room should have been caught by the earlier logic if empty or all inactive
+        // But double-check: if room still has participants after timer end, log it
+        if (participantIds.length > 0) {
+          console.log(`Room ${roomId} has ended timer but still has ${participantIds.length} participants - keeping for now`);
         }
       } catch (e) {
         console.error('Error evaluating room', roomId, e);
