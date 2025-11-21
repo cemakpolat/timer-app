@@ -2073,6 +2073,36 @@ export default function TimerApp() {
             </button>
 
             <button
+              onClick={() => {
+                setActiveMainTab('rooms');
+                setActiveFeatureTab('achievements');
+              }}
+              style={{
+                background: theme.card,
+                border: 'none',
+                borderRadius: 10,
+                padding: 10,
+                color: theme.accent,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = `${theme.accent}20`;
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = theme.card;
+                e.target.style.transform = 'scale(1)';
+              }}
+              title="Achievements"
+            >
+              <Award size={18} />
+            </button>
+
+            <button
               onClick={() => setShowFeedbackModal(true)}
               style={{
                 background: theme.card,
@@ -2564,9 +2594,7 @@ export default function TimerApp() {
         {/* Secondary Navigation Tabs - Other Features */}
         {!isRunning && time === 0 && !isTransitioning && activeMainTab !== 'timer' && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }}>
-            {activeMainTab === 'rooms' && [
-              { label: 'Achievements', value: 'achievements', icon: Award }
-            ].map(tab => (
+            {activeMainTab === 'rooms' && [].map(tab => (
               <button
                 key={tab.value}
                 onClick={() => setActiveFeatureTab(activeFeatureTab === tab.value ? null : tab.value)}

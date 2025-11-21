@@ -143,10 +143,10 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         inset: 0,
         background: 'rgba(0,0,0,0.8)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: 16
+        padding: '20px 16px'
       }}
       onClick={onClose}
     >
@@ -160,7 +160,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           maxWidth: 500,
           width: '100%',
           maxHeight: '90vh',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          marginTop: '20px',
+          marginBottom: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
       >

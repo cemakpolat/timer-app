@@ -52,10 +52,10 @@ export default function InfoModal({ theme, onClose }) {
 				inset: 0,
 				background: 'rgba(0,0,0,0.8)',
 				display: 'flex',
-				alignItems: 'center',
+				alignItems: 'flex-start',
 				justifyContent: 'center',
 				zIndex: 2000,
-				padding: 20,
+				padding: '20px 16px',
 				overflowY: 'auto'
 			}}
 			onClick={onClose}
@@ -63,12 +63,14 @@ export default function InfoModal({ theme, onClose }) {
 			<div
 				style={{
 					background: theme.card,
-					borderRadius: 24,
-					padding: 32,
+					borderRadius: 20,
+					padding: 24,
 					maxWidth: 700,
 					width: '100%',
 					boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
-					position: 'relative'
+					position: 'relative',
+					marginTop: '20px',
+					marginBottom: '20px'
 				}}
 				onClick={(e) => e.stopPropagation()}
 			>
