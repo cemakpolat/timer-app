@@ -239,8 +239,8 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
         let participantIds = Object.keys(participants);
 
         // FIRST: Remove stale participants from ALL rooms (not just ended timers)
-        // IMPORTANT: Don't remove stale participants from scheduled rooms before their scheduled time
-        if (participantIds.length > 0 && !(room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now)) {
+        // IMPORTANT: Don't remove stale participants from scheduled rooms at all - let activation handle them
+        if (participantIds.length > 0 && room.status !== 'scheduled') {
           const { staleParticipants, ownerStale } = await removeStaleParticipants(roomId, room, presence, now);
 
           if (staleParticipants.length > 0) {
@@ -272,9 +272,9 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
         // SECOND: If room is now empty after stale removal, check if it should be deleted
         if (participantIds.length === 0) {
-          // IMPORTANT: Don't delete scheduled rooms before their scheduled time
-          if (room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now) {
-            console.log(`Skipping cleanup for scheduled room ${roomId} (scheduled for ${new Date(room.scheduledFor).toISOString()})`);
+          // IMPORTANT: Don't delete scheduled rooms at all - they should only be deleted if they become active and then empty
+          if (room.status === 'scheduled') {
+            console.log(`Skipping cleanup for scheduled room ${roomId} (scheduled for ${new Date(room.scheduledFor || 0).toISOString()})`);
             continue;
           }
 
@@ -296,9 +296,9 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
         // THIRD: If room has participants but all are inactive (no recent presence), delete it
         if (participantIds.length > 0) {
-          // IMPORTANT: Don't delete scheduled rooms before their scheduled time
-          if (room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now) {
-            console.log(`Skipping cleanup for scheduled room ${roomId} with inactive participants (scheduled for ${new Date(room.scheduledFor).toISOString()})`);
+          // IMPORTANT: Don't delete scheduled rooms at all - they should only be deleted if they become active and then have inactive participants
+          if (room.status === 'scheduled') {
+            console.log(`Skipping cleanup for scheduled room ${roomId} with inactive participants (scheduled for ${new Date(room.scheduledFor || 0).toISOString()})`);
             continue;
           }
 
@@ -319,7 +319,8 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
         }
 
         // FOURTH: Handle rooms with ended timers (existing logic)
-        if (!room.timer || !room.timer.endsAt) continue;
+        // Skip scheduled rooms entirely
+        if (room.status === 'scheduled' || !room.timer || !room.timer.endsAt) continue;
 
         // compute delay
         const delaySec = (typeof room.emptyRoomRemovalDelaySec === 'number' && room.emptyRoomRemovalDelaySec) || parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '', 10) || DEFAULT_EMPTY_REMOVAL_SEC;

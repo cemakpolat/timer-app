@@ -63,10 +63,10 @@ const FeedbackModal = ({ theme, onClose }) => {
         inset: 0,
         background: 'rgba(0,0,0,0.8)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: 20
+        padding: '20px 16px'
       }}
       onClick={onClose}
     >
@@ -74,12 +74,14 @@ const FeedbackModal = ({ theme, onClose }) => {
         className="feedback-modal-content"
         style={{
           background: theme.card,
-          borderRadius: 24,
-          padding: 32,
+          borderRadius: 20,
+          padding: 24,
           maxWidth: 600,
           width: '100%',
           maxHeight: '90vh',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          marginTop: '20px',
+          marginBottom: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
       >

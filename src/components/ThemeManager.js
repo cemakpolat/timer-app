@@ -91,8 +91,8 @@ function ThemeManager({
 
       {/* Color Picker Modal */}
       {showColorPicker && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowColorPicker(false)}>
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: '20px 16px' }} onClick={() => setShowColorPicker(false)}>
+          <div style={{ background: theme.card, borderRadius: 20, padding: 24, maxWidth: 400, width: '90%', marginTop: '20px', marginBottom: '20px' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Palette size={24} /> Create Custom Theme
             </h3>
