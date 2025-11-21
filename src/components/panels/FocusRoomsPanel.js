@@ -281,23 +281,27 @@ function FocusRoomsPanel({
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => setCalendarExportRoom(room)}
+                          onClick={() => room.scheduledFor && setCalendarExportRoom(room)}
                           style={{
-                            background: 'rgba(34,197,94,0.2)',
-                            border: '1px solid rgba(34,197,94,0.5)',
+                            background: room.scheduledFor ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.1)',
+                            border: room.scheduledFor ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(34,197,94,0.2)',
                             borderRadius: 8,
                             padding: '8px',
-                            color: '#22c55e',
-                            cursor: 'pointer',
+                            color: room.scheduledFor ? '#22c55e' : 'rgba(34,197,94,0.4)',
+                            cursor: room.scheduledFor ? 'pointer' : 'not-allowed',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            opacity: room.scheduledFor ? 1 : 0.5
                           }}
-                          onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                          onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
+                          onMouseEnter={(e) => {
+                            if (room.scheduledFor) e.target.style.background = 'rgba(34,197,94,0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (room.scheduledFor) e.target.style.background = 'rgba(34,197,94,0.2)';
+                          }}
                           title={room.scheduledFor ? "Export room to calendar" : "Schedule this room to enable calendar export"}
-                          disabled={!room.scheduledFor}
                         >
                           <Calendar size={16} />
                         </button>
