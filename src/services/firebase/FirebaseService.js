@@ -290,7 +290,7 @@ class FirebaseService extends IRealtimeService {
       tag: roomData.tag || 'other',
       createdBy: this.currentUserId,
       creatorName,
-      createdAt: new Date(now).toISOString(),
+      createdAt: now, // Store as timestamp (number) for consistency with presence system
       maxParticipants: roomData.maxParticipants || 10,
       duration: roomData.duration || 1500, // 25 min default
       // Phase 2a: Room scheduling

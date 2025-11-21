@@ -271,7 +271,9 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
         // SECOND: If room is now empty after stale removal, check if it should be deleted
         if (participantIds.length === 0) {
-          const createdAt = room.createdAt || Date.now();
+          // Handle both ISO string and timestamp formats for createdAt
+          const createdAtRaw = room.createdAt || Date.now();
+          const createdAt = typeof createdAtRaw === 'string' ? new Date(createdAtRaw).getTime() : createdAtRaw;
           const ageMs = now - createdAt;
 
           // Use the room's configured grace period (default: 2 minutes)
