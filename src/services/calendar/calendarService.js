@@ -2,6 +2,8 @@
  * Calendar export service for generating .ics files and exporting to Google Calendar
  */
 
+import shareService from '../shareService';
+
 /**
  * Generate an .ics file content from room data
  * @param {Object} room - The focus room object
@@ -32,6 +34,9 @@ export function generateICSContent(room) {
   const sanitizedName = roomName.replace(/"/g, '\\"').replace(/[\r\n]/g, ' ');
   const sanitizedHost = (room.creatorName || 'Focus Room Host').replace(/"/g, '\\"').replace(/[\r\n]/g, ' ');
 
+  // Generate room share link
+  const roomLink = shareService.generateRoomShareLink(roomId);
+
   // Build ICS content
   const uid = `${roomId}@timerapp.local`;
   const icsContent = `BEGIN:VCALENDAR
@@ -47,7 +52,7 @@ DTSTAMP:${formatDate(new Date())}
 DTSTART:${startISO}
 DTEND:${endISO}
 SUMMARY:${sanitizedName}
-DESCRIPTION:Focus room hosted by ${sanitizedHost}. Maximum participants: ${room.maxParticipants || 10}.
+DESCRIPTION:Focus room hosted by ${sanitizedHost}. Maximum participants: ${room.maxParticipants || 10}.\\n\\nJoin the room: ${roomLink}
 LOCATION:Timer App Focus Room
 STATUS:CONFIRMED
 SEQUENCE:0
@@ -120,10 +125,13 @@ export function generateGoogleCalendarURL(room) {
   const startFormatted = formatGoogleDate(startDate);
   const endFormatted = formatGoogleDate(endDate);
 
+  // Generate room share link
+  const roomLink = shareService.generateRoomShareLink(room.id);
+
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: room.name,
-    details: `Focus room hosted by ${room.creatorName || 'Focus Room Host'}. Maximum participants: ${room.maxParticipants || 10}.`,
+    details: `Focus room hosted by ${room.creatorName || 'Focus Room Host'}. Maximum participants: ${room.maxParticipants || 10}.\n\nJoin the room: ${roomLink}`,
     location: 'Timer App Focus Room',
     dates: `${startFormatted}/${endFormatted}`
   });

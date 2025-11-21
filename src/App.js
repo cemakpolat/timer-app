@@ -268,6 +268,53 @@ export default function TimerApp() {
   // eslint-disable-next-line no-unused-vars
   const [previewTheme, setPreviewTheme] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
+  // Save custom theme function
+  const saveCustomTheme = () => {
+    if (!newThemeName.trim()) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Please enter a theme name', type: 'error', ttl: 3000 } }));
+      return;
+    }
+
+    const newTheme = {
+      name: newThemeName.trim(),
+      bg: newThemeBg,
+      card: newThemeCard,
+      accent: newThemeAccent,
+      text: newThemeText,
+      isDefault: false
+    };
+
+    try {
+      const storedCustomThemes = localStorage.getItem('customThemes');
+      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
+      
+      // Check if theme name already exists
+      if (customThemes.some(t => t.name.toLowerCase() === newTheme.name.toLowerCase())) {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
+        return;
+      }
+
+      customThemes.push(newTheme);
+      localStorage.setItem('customThemes', JSON.stringify(customThemes));
+      
+      // Update themes state
+      setThemes(prev => [...prev, newTheme]);
+      
+      // Reset form
+      setNewThemeName('');
+      setNewThemeBg('#000000');
+      setNewThemeCard('#1a1a1a');
+      setNewThemeAccent('#3b82f6');
+      setNewThemeText('#ffffff');
+      setShowColorPicker(false);
+      
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
+    } catch (error) {
+      console.error('Error saving custom theme:', error);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
+    }
+  };
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Settings states
@@ -276,17 +323,11 @@ export default function TimerApp() {
   const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'sound'
 
   // Color picker states
-  // eslint-disable-next-line no-unused-vars
-  const [, setShowColorPicker] = useState(false);
-  // eslint-disable-next-line no-unused-vars
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
-  // eslint-disable-next-line no-unused-vars
   const [newThemeBg, setNewThemeBg] = useState('#000000');
-  // eslint-disable-next-line no-unused-vars
   const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
-  // eslint-disable-next-line no-unused-vars
   const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
-  // eslint-disable-next-line no-unused-vars
   const [newThemeText, setNewThemeText] = useState('#ffffff');
 
   // Accordion state for timer groups
@@ -1614,6 +1655,277 @@ export default function TimerApp() {
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
       {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
+
+      {/* Color Picker Modal */}
+      {showColorPicker && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: 20
+          }}
+          onClick={() => setShowColorPicker(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 500,
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
+              🎨 Create Custom Theme
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Theme Name */}
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: theme.text }}>
+                  Theme Name
+                </label>
+                <input
+                  type="text"
+                  value={newThemeName}
+                  onChange={(e) => setNewThemeName(e.target.value)}
+                  placeholder="Enter theme name..."
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8,
+                    padding: 12,
+                    color: theme.text,
+                    fontSize: 14
+                  }}
+                />
+              </div>
+
+              {/* Color Pickers */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                    Background
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="color"
+                      value={newThemeBg}
+                      onChange={(e) => setNewThemeBg(e.target.value)}
+                      style={{
+                        width: 50,
+                        height: 32,
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={newThemeBg}
+                      onChange={(e) => setNewThemeBg(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        color: theme.text,
+                        fontSize: 12,
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                    Card
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="color"
+                      value={newThemeCard}
+                      onChange={(e) => setNewThemeCard(e.target.value)}
+                      style={{
+                        width: 50,
+                        height: 32,
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={newThemeCard}
+                      onChange={(e) => setNewThemeCard(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        color: theme.text,
+                        fontSize: 12,
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                    Accent
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="color"
+                      value={newThemeAccent}
+                      onChange={(e) => setNewThemeAccent(e.target.value)}
+                      style={{
+                        width: 50,
+                        height: 32,
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={newThemeAccent}
+                      onChange={(e) => setNewThemeAccent(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        color: theme.text,
+                        fontSize: 12,
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                    Text
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="color"
+                      value={newThemeText}
+                      onChange={(e) => setNewThemeText(e.target.value)}
+                      style={{
+                        width: 50,
+                        height: 32,
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={newThemeText}
+                      onChange={(e) => setNewThemeText(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        color: theme.text,
+                        fontSize: 12,
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: theme.text }}>
+                  Preview
+                </label>
+                <div
+                  style={{
+                    background: newThemeBg,
+                    border: `2px solid ${newThemeAccent}`,
+                    borderRadius: 8,
+                    padding: 16,
+                    minHeight: 60,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <div
+                    style={{
+                      background: newThemeCard,
+                      color: newThemeText,
+                      padding: '8px 16px',
+                      borderRadius: 6,
+                      fontSize: 14,
+                      fontWeight: 600
+                    }}
+                  >
+                    Sample Text
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button
+                  onClick={() => setShowColorPicker(false)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: 16,
+                    color: theme.text,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    fontWeight: 600
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveCustomTheme}
+                  disabled={!newThemeName.trim()}
+                  style={{
+                    flex: 1,
+                    background: newThemeName.trim() ? newThemeAccent : 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: 16,
+                    color: 'white',
+                    cursor: newThemeName.trim() ? 'pointer' : 'not-allowed',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    opacity: newThemeName.trim() ? 1 : 0.5
+                  }}
+                >
+                  Save Theme
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clear Cache Confirmation Modal */}
       {showClearCacheModal && (
