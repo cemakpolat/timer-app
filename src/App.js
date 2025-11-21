@@ -28,7 +28,8 @@ const DEFAULT_THEMES = [
   { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981", text: "#ffffff", isDefault: true },
   { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", text: "#ffffff", isDefault: true },
   { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true },
-  { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true }
+  { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true },
+  { name: "Pure Black", bg: "#000000", card: "#111111", accent: "#ffffff", text: "#ffffff", isDefault: true }
 ];
 
 // Immersive scenes for different timer types
@@ -2034,12 +2035,10 @@ export default function TimerApp() {
           <h1 style={{
             margin: 0,
             fontSize: 24,
-            fontWeight: 800,
-            background: `linear-gradient(135deg, ${theme.accent} 0%, ${theme.text} 100%)`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            letterSpacing: '-0.02em'
+            fontWeight: 600,
+            color: theme.text,
+            fontFamily: "'Courier New', 'Courier', monospace",
+            letterSpacing: '0.05em'
           }}>
             T2Get
           </h1>

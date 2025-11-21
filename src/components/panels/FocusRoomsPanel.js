@@ -423,6 +423,31 @@ function FocusRoomsPanel({
                 >
                   <Share2 size={16} />
                 </button>
+                <button
+                  onClick={() => currentRoom.scheduledFor && setCalendarExportRoom(currentRoom)}
+                  style={{
+                    background: currentRoom.scheduledFor ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.1)',
+                    border: currentRoom.scheduledFor ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(34,197,94,0.2)',
+                    borderRadius: 8,
+                    padding: '8px',
+                    color: currentRoom.scheduledFor ? '#22c55e' : 'rgba(34,197,94,0.4)',
+                    cursor: currentRoom.scheduledFor ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: currentRoom.scheduledFor ? 1 : 0.5,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentRoom.scheduledFor) e.target.style.background = 'rgba(34,197,94,0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = currentRoom.scheduledFor ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.1)';
+                  }}
+                  title={currentRoom.scheduledFor ? "Export to Calendar" : "Only scheduled rooms can be exported"}
+                >
+                  <Calendar size={16} />
+                </button>
                 {!currentRoom.timer && (
                   <button
                     onClick={() => startRoomTimer(currentRoom.duration)}
@@ -446,6 +471,7 @@ function FocusRoomsPanel({
                     Start
                   </button>
                 )}
+
               </div>
             </div>
 
