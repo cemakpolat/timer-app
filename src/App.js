@@ -27,7 +27,8 @@ const DEFAULT_THEMES = [
   { name: "Ocean", bg: "#0a1929", card: "#1e3a5f", accent: "#06b6d4", text: "#ffffff", isDefault: true },
   { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981", text: "#ffffff", isDefault: true },
   { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", text: "#ffffff", isDefault: true },
-  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true }
+  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true },
+  { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true }
 ];
 
 // Immersive scenes for different timer types
