@@ -280,28 +280,27 @@ function FocusRoomsPanel({
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        {room.scheduledFor && (
-                          <button
-                            onClick={() => setCalendarExportRoom(room)}
-                            style={{
-                              background: 'rgba(34,197,94,0.2)',
-                              border: '1px solid rgba(34,197,94,0.5)',
-                              borderRadius: 8,
-                              padding: '8px',
-                              color: '#22c55e',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                            onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                            title="Export room to calendar"
-                          >
-                            <Calendar size={16} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setCalendarExportRoom(room)}
+                          style={{
+                            background: 'rgba(34,197,94,0.2)',
+                            border: '1px solid rgba(34,197,94,0.5)',
+                            borderRadius: 8,
+                            padding: '8px',
+                            color: '#22c55e',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
+                          onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
+                          title={room.scheduledFor ? "Export room to calendar" : "Schedule this room to enable calendar export"}
+                          disabled={!room.scheduledFor}
+                        >
+                          <Calendar size={16} />
+                        </button>
                         <button
                           onClick={() => handleJoinRoom(room.id)}
                           disabled={isRoomFull(room) || room.status === 'scheduled'}
@@ -535,135 +534,6 @@ function FocusRoomsPanel({
               maxExtensionMinutes={30}
             />
 
-            {/* Calendar Export Modal */}
-            {calendarExportRoom && (
-              <div
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  background: 'rgba(0,0,0,0.8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 1000,
-                  padding: 20
-                }}
-                onClick={() => setCalendarExportRoom(null)}
-              >
-                <div
-                  style={{
-                    background: theme.card,
-                    borderRadius: 24,
-                    padding: 32,
-                    maxWidth: 500,
-                    width: '100%'
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
-                    📅 Export "{calendarExportRoom.name}" to Calendar
-                  </h2>
-                  <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                      📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
-                    </div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                      ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
-                    </div>
-                  </div>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
-                    Choose how to export this room to your calendar:
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <button
-                      onClick={() => handleExportToICS(calendarExportRoom)}
-                      style={{
-                        background: 'rgba(34,197,94,0.2)',
-                        border: '1px solid rgba(34,197,94,0.5)',
-                        borderRadius: 12,
-                        padding: 16,
-                        color: '#22c55e',
-                        cursor: 'pointer',
-                        fontSize: 15,
-                        fontWeight: 600,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
-                    >
-                      📥 Download .ics File
-                    </button>
-                    <button
-                      onClick={() => handleExportToGoogleCalendar(calendarExportRoom)}
-                      style={{
-                        background: 'rgba(59,130,246,0.2)',
-                        border: '1px solid rgba(59,130,246,0.5)',
-                        borderRadius: 12,
-                        padding: 16,
-                        color: '#3b82f6',
-                        cursor: 'pointer',
-                        fontSize: 15,
-                        fontWeight: 600,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(59,130,246,0.3)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
-                    >
-                      📅 Add to Google Calendar
-                    </button>
-                    <button
-                      onClick={() => handleShareRoomLink(calendarExportRoom)}
-                      style={{
-                        background: 'rgba(168,85,247,0.2)',
-                        border: '1px solid rgba(168,85,247,0.5)',
-                        borderRadius: 12,
-                        padding: 16,
-                        color: '#a855f7',
-                        cursor: 'pointer',
-                        fontSize: 15,
-                        fontWeight: 600,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(168,85,247,0.3)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(168,85,247,0.2)'}
-                    >
-                      🔗 Share Link
-                    </button>
-                    <button
-                      onClick={() => setCalendarExportRoom(null)}
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 12,
-                        padding: 16,
-                        color: 'rgba(255,255,255,0.6)',
-                        cursor: 'pointer',
-                        fontSize: 15,
-                        fontWeight: 600,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Timer Info */}
             {!currentRoom.timer && currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
               <div style={{ marginBottom: 24, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
@@ -778,6 +648,135 @@ function FocusRoomsPanel({
             </div>
           </div>
         </>
+      )}
+
+      {/* Calendar Export Modal - At Root Level for Access from Room List */}
+      {calendarExportRoom && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: 20
+          }}
+          onClick={() => setCalendarExportRoom(null)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 24,
+              padding: 32,
+              maxWidth: 500,
+              width: '100%'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
+              📅 Export "{calendarExportRoom.name}" to Calendar
+            </h2>
+            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
+                📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
+              </div>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
+              Choose how to export this room to your calendar:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => handleExportToICS(calendarExportRoom)}
+                style={{
+                  background: 'rgba(34,197,94,0.2)',
+                  border: '1px solid rgba(34,197,94,0.5)',
+                  borderRadius: 12,
+                  padding: 16,
+                  color: '#22c55e',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(34,197,94,0.3)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(34,197,94,0.2)'}
+              >
+                📥 Download .ics File
+              </button>
+              <button
+                onClick={() => handleExportToGoogleCalendar(calendarExportRoom)}
+                style={{
+                  background: 'rgba(59,130,246,0.2)',
+                  border: '1px solid rgba(59,130,246,0.5)',
+                  borderRadius: 12,
+                  padding: 16,
+                  color: '#3b82f6',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(59,130,246,0.3)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(59,130,246,0.2)'}
+              >
+                📅 Add to Google Calendar
+              </button>
+              <button
+                onClick={() => handleShareRoomLink(calendarExportRoom)}
+                style={{
+                  background: 'rgba(168,85,247,0.2)',
+                  border: '1px solid rgba(168,85,247,0.5)',
+                  borderRadius: 12,
+                  padding: 16,
+                  color: '#a855f7',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(168,85,247,0.3)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(168,85,247,0.2)'}
+              >
+                🔗 Share Link
+              </button>
+              <button
+                onClick={() => setCalendarExportRoom(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  padding: 16,
+                  color: 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
