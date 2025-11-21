@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, Clock, Calendar, Play, Send, Search, X } from 'lucide-react';
+import { Users, Plus, Clock, Calendar, Play, Send, Search, X, LogOut, Settings, Share2, Trash2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
 import RoomExpirationModal from '../FocusRooms/RoomExpirationModal';
@@ -340,21 +340,23 @@ function FocusRoomsPanel({
                   Host: {currentRoom.creatorName || currentRoom.createdBy}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button
                   onClick={leaveRoom}
                   style={{
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
                     borderRadius: 8,
-                    padding: '8px 16px',
+                    padding: '8px',
                     color: theme.text,
                     cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
+                  title="Leave Room"
                 >
-                  Leave Room
+                  <LogOut size={16} />
                 </button>
                 {currentRoom && RealtimeServiceFactory.getServiceSafe()?.currentUserId === currentRoom.createdBy && (
                   <button
@@ -372,14 +374,16 @@ function FocusRoomsPanel({
                       background: '#ef4444',
                       border: 'none',
                       borderRadius: 8,
-                      padding: '8px 16px',
+                      padding: '8px',
                       color: 'white',
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: 600
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
+                    title="Delete Room"
                   >
-                    Delete Room
+                    <Trash2 size={16} />
                   </button>
                 )}
                 {currentRoom && RealtimeServiceFactory.getServiceSafe()?.currentUserId === currentRoom.createdBy && (
@@ -389,14 +393,56 @@ function FocusRoomsPanel({
                       background: 'rgba(255,255,255,0.06)',
                       border: 'none',
                       borderRadius: 8,
+                      padding: '8px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Room Settings"
+                  >
+                    <Settings size={16} />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleShareRoomLink(currentRoom)}
+                  style={{
+                    background: 'rgba(59,130,246,0.2)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px',
+                    color: '#3b82f6',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Share Room Link"
+                >
+                  <Share2 size={16} />
+                </button>
+                {!currentRoom.timer && (
+                  <button
+                    onClick={() => startRoomTimer(currentRoom.duration)}
+                    style={{
+                      background: theme.accent,
+                      border: 'none',
+                      borderRadius: 8,
                       padding: '8px 16px',
                       color: theme.text,
                       cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
                       fontSize: 14,
                       fontWeight: 600
                     }}
+                    title={`Start ${currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}`}
                   >
-                    Room Settings
+                    <Play size={16} />
+                    Start
                   </button>
                 )}
               </div>
@@ -620,34 +666,10 @@ function FocusRoomsPanel({
               </div>
             )}
 
-            {/* Start Timer Button */}
-            {!currentRoom.timer && (
-              <div style={{ marginBottom: 24, textAlign: 'center' }}>
-                <button
-                  onClick={() => startRoomTimer(currentRoom.duration)}
-                  style={{
-                    background: theme.accent,
-                    border: 'none',
-                    borderRadius: 12,
-                    padding: '16px 32px',
-                    color: theme.text,
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    fontWeight: 600,
-                    boxShadow: `0 4px 12px ${theme.accent}40`,
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
-                >
-                  <Play size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                  Start {currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}
-                </button>
-                {currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
-                  <div style={{ marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                    {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
-                  </div>
-                )}
+            {/* Timer Info */}
+            {!currentRoom.timer && currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
+              <div style={{ marginBottom: 24, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
               </div>
             )}
 
