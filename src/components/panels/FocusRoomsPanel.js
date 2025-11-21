@@ -281,27 +281,26 @@ function FocusRoomsPanel({
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => room.scheduledFor && setCalendarExportRoom(room)}
+                          onClick={() => setCalendarExportRoom(room)}
                           style={{
-                            background: room.scheduledFor ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.1)',
-                            border: room.scheduledFor ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(34,197,94,0.2)',
+                            background: 'rgba(34,197,94,0.2)',
+                            border: '1px solid rgba(34,197,94,0.5)',
                             borderRadius: 8,
                             padding: '8px',
-                            color: room.scheduledFor ? '#22c55e' : 'rgba(34,197,94,0.4)',
-                            cursor: room.scheduledFor ? 'pointer' : 'not-allowed',
+                            color: '#22c55e',
+                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'all 0.2s',
-                            opacity: room.scheduledFor ? 1 : 0.5
+                            transition: 'all 0.2s'
                           }}
                           onMouseEnter={(e) => {
-                            if (room.scheduledFor) e.target.style.background = 'rgba(34,197,94,0.3)';
+                            e.target.style.background = 'rgba(34,197,94,0.3)';
                           }}
                           onMouseLeave={(e) => {
-                            if (room.scheduledFor) e.target.style.background = 'rgba(34,197,94,0.2)';
+                            e.target.style.background = 'rgba(34,197,94,0.2)';
                           }}
-                          title={room.scheduledFor ? "Export room to calendar" : "Schedule this room to enable calendar export"}
+                          title="Export room to calendar"
                         >
                           <Calendar size={16} />
                         </button>
@@ -709,12 +708,28 @@ function FocusRoomsPanel({
               📅 Export "{calendarExportRoom.name}" to Calendar
             </h2>
             <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
-              </div>
+              {calendarExportRoom.scheduledFor ? (
+                <>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
+                    📆 Scheduled for: <strong>{new Date(calendarExportRoom.scheduledFor).toLocaleString()}</strong>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                    ⏱️ Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
+                    📝 Room: <strong>{calendarExportRoom.name}</strong>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                    ⏱️ Default Duration: <strong>{Math.floor(calendarExportRoom.duration / 60)} minutes</strong>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 8, fontStyle: 'italic' }}>
+                    💡 This room is not scheduled. You can still export it with a custom time in your calendar.
+                  </div>
+                </>
+              )}
             </div>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 24 }}>
               Choose how to export this room to your calendar:
