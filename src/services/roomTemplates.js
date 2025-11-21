@@ -143,7 +143,7 @@ export const createRoomFromTemplate = (template, roomName, creatorId, creatorNam
     breakDuration: template.breakDuration,
     cycles: template.cycles,
     template: template.id,
-    createdAt: new Date().toISOString(),
+    createdAt: Date.now(), // Store as timestamp (number) for consistency
     participants: [creatorId],
     messages: [],
     status: 'waiting', // waiting, in-progress, completed

@@ -239,7 +239,8 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
         let participantIds = Object.keys(participants);
 
         // FIRST: Remove stale participants from ALL rooms (not just ended timers)
-        if (participantIds.length > 0) {
+        // IMPORTANT: Don't remove stale participants from scheduled rooms before their scheduled time
+        if (participantIds.length > 0 && !(room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now)) {
           const { staleParticipants, ownerStale } = await removeStaleParticipants(roomId, room, presence, now);
 
           if (staleParticipants.length > 0) {
@@ -271,7 +272,15 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
         // SECOND: If room is now empty after stale removal, check if it should be deleted
         if (participantIds.length === 0) {
-          const createdAt = room.createdAt || Date.now();
+          // IMPORTANT: Don't delete scheduled rooms before their scheduled time
+          if (room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now) {
+            console.log(`Skipping cleanup for scheduled room ${roomId} (scheduled for ${new Date(room.scheduledFor).toISOString()})`);
+            continue;
+          }
+
+          // Handle both ISO string and timestamp formats for createdAt
+          const createdAtRaw = room.createdAt || Date.now();
+          const createdAt = typeof createdAtRaw === 'string' ? new Date(createdAtRaw).getTime() : createdAtRaw;
           const ageMs = now - createdAt;
 
           // Use the room's configured grace period (default: 2 minutes)
@@ -287,6 +296,12 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
 
         // THIRD: If room has participants but all are inactive (no recent presence), delete it
         if (participantIds.length > 0) {
+          // IMPORTANT: Don't delete scheduled rooms before their scheduled time
+          if (room.status === 'scheduled' && room.scheduledFor && room.scheduledFor > now) {
+            console.log(`Skipping cleanup for scheduled room ${roomId} with inactive participants (scheduled for ${new Date(room.scheduledFor).toISOString()})`);
+            continue;
+          }
+
           let anyActive = false;
           for (const uid of participantIds) {
             const p = presence[uid];
