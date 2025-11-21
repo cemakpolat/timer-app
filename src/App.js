@@ -390,14 +390,14 @@ export default function TimerApp() {
   // NOTE: handleComplete is defined later; we'll update the ref after it's created
 
   // Wrapped join/create handlers so we can show toasts on failure
-  const handleJoinRoom = async (roomId) => {
+  const handleJoinRoom = useCallback(async (roomId) => {
     try {
       await joinRoom(roomId, { displayName: 'You' });
     } catch (err) {
       console.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');
     }
-  };
+  }, [joinRoom]);
 
   const handleCreateRoom = async (roomData) => {
     // Validate unique room name (case-insensitive)
@@ -647,7 +647,7 @@ export default function TimerApp() {
         console.error('Failed to join room from URL:', error);
       }
     }
-  }, []);
+  }, [handleJoinRoom]);
 
   // Check for ready time capsules whenever timeCapsules changes
   useEffect(() => {
