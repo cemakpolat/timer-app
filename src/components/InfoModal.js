@@ -61,16 +61,20 @@ export default function InfoModal({ theme, onClose }) {
 			onClick={onClose}
 		>
 			<div
+				className="info-modal-content"
 				style={{
 					background: theme.card,
 					borderRadius: 20,
 					padding: 24,
 					maxWidth: 700,
 					width: '100%',
+					maxHeight: 'clamp(500px, 85vh, 92vh)',
 					boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
 					position: 'relative',
-					marginTop: '20px',
-					marginBottom: '20px'
+					marginBottom: '20px',
+					display: 'flex',
+					flexDirection: 'column',
+					overflowY: 'hidden'
 				}}
 				onClick={(e) => e.stopPropagation()}
 			>
@@ -90,7 +94,8 @@ export default function InfoModal({ theme, onClose }) {
 						fontSize: 20,
 						display: 'flex',
 						alignItems: 'center',
-						justifyContent: 'center'
+						justifyContent: 'center',
+						zIndex: 1
 					}}
 					onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
 					onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
@@ -98,6 +103,8 @@ export default function InfoModal({ theme, onClose }) {
 					<X size={20} />
 				</button>
 
+				{/* Scrollable Content */}
+				<div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 12 }}>
 				{/* Header */}
 				<h2
 					style={{
@@ -215,13 +222,19 @@ export default function InfoModal({ theme, onClose }) {
 						💡 <strong>Tip:</strong> Start with Focus Rooms to collaborate, or dive into Timer Blocks to build your perfect session. Use Achievements to track your progress!
 					</p>
 				</div>
+				</div>
 
-				{/* Close Button (Bottom) */}
+				{/* Close Button (Bottom) - Sticky */}
+				<div style={{
+					paddingTop: 16,
+					paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+					background: theme.card,
+					borderTop: '1px solid rgba(255,255,255,0.1)'
+				}}>
 				<button
 					onClick={onClose}
 					style={{
 						width: '100%',
-						marginTop: 20,
 						background: theme.accent,
 						border: 'none',
 						borderRadius: 12,
@@ -237,6 +250,7 @@ export default function InfoModal({ theme, onClose }) {
 				>
 					Got it!
 				</button>
+				</div>
 			</div>
 		</div>
 	);
