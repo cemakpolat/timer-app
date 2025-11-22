@@ -34,10 +34,11 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
         inset: 0,
         background: 'rgba(0,0,0,0.7)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: 20
+        padding: '20px 16px',
+        overflowY: 'auto'
       }}
       onClick={onClose}
     >
@@ -47,12 +48,18 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
           borderRadius: 20,
           padding: 24,
           maxWidth: 480,
-          width: '100%'
+          width: '100%',
+          maxHeight: 'clamp(300px, 80vh, 90vh)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'hidden',
+          marginBottom: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginTop: 0 }}>Room Settings</h3>
-        <form onSubmit={handleSave}>
+        <h3 style={{ marginTop: 0, marginBottom: 20 }}>Room Settings</h3>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Empty-room removal delay (minutes)</label>
             <input
@@ -72,8 +79,17 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
             />
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>Set to 0 to disable automatic empty-room removal.</div>
           </div>
+          </div>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            justifyContent: 'flex-end',
+            paddingTop: 16,
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+            background: theme.card,
+            borderTop: '1px solid rgba(255,255,255,0.1)'
+          }}>
             <button type="button" onClick={onClose} style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: 'white', border: 'none' }}>Cancel</button>
             <button type="submit" style={{ padding: '10px 14px', borderRadius: 8, background: theme.accent, color: 'white', border: 'none' }}>Save</button>
           </div>

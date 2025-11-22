@@ -146,7 +146,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: '20px 16px'
+        padding: '20px 16px',
+        overflowY: 'auto'
       }}
       onClick={onClose}
     >
@@ -159,9 +160,10 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           padding: 20,
           maxWidth: 500,
           width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          marginTop: '20px',
+          maxHeight: 'clamp(400px, 80vh, 90vh)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'hidden',
           marginBottom: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
@@ -189,7 +191,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+          {/* Scrollable content area */}
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
           {/* Room Name */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgba(255,255,255,0.9)' }}>
@@ -624,9 +628,18 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               )}
             </div>
           </div>
+          </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 12 }}>
+          {/* Actions - Sticky at bottom */}
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            paddingTop: 16,
+            paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+            background: theme.card,
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            marginTop: 'auto'
+          }}>
             <button
               type="button"
               onClick={onClose}

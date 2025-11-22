@@ -17,8 +17,58 @@ code {
   * {
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   }
-  
+
   input, textarea, select, button {
-    font-size: 14px !important;
+    font-size: 16px !important; /* 16px prevents zoom on iOS */
+  }
+}
+
+/* Safe area support for notched devices (iPhone X+, etc.) */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+}
+
+/* Dynamic viewport height for better mobile support */
+/* Use dvh (dynamic viewport height) on supported browsers */
+@supports (height: 100dvh) {
+  .create-room-modal-content,
+  .feedback-modal-content {
+    max-height: clamp(400px, 80dvh, 90dvh) !important;
+  }
+}
+
+/* Fallback for browsers without dvh support */
+@supports not (height: 100dvh) {
+  .create-room-modal-content,
+  .feedback-modal-content {
+    max-height: clamp(400px, 80vh, 90vh) !important;
+  }
+}
+
+/* Mobile-specific adjustments for very small screens */
+@media (max-width: 640px) and (max-height: 667px) {
+  /* iPhone SE, small phones */
+  .create-room-modal-content,
+  .feedback-modal-content {
+    max-height: 75dvh !important;
+  }
+}
+
+@media (max-width: 640px) and (min-height: 668px) and (max-height: 844px) {
+  /* Standard phones (iPhone 12/13/14, etc.) */
+  .create-room-modal-content,
+  .feedback-modal-content {
+    max-height: 80dvh !important;
+  }
+}
+
+@media (max-width: 640px) and (min-height: 845px) {
+  /* Larger phones (iPhone Pro Max, etc.) */
+  .create-room-modal-content,
+  .feedback-modal-content {
+    max-height: 85dvh !important;
   }
 }
