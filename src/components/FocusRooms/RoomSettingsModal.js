@@ -49,7 +49,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
           padding: 24,
           maxWidth: 480,
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: 'clamp(300px, 80vh, 90vh)',
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'hidden',
