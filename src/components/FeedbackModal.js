@@ -63,10 +63,11 @@ const FeedbackModal = ({ theme, onClose }) => {
         inset: 0,
         background: 'rgba(0,0,0,0.8)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: 20
+        padding: '20px 16px',
+        overflowY: 'auto'
       }}
       onClick={onClose}
     >
@@ -78,8 +79,11 @@ const FeedbackModal = ({ theme, onClose }) => {
           padding: 32,
           maxWidth: 600,
           width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto'
+          maxHeight: 'clamp(400px, 80vh, 90vh)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'hidden',
+          marginBottom: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -141,7 +145,9 @@ const FeedbackModal = ({ theme, onClose }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          {/* Scrollable content area */}
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
           {/* Name (Optional) */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
@@ -226,7 +232,15 @@ const FeedbackModal = ({ theme, onClose }) => {
               Share your ideas, report bugs, or suggest improvements
             </div>
           </div>
+          </div>
 
+          {/* Status Messages and Submit Button - Sticky at bottom */}
+          <div style={{
+            paddingTop: 16,
+            paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+            background: theme.card,
+            borderTop: '1px solid rgba(255,255,255,0.1)'
+          }}>
           {/* Status Messages */}
           {submitStatus === 'success' && (
             <div style={{
@@ -304,6 +318,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             textAlign: 'center'
           }}>
             Your feedback will be sent to suggestion@support.local
+          </div>
           </div>
         </form>
       </div>
