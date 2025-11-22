@@ -79,7 +79,7 @@ const FeedbackModal = ({ theme, onClose }) => {
           padding: 32,
           maxWidth: 600,
           width: '100%',
-          maxHeight: 'clamp(400px, 80vh, 90vh)',
+          maxHeight: 'clamp(500px, 85vh, 92vh)',
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'hidden',

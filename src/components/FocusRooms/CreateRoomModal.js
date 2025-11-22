@@ -160,7 +160,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
           padding: 20,
           maxWidth: 500,
           width: '100%',
-          maxHeight: 'clamp(400px, 80vh, 90vh)',
+          maxHeight: 'clamp(500px, 85vh, 92vh)',
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'hidden',

@@ -35,16 +35,18 @@ code {
 /* Use dvh (dynamic viewport height) on supported browsers */
 @supports (height: 100dvh) {
   .create-room-modal-content,
-  .feedback-modal-content {
-    max-height: clamp(400px, 80dvh, 90dvh) !important;
+  .feedback-modal-content,
+  .info-modal-content {
+    max-height: clamp(500px, 85dvh, 92dvh) !important;
   }
 }
 
 /* Fallback for browsers without dvh support */
 @supports not (height: 100dvh) {
   .create-room-modal-content,
-  .feedback-modal-content {
-    max-height: clamp(400px, 80vh, 90vh) !important;
+  .feedback-modal-content,
+  .info-modal-content {
+    max-height: clamp(500px, 85vh, 92vh) !important;
   }
 }
 
@@ -52,23 +54,26 @@ code {
 @media (max-width: 640px) and (max-height: 667px) {
   /* iPhone SE, small phones */
   .create-room-modal-content,
-  .feedback-modal-content {
-    max-height: 75dvh !important;
+  .feedback-modal-content,
+  .info-modal-content {
+    max-height: 80dvh !important;
   }
 }
 
 @media (max-width: 640px) and (min-height: 668px) and (max-height: 844px) {
   /* Standard phones (iPhone 12/13/14, etc.) */
   .create-room-modal-content,
-  .feedback-modal-content {
-    max-height: 80dvh !important;
+  .feedback-modal-content,
+  .info-modal-content {
+    max-height: 85dvh !important;
   }
 }
 
 @media (max-width: 640px) and (min-height: 845px) {
   /* Larger phones (iPhone Pro Max, etc.) */
   .create-room-modal-content,
-  .feedback-modal-content {
-    max-height: 85dvh !important;
+  .feedback-modal-content,
+  .info-modal-content {
+    max-height: 88dvh !important;
   }
 }
