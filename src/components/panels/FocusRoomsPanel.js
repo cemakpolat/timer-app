@@ -331,6 +331,40 @@ function FocusRoomsPanel({
                             <Share2 size={16} />
                           </button>
                         )}
+                        {RealtimeServiceFactory.getServiceSafe()?.currentUserId === room.createdBy && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await deleteRoom(room.id);
+                                showToast('Room deleted', 'success', 3000);
+                              } catch (err) {
+                                const msg = err?.message || 'Failed to delete room';
+                                showToast(msg, 'error', 5000);
+                              }
+                            }}
+                            style={{
+                              background: 'rgba(239,68,68,0.2)',
+                              border: '1px solid rgba(239,68,68,0.5)',
+                              borderRadius: 8,
+                              padding: '8px',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = 'rgba(239,68,68,0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = 'rgba(239,68,68,0.2)';
+                            }}
+                            title="Delete room (owner only)"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleJoinRoom(room.id)}
                           disabled={isRoomFull(room) || room.status === 'scheduled'}
