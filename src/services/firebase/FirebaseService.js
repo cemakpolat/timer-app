@@ -326,6 +326,11 @@ class FirebaseService extends IRealtimeService {
     const room = snapshot.val();
     const participantCount = Object.keys(room.participants || {}).length;
 
+    // Check if room is scheduled and time hasn't arrived yet
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot join until the scheduled time.');
+    }
+
     if (participantCount >= room.maxParticipants) {
       throw new Error('Room is full');
     }
@@ -675,7 +680,19 @@ class FirebaseService extends IRealtimeService {
   async startRoomTimer(roomId, duration) {
     if (!this.db) throw new Error('Service not initialized');
 
-    const { ref, set } = this.firebase;
+    const { ref, set, get } = this.firebase;
+
+    // Check if room is scheduled and time hasn't arrived yet
+    const roomRef = ref(this.db, `focusRooms/${roomId}`);
+    const roomSnapshot = await get(roomRef);
+    if (!roomSnapshot.exists()) {
+      throw new Error('Room not found');
+    }
+    const room = roomSnapshot.val();
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
+    }
+
     const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
 
     const now = Date.now();
