@@ -49,80 +49,91 @@ const TimerPanel = ({
         )}
       </div>
 
-      {/* HH:MM:SS Input Fields */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          gap: 8, 
-          marginBottom: 16, 
-          justifyContent: 'center' 
-        }} 
+      {/* HH:MM:SS Input Fields and Run Button */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 16,
+          justifyContent: 'center',
+          flexWrap: 'wrap'
+        }}
         className="flex-wrap-sm hh-mm-ss-input-group"
       >
-        <input
-          type="number"
-          placeholder="HH"
-          value={inputHours}
-          onChange={(e) => setInputHours(Math.max(0, parseInt(e.target.value) || 0))}
-          style={{ 
-            width: '70px', 
-            textAlign: 'center', 
-            background: 'rgba(255,255,255,0.05)', 
-            border: `2px solid ${theme.accent}`, 
-            borderRadius: 12, 
-            padding: '16px 8px', 
-            color: theme.text, 
-            fontSize: 18, 
-            fontWeight: 600 
-          }}
-        />
-        <input
-          type="number"
-          placeholder="MM"
-          value={inputMinutes}
-          onChange={(e) => setInputMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-          style={{ 
-            width: '70px', 
-            textAlign: 'center', 
-            background: 'rgba(255,255,255,0.05)', 
-            border: `2px solid ${theme.accent}`, 
-            borderRadius: 12, 
-            padding: '16px 8px', 
-            color: theme.text, 
-            fontSize: 18, 
-            fontWeight: 600 
-          }}
-        />
-        <input
-          type="number"
-          placeholder="SS"
-          value={inputSeconds}
-          onChange={(e) => setInputSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-          style={{ 
-            width: '70px', 
-            textAlign: 'center', 
-            background: 'rgba(255,255,255,0.05)', 
-            border: `2px solid ${theme.accent}`, 
-            borderRadius: 12, 
-            padding: '16px 8px', 
-            color: theme.text, 
-            fontSize: 18, 
-            fontWeight: 600 
-          }}
-        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="number"
+            placeholder="HH"
+            value={inputHours}
+            onChange={(e) => setInputHours(Math.max(0, parseInt(e.target.value) || 0))}
+            style={{
+              width: '60px',
+              textAlign: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              border: `2px solid ${theme.accent}`,
+              borderRadius: 10,
+              padding: '12px 6px',
+              color: theme.text,
+              fontSize: 16,
+              fontWeight: 600
+            }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>:</span>
+          <input
+            type="number"
+            placeholder="MM"
+            value={inputMinutes}
+            onChange={(e) => setInputMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+            style={{
+              width: '60px',
+              textAlign: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              border: `2px solid ${theme.accent}`,
+              borderRadius: 10,
+              padding: '12px 6px',
+              color: theme.text,
+              fontSize: 16,
+              fontWeight: 600
+            }}
+          />
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>:</span>
+          <input
+            type="number"
+            placeholder="SS"
+            value={inputSeconds}
+            onChange={(e) => setInputSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+            style={{
+              width: '60px',
+              textAlign: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              border: `2px solid ${theme.accent}`,
+              borderRadius: 10,
+              padding: '12px 6px',
+              color: theme.text,
+              fontSize: 16,
+              fontWeight: 600
+            }}
+          />
+        </div>
         <button
           onClick={handleStartTimer}
           data-testid="start-timer-button"
-          style={{ 
-            background: theme.accent, 
-            border: 'none', 
-            borderRadius: 12, 
-            padding: '16px 24px', 
-            color: 'white', 
-            cursor: 'pointer' 
+          style={{
+            background: theme.accent,
+            border: 'none',
+            borderRadius: 10,
+            padding: '12px 20px',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '50px',
+            flexShrink: 0
           }}
         >
-          <Play size={20} />
+          <Play size={18} />
         </button>
       </div>
 
