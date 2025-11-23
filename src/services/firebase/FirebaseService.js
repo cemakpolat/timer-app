@@ -327,7 +327,8 @@ class FirebaseService extends IRealtimeService {
     const participantCount = Object.keys(room.participants || {}).length;
 
     // Check if room is scheduled and time hasn't arrived yet
-    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+    // Allow the room creator to join immediately, even if scheduled
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor && room.createdBy !== userId) {
       throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot join until the scheduled time.');
     }
 
