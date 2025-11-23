@@ -169,7 +169,7 @@ const TimerPanel = ({
               transition: 'all 0.3s'
             }}
           >
-            <Play size={20} /> Start
+            <Play size={20} />
           </button>
         )}
         <button
