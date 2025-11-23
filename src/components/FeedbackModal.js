@@ -75,8 +75,8 @@ const FeedbackModal = ({ theme, onClose }) => {
         className="feedback-modal-content"
         style={{
           background: theme.card,
-          borderRadius: 24,
-          padding: 32,
+          borderRadius: 20,
+          padding: 24,
           maxWidth: 600,
           width: '100%',
           maxHeight: 'clamp(500px, 85vh, 92vh)',
@@ -147,7 +147,7 @@ const FeedbackModal = ({ theme, onClose }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {/* Scrollable content area */}
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 12 }}>
           {/* Name (Optional) */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
