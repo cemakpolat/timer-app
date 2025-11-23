@@ -21,7 +21,7 @@ const StopwatchPanel = ({
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: 40 }}>
+    <div style={{ textAlign: 'center', padding: 15 }}>
       {/* Display */}
       <div
         style={{
@@ -43,8 +43,8 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 12,
-              padding: '16px 32px',
+              borderRadius: 10,
+              padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -62,8 +62,8 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 12,
-              padding: '16px 32px',
+              borderRadius: 10,
+              padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -81,8 +81,8 @@ const StopwatchPanel = ({
           style={{
             background: 'rgba(255,255,255,0.1)',
             border: `1px solid rgba(255,255,255,0.2)`,
-            borderRadius: 12,
-            padding: '16px 32px',
+            borderRadius: 10,
+            padding: '12px 20px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',

@@ -20,8 +20,8 @@ const IntervalPanel = ({
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
     border: `1px solid rgba(255,255,255,0.1)`,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    padding: 15,
     color: theme.text,
     fontSize: 14
   });
@@ -35,8 +35,8 @@ const IntervalPanel = ({
           style={{ 
             background: 'rgba(255,255,255,0.1)', 
             border: 'none', 
-            borderRadius: 8, 
-            padding: '8px 12px', 
+            borderRadius: 10, 
+            padding: '10px 15px', 
             color: theme.text, 
             cursor: 'pointer', 
             fontSize: 12, 
@@ -99,8 +99,8 @@ const IntervalPanel = ({
           width: '100%', 
           background: theme.accent, 
           border: 'none', 
-          borderRadius: 12, 
-          padding: 16, 
+          borderRadius: 10, 
+          padding: 15, 
           color: 'white', 
           cursor: 'pointer', 
           fontSize: 16, 
