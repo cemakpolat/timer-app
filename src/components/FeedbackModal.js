@@ -75,8 +75,8 @@ const FeedbackModal = ({ theme, onClose }) => {
         className="feedback-modal-content"
         style={{
           background: theme.card,
-          borderRadius: 24,
-          padding: 32,
+          borderRadius: 10,
+          padding: 15,
           maxWidth: 600,
           width: '100%',
           maxHeight: 'clamp(500px, 85vh, 92vh)',
@@ -93,7 +93,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: `${theme.accent}20`,
               padding: 10,
-              borderRadius: 12,
+              borderRadius: 10,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -122,32 +122,31 @@ const FeedbackModal = ({ theme, onClose }) => {
           </button>
         </div>
 
-        {/* About Section */}
-        <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 24,
-          border: `1px solid ${theme.accent}20`
-        }}>
-          <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: theme.accent }}>
-            About
-          </h3>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-            This app is a focus and productivity tool designed to help you achieve your goals.
-            With Pomodoro timers, interval training, collaborative focus rooms, and achievement tracking,
-            we're building tools that help you stay motivated and productive.
-          </p>
-          <p style={{ margin: '12px 0 0 0', fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-            We're constantly improving based on your feedback. Share your ideas, report bugs,
-            or suggest new features below!
-          </p>
-        </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {/* Scrollable content area */}
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 12 }}>
+          {/* About Section */}
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: 10,
+            padding: 15,
+            marginBottom: 20,
+            border: `1px solid ${theme.accent}20`
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: theme.accent }}>
+              About
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+              This app is a focus and productivity tool designed to help you achieve your goals.
+              With Pomodoro timers, interval training, collaborative focus rooms, and achievement tracking,
+              we're building tools that help you stay motivated and productive.
+            </p>
+            <p style={{ margin: '12px 0 0 0', fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+              We're constantly improving based on your feedback. Share your ideas, report bugs,
+              or suggest new features below!
+            </p>
+          </div>
           {/* Name (Optional) */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
@@ -162,7 +161,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: '2px solid rgba(255,255,255,0.1)',
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: 14,
                 color: 'white',
                 fontSize: 15,
@@ -189,7 +188,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: '2px solid rgba(255,255,255,0.1)',
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: 14,
                 color: 'white',
                 fontSize: 15,
@@ -217,7 +216,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${suggestion ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: 14,
                 color: 'white',
                 fontSize: 15,
@@ -246,7 +245,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: `${theme.accent}20`,
               border: `2px solid ${theme.accent}`,
-              borderRadius: 12,
+              borderRadius: 10,
               padding: 16,
               marginBottom: 20,
               textAlign: 'center',
@@ -262,7 +261,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: 'rgba(255,0,0,0.1)',
               border: '2px solid rgba(255,0,0,0.5)',
-              borderRadius: 12,
+              borderRadius: 10,
               padding: 16,
               marginBottom: 20,
               textAlign: 'center',
@@ -282,7 +281,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               width: '100%',
               background: suggestion.trim() ? theme.accent : 'rgba(255,255,255,0.1)',
               border: 'none',
-              borderRadius: 12,
+              borderRadius: 10,
               padding: 16,
               color: 'white',
               cursor: suggestion.trim() ? 'pointer' : 'not-allowed',

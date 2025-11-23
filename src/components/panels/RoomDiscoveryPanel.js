@@ -111,8 +111,8 @@ export default function RoomDiscoveryPanel({
             width: '100%',
             background: theme.card,
             border: `1px solid rgba(255,255,255,0.1)`,
-            borderRadius: 12,
-            padding: '12px 12px 12px 44px',
+            borderRadius: 10,
+            padding: '15px 15px 15px 44px',
             color: theme.text,
             fontSize: 14,
             boxSizing: 'border-box'
@@ -134,7 +134,7 @@ export default function RoomDiscoveryPanel({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '4px 10px',
+                padding: '2px 8px',
                 background: selectedTags.includes(tag.id) 
                   ? `${tag.color}20`
                   : 'transparent',
@@ -176,10 +176,10 @@ export default function RoomDiscoveryPanel({
             key={option}
             onClick={() => setSortBy(option)}
             style={{
-              padding: '6px 12px',
+              padding: '8px 15px',
               background: sortBy === option ? theme.accent : 'rgba(255,255,255,0.05)',
               border: sortBy === option ? `1px solid ${theme.accent}` : '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 8,
+              borderRadius: 10,
               color: sortBy === option ? '#000' : 'rgba(255,255,255,0.7)',
               cursor: 'pointer',
               fontSize: 13,
@@ -214,8 +214,8 @@ export default function RoomDiscoveryPanel({
                 style={{
                   background: theme.card,
                   border: `1px solid ${isCurrentRoom ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 16,
-                  padding: 20,
+                  borderRadius: 10,
+                  padding: 15,
                   transition: 'all 0.3s'
                 }}
                 onMouseEnter={(e) => {
@@ -237,10 +237,10 @@ export default function RoomDiscoveryPanel({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
-                    padding: '4px 8px',
+                    padding: '2px 6px',
                     background: `${tag.color}20`,
                     color: tag.color,
-                    borderRadius: 8,
+                    borderRadius: 10,
                     fontSize: 12,
                     fontWeight: 600
                   }}>
@@ -282,10 +282,10 @@ export default function RoomDiscoveryPanel({
                 {isCurrentRoom && (
                   <div style={{
                     marginBottom: 12,
-                    padding: '6px 12px',
+                    padding: '8px 15px',
                     background: `${theme.accent}20`,
                     color: theme.accent,
-                    borderRadius: 8,
+                    borderRadius: 10,
                     fontSize: 12,
                     fontWeight: 600,
                     textAlign: 'center'
@@ -300,7 +300,7 @@ export default function RoomDiscoveryPanel({
                   disabled={isFull || isCurrentRoom}
                   style={{
                     width: '100%',
-                    padding: 10,
+                    padding: 15,
                     background: isCurrentRoom 
                       ? 'rgba(255,255,255,0.1)'
                       : isFull
@@ -308,7 +308,7 @@ export default function RoomDiscoveryPanel({
                       : theme.accent,
                     color: isCurrentRoom || isFull ? 'rgba(255,255,255,0.5)' : '#000',
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: 10,
                     cursor: isCurrentRoom || isFull ? 'default' : 'pointer',
                     fontSize: 14,
                     fontWeight: 600,
@@ -324,9 +324,9 @@ export default function RoomDiscoveryPanel({
       ) : (
         <div style={{
           textAlign: 'center',
-          padding: '40px 20px',
+          padding: '15px',
           background: theme.card,
-          borderRadius: 16,
+          borderRadius: 10,
           border: `1px solid rgba(255,255,255,0.1)`,
           color: 'rgba(255,255,255,0.6)'
         }}>
@@ -346,11 +346,11 @@ export default function RoomDiscoveryPanel({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '12px 24px',
+            padding: '15px 30px',
             background: theme.accent,
             color: '#000',
             border: 'none',
-            borderRadius: 12,
+            borderRadius: 10,
             cursor: 'pointer',
             fontSize: 15,
             fontWeight: 600,

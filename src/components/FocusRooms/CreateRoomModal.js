@@ -156,8 +156,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         style={{
           background: theme.card,
           position: 'relative',
-          borderRadius: 20,
-          padding: 20,
+          borderRadius: 10,
+          padding: 15,
           maxWidth: 500,
           width: '100%',
           maxHeight: 'clamp(500px, 85vh, 92vh)',

@@ -64,8 +64,8 @@ export default function InfoModal({ theme, onClose }) {
 				className="info-modal-content"
 				style={{
 					background: theme.card,
-					borderRadius: 20,
-					padding: 24,
+					borderRadius: 10,
+					padding: 15,
 					maxWidth: 700,
 					width: '100%',
 					maxHeight: 'clamp(500px, 85vh, 92vh)',

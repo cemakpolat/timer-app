@@ -67,9 +67,9 @@ const TimerPanel = ({
         {formatDisplayTime(time)}
       </div>
 
-      {/* Input fields */}
+      {/* Input fields and Start button */}
       {!isRunning && (
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 32 }}>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 32 }}>
           <input
             type="number"
             min="0"
@@ -126,72 +126,28 @@ const TimerPanel = ({
               fontSize: 16
             }}
           />
-        </div>
-      )}
-
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-        {isRunning ? (
-          <button
-            onClick={onPause}
-            style={{
-              background: theme.accent,
-              border: 'none',
-              borderRadius: 12,
-              padding: '16px 32px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              color: theme.text,
-              fontSize: 16,
-              fontWeight: 600,
-              transition: 'all 0.3s'
-            }}
-          >
-            <Pause size={20} /> Pause
-          </button>
-        ) : (
           <button
             onClick={onStart}
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 12,
-              padding: '16px 32px',
+              borderRadius: 8,
+              padding: '8px 16px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              justifyContent: 'center',
               color: theme.text,
               fontSize: 16,
               fontWeight: 600,
-              transition: 'all 0.3s'
+              transition: 'all 0.3s',
+              marginLeft: 8
             }}
           >
-            <Play size={20} /> Start
+            <Play size={20} />
           </button>
-        )}
-        <button
-          onClick={onReset}
-          style={{
-            background: 'rgba(255,255,255,0.1)',
-            border: `1px solid rgba(255,255,255,0.2)`,
-            borderRadius: 12,
-            padding: '16px 32px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            color: theme.text,
-            fontSize: 16,
-            fontWeight: 600,
-            transition: 'all 0.3s'
-          }}
-        >
-          <RotateCcw size={20} /> Reset
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

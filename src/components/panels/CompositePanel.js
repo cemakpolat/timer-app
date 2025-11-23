@@ -19,7 +19,7 @@ const CompositePanel = ({
   inputStyle
 }) => {
   return (
-    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+    <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, margin: 0 }}>Composite Timers</h2>
         <button 
@@ -56,8 +56,8 @@ const CompositePanel = ({
                   key={idx} 
                   style={{ 
                     background: 'rgba(255,255,255,0.05)', 
-                    borderRadius: 8, 
-                    padding: 12, 
+                    borderRadius: 10, 
+                    padding: 15, 
                     marginBottom: 8, 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -141,8 +141,8 @@ const CompositePanel = ({
                     flex: 1, 
                     background: theme.accent, 
                     border: 'none', 
-                    borderRadius: 8, 
-                    padding: 12, 
+                    borderRadius: 10, 
+                    padding: 15, 
                     color: 'white', 
                     cursor: 'pointer', 
                     fontSize: 14, 
@@ -159,8 +159,8 @@ const CompositePanel = ({
                     flex: 1, 
                     background: seqName ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', 
                     border: 'none', 
-                    borderRadius: 8, 
-                    padding: 12, 
+                    borderRadius: 10, 
+                    padding: 15, 
                     color: theme.text, 
                     cursor: seqName ? 'pointer' : 'not-allowed', 
                     fontSize: 14, 
@@ -177,9 +177,9 @@ const CompositePanel = ({
           
           <div 
             style={{ 
-              padding: 12, 
+              padding: 15, 
               background: 'rgba(255,255,255,0.03)', 
-              borderRadius: 8, 
+              borderRadius: 10, 
               fontSize: 13, 
               color: 'rgba(255,255,255,0.6)' 
             }}
