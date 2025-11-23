@@ -287,6 +287,9 @@ const useFocusRoom = () => {
         await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
       }
 
+      // Refresh the room list to include the newly created room
+      fetchRooms().catch(err => console.error('Failed to refresh rooms after creation:', err));
+
       setError(null);
       return room;
     } catch (err) {
