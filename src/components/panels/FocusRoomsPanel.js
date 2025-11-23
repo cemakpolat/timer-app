@@ -177,7 +177,7 @@ function FocusRoomsPanel({
 
               {/* Tag Filters */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {ROOM_TAGS.map(tag => {
                     const isSelected = selectedTags.includes(tag.id);
                     return (
@@ -194,7 +194,7 @@ function FocusRoomsPanel({
                           background: isSelected ? tag.color + '20' : 'transparent',
                           border: `1px solid ${isSelected ? tag.color : 'rgba(255,255,255,0.08)'}`,
                           borderRadius: 9999,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           color: isSelected ? '#000' : theme.text,
                           fontSize: 12,
                           fontWeight: 600,
@@ -495,7 +495,6 @@ function FocusRoomsPanel({
                     title={`Start ${currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}`}
                   >
                     <Play size={16} />
-                    Start
                   </button>
                 )}
 
