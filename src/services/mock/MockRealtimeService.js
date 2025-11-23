@@ -208,8 +208,7 @@ class MockRealtimeService extends IRealtimeService {
     if (!room) throw new Error('Room not found');
 
     // Check if room is scheduled and time hasn't arrived yet
-    // Allow the room creator to join immediately, even if scheduled
-    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor && room.createdBy !== userId) {
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
       throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot join until the scheduled time.');
     }
 
