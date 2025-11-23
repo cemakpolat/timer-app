@@ -2753,7 +2753,7 @@ export default function TimerApp() {
 
             {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
             {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32 }}>
+              <div style={{ background: theme.card, borderRadius: 10, padding: 15 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -2762,8 +2762,8 @@ export default function TimerApp() {
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
-                        padding: '6px 12px',
+                        borderRadius: 10,
+                        padding: '8px 15px',
                         color: 'rgba(255,255,255,0.6)',
                         cursor: 'pointer',
                         fontSize: 12,
@@ -2782,8 +2782,8 @@ export default function TimerApp() {
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
-                        padding: '6px 12px',
+                        borderRadius: 10,
+                        padding: '8px 15px',
                         color: 'rgba(255,255,255,0.6)',
                         cursor: 'pointer',
                         fontSize: 12,
@@ -2794,13 +2794,13 @@ export default function TimerApp() {
                       <ChevronUp size={14} />
                     </button>
                     {activeMainTab === 'timer' && (
-                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
+                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 10, padding: '10px 20px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
                     )}
                   </div>
                 </div>
 
               {showCreateTimer && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 15, marginBottom: 24 }}>
                   <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent), marginBottom: 12 }} />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -2924,9 +2924,9 @@ export default function TimerApp() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
-                          {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
-                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: 'white', cursor: 'pointer' }}><Play size={16} /></button>
-                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, padding: '10px 15px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
+                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 10, padding: '10px 15px', color: 'white', cursor: 'pointer' }}><Play size={16} /></button>
+                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 10, padding: '10px 15px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
                       </div>
                     ))}
@@ -3056,19 +3056,19 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
                   <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
                   <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
                     {formatTime(time)}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
-                    <button onClick={startStopwatch} disabled={isRunning} style={{ background: isRunning ? 'rgba(255,255,255,0.1)' : theme.accent, border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                    <button onClick={startStopwatch} disabled={isRunning} style={{ background: isRunning ? 'rgba(255,255,255,0.1)' : theme.accent, border: 'none', borderRadius: 10, padding: '12px 20px', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
                       <Play size={20} />
                     </button>
-                    <button onClick={pauseStopwatch} disabled={!isRunning} style={{ background: !isRunning ? 'rgba(255,255,255,0.1)' : '#f59e0b', border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: !isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                    <button onClick={pauseStopwatch} disabled={!isRunning} style={{ background: !isRunning ? 'rgba(255,255,255,0.1)' : '#f59e0b', border: 'none', borderRadius: 10, padding: '12px 20px', color: 'white', cursor: !isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
                       <Pause size={20} />
                     </button>
-                    <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: '16px 32px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
+                    <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, padding: '12px 20px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
                       <RotateCcw size={20} />
                     </button>
                   </div>
