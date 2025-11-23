@@ -422,6 +422,28 @@ const useFocusRoom = () => {
   }, [fetchRooms]);
 
   /**
+   * Periodic activation of scheduled rooms
+   */
+  useEffect(() => {
+    const activateScheduledRooms = async () => {
+      try {
+        const service = RealtimeServiceFactory.getService();
+        if (service && service.activateScheduledRooms) {
+          await service.activateScheduledRooms();
+        }
+      } catch (err) {
+        console.error('Failed to activate scheduled rooms:', err);
+      }
+    };
+
+    // Check immediately and then every 30 seconds
+    activateScheduledRooms();
+    const interval = setInterval(activateScheduledRooms, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  /**
    * Cleanup on unmount
    */
   useEffect(() => {
