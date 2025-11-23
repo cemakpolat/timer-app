@@ -19,7 +19,7 @@ const CompositePanel = ({
   inputStyle
 }) => {
   return (
-    <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+    <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, margin: 0 }}>Composite Timers</h2>
         <button 
