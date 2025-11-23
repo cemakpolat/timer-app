@@ -282,8 +282,10 @@ const useFocusRoom = () => {
 
       const room = await service.createFocusRoom(roomData);
 
-      // Auto-join the created room
-      await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
+      // Auto-join the created room only if it's not scheduled
+      if (room.status !== 'scheduled') {
+        await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
+      }
 
       setError(null);
       return room;
