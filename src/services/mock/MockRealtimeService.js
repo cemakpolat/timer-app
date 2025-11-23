@@ -207,6 +207,11 @@ class MockRealtimeService extends IRealtimeService {
 
     if (!room) throw new Error('Room not found');
 
+    // Check if room is scheduled and time hasn't arrived yet
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot join until the scheduled time.');
+    }
+
     const mockUserRooms = JSON.parse(localStorage.getItem('mockUserRooms') || '{}');
 
     // Server-side-ish check: ensure user not in another room
@@ -342,6 +347,11 @@ class MockRealtimeService extends IRealtimeService {
     if (!room) {
       console.error('Room not found:', roomId);
       return;
+    }
+
+    // Check if room is scheduled and time hasn't arrived yet
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
     }
 
     const now = Date.now();

@@ -207,21 +207,16 @@ export default function RoomDiscoveryPanel({
             const participantCount = room.participants?.length || 0;
             const isFull = room.maxParticipants && participantCount >= room.maxParticipants;
             const isCurrentRoom = currentRoom?.id === room.id;
-            const now = Date.now();
-            const scheduledFor = room.scheduledFor || null;
-            const isScheduled = scheduledFor && scheduledFor > now;
-            const scheduledDate = isScheduled ? new Date(scheduledFor) : null;
 
             return (
               <div
                 key={room.id}
                 style={{
                   background: theme.card,
-                  border: `1px solid ${isCurrentRoom ? theme.accent : isScheduled ? '#f59e0b' : 'rgba(255,255,255,0.1)'}`,
+                  border: `1px solid ${isCurrentRoom ? theme.accent : 'rgba(255,255,255,0.1)'}`,
                   borderRadius: 10,
                   padding: 15,
-                  transition: 'all 0.3s',
-                  opacity: isScheduled ? 0.8 : 1
+                  transition: 'all 0.3s'
                 }}
                 onMouseEnter={(e) => {
                   if (!isCurrentRoom) {
@@ -284,46 +279,43 @@ export default function RoomDiscoveryPanel({
                 </div>
 
                 {/* Status Badge */}
-                {(isCurrentRoom || isScheduled) && (
+                {isCurrentRoom && (
                   <div style={{
                     marginBottom: 12,
                     padding: '8px 15px',
-                    background: isScheduled ? '#f59e0b20' : `${theme.accent}20`,
-                    color: isScheduled ? '#f59e0b' : theme.accent,
+                    background: `${theme.accent}20`,
+                    color: theme.accent,
                     borderRadius: 10,
                     fontSize: 12,
                     fontWeight: 600,
                     textAlign: 'center'
                   }}>
-                    {isScheduled 
-                      ? `Scheduled for ${scheduledDate?.toLocaleString()}` 
-                      : '✓ You are in this room'
-                    }
+                    ✓ You are in this room
                   </div>
                 )}
 
                 {/* Join Button */}
                 <button
                   onClick={() => onJoinRoom(room.id)}
-                  disabled={isFull || isCurrentRoom || isScheduled}
+                  disabled={isFull || isCurrentRoom}
                   style={{
                     width: '100%',
                     padding: 15,
                     background: isCurrentRoom 
                       ? 'rgba(255,255,255,0.1)'
-                      : isFull || isScheduled
+                      : isFull
                       ? 'rgba(255,255,255,0.05)'
                       : theme.accent,
-                    color: isCurrentRoom || isFull || isScheduled ? 'rgba(255,255,255,0.5)' : '#000',
+                    color: isCurrentRoom || isFull ? 'rgba(255,255,255,0.5)' : '#000',
                     border: 'none',
                     borderRadius: 10,
-                    cursor: isCurrentRoom || isFull || isScheduled ? 'default' : 'pointer',
+                    cursor: isCurrentRoom || isFull ? 'default' : 'pointer',
                     fontSize: 14,
                     fontWeight: 600,
                     transition: 'all 0.2s'
                   }}
                 >
-                  {isCurrentRoom ? 'Current Room' : isScheduled ? 'Scheduled' : isFull ? 'Room Full' : 'Join Room'}
+                  {isCurrentRoom ? 'Current Room' : isFull ? 'Room Full' : 'Join Room'}
                 </button>
               </div>
             );

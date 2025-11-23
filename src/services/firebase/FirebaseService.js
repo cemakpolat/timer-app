@@ -326,13 +326,9 @@ class FirebaseService extends IRealtimeService {
     const room = snapshot.val();
     const participantCount = Object.keys(room.participants || {}).length;
 
-    // Check if room is scheduled and not yet active
-    const now = Date.now();
-    const scheduledFor = room.scheduledFor || null;
-    const isScheduled = scheduledFor && scheduledFor > now;
-    if (isScheduled) {
-      const scheduledDate = new Date(scheduledFor);
-      throw new Error(`This room is scheduled to start at ${scheduledDate.toLocaleString()}. Please wait until then to join.`);
+    // Check if room is scheduled and time hasn't arrived yet
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot join until the scheduled time.');
     }
 
     if (participantCount >= room.maxParticipants) {
@@ -685,23 +681,21 @@ class FirebaseService extends IRealtimeService {
     if (!this.db) throw new Error('Service not initialized');
 
     const { ref, set, get } = this.firebase;
+
+    // Check if room is scheduled and time hasn't arrived yet
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
-    
-    // Check if room is scheduled and not yet active
-    const roomSnap = await get(roomRef);
-    if (!roomSnap.exists()) {
+    const roomSnapshot = await get(roomRef);
+    if (!roomSnapshot.exists()) {
       throw new Error('Room not found');
     }
-    const room = roomSnap.val();
-    const scheduledFor = room.scheduledFor || null;
-    const now = Date.now();
-    const isScheduled = scheduledFor && scheduledFor > now;
-    if (isScheduled) {
-      const scheduledDate = new Date(scheduledFor);
-      throw new Error(`Cannot start timer: This room is scheduled to start at ${scheduledDate.toLocaleString()}. Please wait until then.`);
+    const room = roomSnapshot.val();
+    if (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) {
+      throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
     }
 
     const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
+
+    const now = Date.now();
     await set(timerRef, {
       startedAt: now,
       endsAt: now + (duration * 1000),
@@ -933,39 +927,6 @@ class FirebaseService extends IRealtimeService {
       off(timerRef, 'value', listener);
       this.subscriptions.delete(key);
     };
-  }
-
-  /**
-   * Activate scheduled rooms that have reached their scheduled time
-   */
-  async activateScheduledRooms() {
-    if (!this.db) return;
-    
-    const { ref, get, update } = this.firebase;
-    const roomsRef = ref(this.db, 'focusRooms');
-    const snapshot = await get(roomsRef);
-    
-    if (!snapshot.exists()) return;
-    
-    const now = Date.now();
-    const updates = {};
-    let hasUpdates = false;
-    
-    snapshot.forEach((childSnapshot) => {
-      const roomId = childSnapshot.key;
-      const room = childSnapshot.val();
-      
-      // Check if room is scheduled and time has come
-      if (room.scheduledFor && room.scheduledFor <= now && room.status === 'scheduled') {
-        updates[`focusRooms/${roomId}/status`] = 'active';
-        hasUpdates = true;
-        console.log(`Activated scheduled room: ${roomId}`);
-      }
-    });
-    
-    if (hasUpdates) {
-      await update(ref(this.db), updates);
-    }
   }
 
   /**
