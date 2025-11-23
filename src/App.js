@@ -1568,12 +1568,12 @@ export default function TimerApp() {
             <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 32 }}>
               A message from your past self, {Math.floor((Date.now() - showCapsuleNotification.createdAt) / (1000 * 60 * 60 * 24))} days ago:
             </p>
-            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 15, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
               "{showCapsuleNotification.message}"
             </div>
             <button
               onClick={() => setShowCapsuleNotification(null)}
-              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 16, padding: 20, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 10, padding: 15, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
             >
               Close
             </button>
@@ -1652,8 +1652,8 @@ export default function TimerApp() {
         </>
       )}
 
-      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
-      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 24, padding: 32, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
+      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
+      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
       {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
@@ -2660,7 +2660,7 @@ export default function TimerApp() {
                 </div>
               </div>
             )}
-            <div style={{ background: theme.card, borderRadius: 24, padding: '48px 32px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'center', flexDirection: 'column' }}>
+            <div style={{ background: theme.card, borderRadius: 10, padding: '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'center', flexDirection: 'column' }}>
             {mode === 'sequence' && sequence.length > 0 && (
               <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {sequence.map((step, idx) => (

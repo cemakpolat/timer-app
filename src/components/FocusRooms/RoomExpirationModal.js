@@ -165,8 +165,8 @@ const styles = {
   },
   modal: {
     backgroundColor: '#fff',
-    borderRadius: '12px',
-    padding: '32px',
+    borderRadius: '10px',
+    padding: '15px',
     maxWidth: '500px',
     width: '90%',
     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
