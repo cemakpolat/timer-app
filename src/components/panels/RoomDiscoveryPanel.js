@@ -214,8 +214,8 @@ export default function RoomDiscoveryPanel({
                 style={{
                   background: theme.card,
                   border: `1px solid ${isCurrentRoom ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 16,
-                  padding: 20,
+                  borderRadius: 10,
+                  padding: 15,
                   transition: 'all 0.3s'
                 }}
                 onMouseEnter={(e) => {
@@ -324,9 +324,9 @@ export default function RoomDiscoveryPanel({
       ) : (
         <div style={{
           textAlign: 'center',
-          padding: '40px 20px',
+          padding: '15px',
           background: theme.card,
-          borderRadius: 16,
+          borderRadius: 10,
           border: `1px solid rgba(255,255,255,0.1)`,
           color: 'rgba(255,255,255,0.6)'
         }}>

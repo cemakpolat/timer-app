@@ -109,7 +109,7 @@ function FocusRoomsPanel({
       {!currentRoom ? (
         <>
           {/* Room List */}
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={18} /> Focus Rooms
@@ -359,7 +359,7 @@ function FocusRoomsPanel({
       ) : (
         <>
           {/* Active Room View */}
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
