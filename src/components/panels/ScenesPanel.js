@@ -22,7 +22,7 @@ export default function ScenesPanel({ SCENES, activeScene, setActiveScene, theme
   return (
     <>
       {/* Immersive Scenes */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={18} /> Immersive Scenes
         </h2>
@@ -56,7 +56,7 @@ export default function ScenesPanel({ SCENES, activeScene, setActiveScene, theme
       </div>
 
       {/* Theme Selector */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Palette size={18} /> Color Themes
         </h2>

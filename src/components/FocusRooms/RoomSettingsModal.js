@@ -45,8 +45,8 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
       <div
         style={{
           background: theme.card,
-          borderRadius: 20,
-          padding: 24,
+          borderRadius: 10,
+          padding: 15,
           maxWidth: 480,
           width: '100%',
           maxHeight: 'clamp(400px, 85vh, 92vh)',

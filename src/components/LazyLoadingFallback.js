@@ -16,9 +16,9 @@ export default function LazyLoadingFallback({ theme }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '40px 20px',
+      padding: '15px',
       background: theme?.card || 'rgba(255,255,255,0.05)',
-      borderRadius: 24,
+      borderRadius: 10,
       minHeight: 200
     }}>
       <div style={{ textAlign: 'center' }}>

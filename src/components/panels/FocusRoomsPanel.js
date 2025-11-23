@@ -109,7 +109,7 @@ function FocusRoomsPanel({
       {!currentRoom ? (
         <>
           {/* Room List */}
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={18} /> Focus Rooms
@@ -177,7 +177,7 @@ function FocusRoomsPanel({
 
               {/* Tag Filters */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {ROOM_TAGS.map(tag => {
                     const isSelected = selectedTags.includes(tag.id);
                     return (
@@ -194,7 +194,7 @@ function FocusRoomsPanel({
                           background: isSelected ? tag.color + '20' : 'transparent',
                           border: `1px solid ${isSelected ? tag.color : 'rgba(255,255,255,0.08)'}`,
                           borderRadius: 9999,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           color: isSelected ? '#000' : theme.text,
                           fontSize: 12,
                           fontWeight: 600,
@@ -359,7 +359,7 @@ function FocusRoomsPanel({
       ) : (
         <>
           {/* Active Room View */}
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
@@ -495,7 +495,6 @@ function FocusRoomsPanel({
                     title={`Start ${currentRoom.timerType === 'composite' ? 'Sequence' : 'Timer'}`}
                   >
                     <Play size={16} />
-                    Start
                   </button>
                 )}
 

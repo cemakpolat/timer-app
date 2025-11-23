@@ -44,7 +44,7 @@ function AchievementsPanel({
   return (
     <>
       {/* Achievements */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Award size={18} /> Achievements
         </h2>
@@ -68,7 +68,7 @@ function AchievementsPanel({
         if (suggestions.length === 0) return null;
 
         return (
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
             <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Sparkles size={18} /> Your Insights
             </h2>
@@ -85,7 +85,7 @@ function AchievementsPanel({
       })()}
 
       {/* Daily Challenge */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Target size={18} /> Daily Challenge
         </h2>
@@ -107,7 +107,7 @@ function AchievementsPanel({
       </div>
 
       {/* Time Capsule */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Mail size={18} /> Time Capsule
         </h2>
@@ -156,7 +156,7 @@ function AchievementsPanel({
       {/* Backup & Restore moved to Settings - removed here */}
 
       {/* History Log (hidden for now) */}
-      <div style={{ display: 'none', background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+      <div style={{ display: 'none', background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <History size={18} /> Recent History
