@@ -29,7 +29,12 @@ const DEFAULT_THEMES = [
   { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", text: "#ffffff", isDefault: true },
   { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true },
   { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true },
-  { name: "Pure Black", bg: "#000000", card: "#111111", accent: "#ffffff", text: "#ffffff", isDefault: true }
+  { name: "Pure Black", bg: "#000000", card: "#111111", accent: "#ffffff", text: "#ffffff", isDefault: true },
+  // Fitness-inspired themes
+  { name: "Energy Boost", bg: "#1e40af", card: "#3b82f6", accent: "#fbbf24", text: "#ffffff", isDefault: true },
+  { name: "Sunrise Run", bg: "#ea580c", card: "#fb923c", accent: "#fef3c7", text: "#ffffff", isDefault: true },
+  { name: "Zen Garden", bg: "#166534", card: "#22c55e", accent: "#86efac", text: "#ffffff", isDefault: true },
+  { name: "Power Lift", bg: "#7c2d12", card: "#dc2626", accent: "#fca5a5", text: "#ffffff", isDefault: true }
 ];
 
 // Immersive scenes for different timer types
@@ -322,7 +327,7 @@ export default function TimerApp() {
   // Settings states
   const [showSettings, setShowSettings] = useState(false);
   const [showClearCacheModal, setShowClearCacheModal] = useState(false);
-  const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'sound'
+  const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'sound', 'animations'
 
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -554,6 +559,10 @@ export default function TimerApp() {
     try { return parseFloat(localStorage.getItem('alarmVolume')) || 0.5; }
     catch (error) { return 0.5; }
   });
+  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
+    try { return localStorage.getItem('animationsEnabled') !== 'false'; }
+    catch (error) { return true; }
+  });
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
 
@@ -633,6 +642,7 @@ export default function TimerApp() {
   useEffect(() => localStorage.setItem('repeatEnabled', repeatEnabled), [repeatEnabled]);
   useEffect(() => localStorage.setItem('alarmSoundType', alarmSoundType), [alarmSoundType]);
   useEffect(() => localStorage.setItem('alarmVolume', alarmVolume.toString()), [alarmVolume]);
+  useEffect(() => localStorage.setItem('animationsEnabled', animationsEnabled.toString()), [animationsEnabled]);
   useEffect(() => localStorage.setItem('currentStreak', currentStreak.toString()), [currentStreak]);
   useEffect(() => localStorage.setItem('lastCompletionDate', lastCompletionDate), [lastCompletionDate]);
   useEffect(() => localStorage.setItem('totalCompletions', totalCompletions.toString()), [totalCompletions]);
@@ -2040,7 +2050,7 @@ export default function TimerApp() {
             fontFamily: "'Courier New', 'Courier', monospace",
             letterSpacing: '0.05em'
           }}>
-            T2Get
+            Focus & Fit
           </h1>
 
           {/* Icon Buttons */}
@@ -2048,7 +2058,6 @@ export default function TimerApp() {
             <button
               onClick={() => setShowInfoModal(true)}
               style={{
-                background: theme.card,
                 border: 'none',
                 borderRadius: 10,
                 padding: 10,
@@ -2064,7 +2073,7 @@ export default function TimerApp() {
                 e.target.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = theme.card;
+                e.target.style.background = 'transparent';
                 e.target.style.transform = 'scale(1)';
               }}
               title="App Features"
@@ -2078,7 +2087,6 @@ export default function TimerApp() {
                 setActiveFeatureTab('achievements');
               }}
               style={{
-                background: theme.card,
                 border: 'none',
                 borderRadius: 10,
                 padding: 10,
@@ -2094,7 +2102,7 @@ export default function TimerApp() {
                 e.target.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = theme.card;
+                e.target.style.background = 'transparent';
                 e.target.style.transform = 'scale(1)';
               }}
               title="Achievements"
@@ -2105,7 +2113,6 @@ export default function TimerApp() {
             <button
               onClick={() => setShowFeedbackModal(true)}
               style={{
-                background: theme.card,
                 border: 'none',
                 borderRadius: 10,
                 padding: 10,
@@ -2121,7 +2128,7 @@ export default function TimerApp() {
                 e.target.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = theme.card;
+                e.target.style.background = 'transparent';
                 e.target.style.transform = 'scale(1)';
               }}
               title="Send Feedback"
@@ -2133,7 +2140,6 @@ export default function TimerApp() {
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 style={{
-                  background: theme.card,
                   border: 'none',
                   borderRadius: 10,
                   padding: 10,
@@ -2149,7 +2155,7 @@ export default function TimerApp() {
                   e.target.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.background = theme.card;
+                  e.target.style.background = 'transparent';
                   e.target.style.transform = 'scale(1)';
                 }}
                 title="Settings"
@@ -2173,7 +2179,7 @@ export default function TimerApp() {
               display: 'flex',
               flexDirection: 'column',
               gap: settingsView === 'main' ? 2 : 4
-            }}>
+            }} className={animationsEnabled ? 'animate-fade-in' : ''}>
               {settingsView === 'main' && (
                 <>
                   {/* Theme Option */}
@@ -2230,6 +2236,34 @@ export default function TimerApp() {
                     title="Sound Settings"
                   >
                     {alarmVolume > 0 ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                  </button>
+
+                  {/* Animation Settings Option */}
+                  <button
+                    onClick={() => setSettingsView('animations')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Animation Settings"
+                  >
+                    <Zap size={18} />
                   </button>
 
                   {/* Divider */}
@@ -2504,6 +2538,64 @@ export default function TimerApp() {
                   </div>
                 </>
               )}
+
+              {/* Animations Settings */}
+              {settingsView === 'animations' && (
+                <>
+                  {/* Back Button */}
+                  <button
+                    onClick={() => setSettingsView('main')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      marginBottom: 4
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Back</span>
+                  </button>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Animations</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        onClick={() => setAnimationsEnabled(!animationsEnabled)}
+                        style={{
+                          background: animationsEnabled ? theme.accent : 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          color: theme.text,
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <Zap size={14} color={animationsEnabled ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                        {animationsEnabled ? 'Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                      Enable smooth animations for timer progress and transitions
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -2673,7 +2765,7 @@ export default function TimerApp() {
             )}
             <div style={{ flex: 1, marginLeft: mode === 'sequence' ? 40 : 0, marginRight: mode === 'sequence' ? 40 : 0, width: '100%' }}>
               {mode === 'sequence' && sequence[currentStep] && <div style={{ fontSize: 16, color: sequence[currentStep].color, marginBottom: 12, fontWeight: 600 }}>{sequence[currentStep].name}</div>}
-              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : (animationsEnabled && isRunning ? 'pulse 2s ease-in-out infinite' : 'none'), filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
               
               {(mode === 'interval' || mode === 'sequence') && calculateTotalRemaining() > 0 && (
                   <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 24, marginTop: 4 }}>
@@ -2684,10 +2776,10 @@ export default function TimerApp() {
               {mode === 'interval' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Round {currentRound}/{rounds} • {isWork ? '💪 Work' : '😌 Rest'}</div>}
               {mode === 'sequence' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Step {currentStep + 1} of {sequence.length}{currentStep < sequence.length - 1 && <div style={{ marginTop: 8 }}>Next: {sequence[currentStep + 1].name}</div>}</div>}
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
-                <button onClick={() => { setIsRunning(false); setTime(0); setCurrentStep(0); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
+                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                <button onClick={() => { setIsRunning(false); setTime(0); setCurrentStep(0); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
                 {mode !== 'stopwatch' && (
-                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
                 )}
               </div>
             </div>

@@ -3,7 +3,7 @@ import { X, Users, Clock, Zap, Gift, Award, Repeat } from 'lucide-react';
 
 /**
  * InfoModal Component
- * Explains the main features of the Timer App
+ * Explains the main features of Focus & Fit
  * - Focus Rooms
  * - Timer Blocks
  * - Composite Timers
@@ -16,17 +16,17 @@ export default function InfoModal({ theme, onClose }) {
 		{
 			icon: Users,
 			title: 'Focus Rooms',
-			description: 'Create or join collaborative focus spaces with others. Set goals, track time together, and stay accountable as a group.'
+			description: 'Create or join collaborative focus spaces with others. Set goals, track time together, and stay accountable as a group for workouts, work sessions, or study.'
 		},
 		{
 			icon: Clock,
 			title: 'Timer Blocks',
-			description: 'Build a collection of custom timers (5 min, 15 min, 25 min, etc.) and organize them by category. Quick access to your favorite durations.'
+			description: 'Build a collection of custom timers (5 min, 15 min, 25 min, etc.) and organize them by category. Perfect for workouts, work sprints, or creative sessions.'
 		},
 		{
 			icon: Zap,
 			title: 'Composite Timers',
-			description: 'Combine multiple timers into sequences. Perfect for complex work sessions: deep work → break → review → repeat.'
+			description: 'Combine multiple timers into sequences. Perfect for complex sessions: warm-up → workout → cool-down, or work → break → review → repeat.'
 		},
 		{
 			icon: Gift,
@@ -36,12 +36,12 @@ export default function InfoModal({ theme, onClose }) {
 		{
 			icon: Award,
 			title: 'Achievements',
-			description: 'Unlock badges as you hit milestones: first completion, 7-day streak, 100 sessions, and more. Celebrate your progress!'
+			description: 'Unlock badges as you hit milestones: first completion, 7-day streak, 100 sessions, and more. Celebrate your progress in fitness or focus!'
 		},
 		{
 			icon: Repeat,
 			title: 'Interval Timer',
-			description: 'Alternate between work and rest cycles. Set work duration, rest time, and number of rounds. Ideal for HIIT or pomodoro sessions.'
+			description: 'Alternate between work and rest cycles. Set work duration, rest time, and number of rounds. Ideal for HIIT workouts or pomodoro productivity sessions.'
 		}
 	];
 
@@ -118,7 +118,7 @@ export default function InfoModal({ theme, onClose }) {
 						backgroundClip: 'text'
 					}}
 				>
-					Welcome to T2Get
+					Welcome to Focus & Fit
 				</h2>
 
 				<p
@@ -129,7 +129,7 @@ export default function InfoModal({ theme, onClose }) {
 						lineHeight: 1.6
 					}}
 				>
-					A powerful productivity app to help you focus, track time, collaborate with others, and celebrate your wins. Here's what you can do:
+					A social timer app to help you focus, track time, collaborate with others, and stay accountable for workouts, work sessions, or any timed activity. Here's what you can do:
 				</p>
 
 				{/* Features Grid */}

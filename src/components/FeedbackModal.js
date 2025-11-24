@@ -138,7 +138,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               About
             </h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-              This app is a focus and productivity tool designed to help you achieve your goals.
+              This app is a social timer tool designed to help you stay focused and accountable for any timed activity, from workouts to work sessions.
               With Pomodoro timers, interval training, collaborative focus rooms, and achievement tracking,
               we're building tools that help you stay motivated and productive.
             </p>
