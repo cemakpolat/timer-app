@@ -367,20 +367,20 @@ function FocusRoomsPanel({
                         )}
                         <button
                           onClick={() => handleJoinRoom(room.id)}
-                          disabled={isRoomFull(room) || room.status === 'scheduled'}
+                          disabled={isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)}
                           style={{
-                            background: (isRoomFull(room) || room.status === 'scheduled') ? 'rgba(255,255,255,0.1)' : theme.accent,
+                            background: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'rgba(255,255,255,0.1)' : theme.accent,
                             border: 'none',
                             borderRadius: 12,
                             padding: '10px 20px',
                             color: theme.text,
-                            cursor: (isRoomFull(room) || room.status === 'scheduled') ? 'not-allowed' : 'pointer',
+                            cursor: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'not-allowed' : 'pointer',
                             fontSize: 14,
                             fontWeight: 600,
-                            opacity: (isRoomFull(room) || room.status === 'scheduled') ? 0.5 : 1
+                            opacity: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 0.5 : 1
                           }}
                         >
-                          {isRoomFull(room) ? 'Full' : room.status === 'scheduled' ? 'Not Ready' : 'Join'}
+                          {isRoomFull(room) ? 'Full' : (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor) ? 'Not Ready' : 'Join'}
                         </button>
                       </div>
                     </div>
