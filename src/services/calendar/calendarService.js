@@ -41,7 +41,7 @@ export function generateICSContent(room) {
   const uid = `${roomId}@timerapp.local`;
   const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Timer App//Focus Room Calendar Export//EN
+PRODID:-//Focus & Fit//Focus Room Calendar Export//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:Focus Room: ${sanitizedName}
@@ -53,7 +53,7 @@ DTSTART:${startISO}
 DTEND:${endISO}
 SUMMARY:${sanitizedName}
 DESCRIPTION:Focus room hosted by ${sanitizedHost}. Maximum participants: ${room.maxParticipants || 10}.\\n\\nJoin the room: ${roomLink}
-LOCATION:Timer App Focus Room
+LOCATION:Focus & Fit Focus Room
 STATUS:CONFIRMED
 SEQUENCE:0
 END:VEVENT
@@ -132,7 +132,7 @@ export function generateGoogleCalendarURL(room) {
     action: 'TEMPLATE',
     text: room.name,
     details: `Focus room hosted by ${room.creatorName || 'Focus Room Host'}. Maximum participants: ${room.maxParticipants || 10}.\n\nJoin the room: ${roomLink}`,
-    location: 'Timer App Focus Room',
+    location: 'Focus & Fit Focus Room',
     dates: `${startFormatted}/${endFormatted}`
   });
 
@@ -177,7 +177,7 @@ DTSTART:${formatDate(startDate)}
 DTEND:${formatDate(endDate)}
 SUMMARY:${sanitizedName}
 DESCRIPTION:Focus room hosted by ${sanitizedHost}. Maximum participants: ${room.maxParticipants || 10}.
-LOCATION:Timer App Focus Room
+LOCATION:Focus & Fit Focus Room
 STATUS:CONFIRMED
 SEQUENCE:0
 END:VEVENT
@@ -186,7 +186,7 @@ END:VEVENT
 
   const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Timer App//Focus Room Calendar Export//EN
+PRODID:-//Focus & Fit//Focus Room Calendar Export//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:Focus Rooms - ${new Date().toLocaleDateString()}
@@ -237,7 +237,7 @@ export function generateTimerICSContent(timer, scheduledDate) {
   const uid = `${timerId}@timerapp.local`;
   const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Timer App//Timer Calendar Export//EN
+PRODID:-//Focus & Fit//Timer Calendar Export//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:Timer: ${sanitizedName}
@@ -249,7 +249,7 @@ DTSTART:${startISO}
 DTEND:${endISO}
 SUMMARY:${sanitizedName}${group}
 DESCRIPTION:Timer duration: ${durationMinutes} minute(s). Scene: ${timer.scene || 'none'}.
-LOCATION:Timer App
+LOCATION:Focus & Fit
 STATUS:CONFIRMED
 SEQUENCE:0
 END:VEVENT
@@ -307,7 +307,7 @@ export function generateTimerGoogleCalendarURL(timer, scheduledDate) {
     action: 'TEMPLATE',
     text: `${timer.name}${group}`,
     details: `Timer: ${timer.duration} minute(s). Scene: ${timer.scene || 'none'}.`,
-    location: 'Timer App',
+    location: 'Focus & Fit',
     dates: `${startFormatted}Z/${endFormatted}Z`
   });
 
@@ -353,7 +353,7 @@ DTSTART:${formatDate(startDate)}
 DTEND:${formatDate(endDate)}
 SUMMARY:${sanitizedName}${group}
 DESCRIPTION:Timer duration: ${durationMinutes} minute(s). Scene: ${timer.scene || 'none'}.
-LOCATION:Timer App
+LOCATION:Focus & Fit
 STATUS:CONFIRMED
 SEQUENCE:0
 END:VEVENT
@@ -362,7 +362,7 @@ END:VEVENT
 
   const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Timer App//Timer Calendar Export//EN
+PRODID:-//Focus & Fit//Timer Calendar Export//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:Scheduled Timers - ${new Date().toLocaleDateString()}

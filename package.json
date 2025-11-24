@@ -1,7 +1,8 @@
 {
-  "name": "my-timer-app",
+  "name": "focus-and-fit",
   "version": "0.1.0",
   "private": true,
+  "description": "Focus & Fit - Social focus rooms and timers for group productivity, workouts, and any timed activity",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
