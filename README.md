@@ -1,6 +1,6 @@
-# ⏱️ Modern Timer App
+# 🎯 Focus & Fit
 
-A beautiful, feature-rich timer application designed for productivity enthusiasts. Built with React and powered by Firebase Realtime Database, featuring gamification, social elements, and immersive focus experiences.
+A modern social timer app featuring focus rooms for group accountability, flexible timers for any activity, and collaborative productivity sessions. Perfect for workouts, work sprints, study sessions, and creative challenges.
 
 ## 📋 Table of Contents
 
@@ -39,25 +39,30 @@ The app will open at `http://localhost:3000`
 
 ## 🌟 Features
 
-### Core Timer Functionality
-- **⏱️ Timer Mode** - Set custom timers with HH:MM:SS input or quick presets
-- **⏱️ Stopwatch Mode** - Track elapsed time
-- **⚡ Interval Timer** - Pomodoro technique with customizable work/rest cycles
-- **🔗 Chain Timers (Sequences)** - Build multi-step timer sequences with visual progress
-- **💾 Saved Timers** - Save favorite timers with colors, groups, and custom names
-- **🎨 Unlimited Custom Themes** - 5 built-in themes plus unlimited custom color schemes
-- **🎬 Immersive Scenes** - 8 contextual backgrounds that transform your focus environment
+### Social Focus Rooms
+- **👥 Focus Rooms** - Join or create collaborative focus sessions with group accountability
+- **📅 Scheduled Sessions** - Plan ahead with scheduled focus rooms that auto-start at the right time
+- **💬 Real-time Chat** - Communicate with your focus group during sessions
+- **👀 Live Presence** - See who's active and maintain group momentum
 
-### Engagement & Gamification
-- **🏆 Achievement System** - 8 badges for completing various milestones
-- **🔥 Streak Tracking** - Build and maintain daily completion streaks
-- **📊 Progress Stats** - Comprehensive statistics and analytics
-- **📈 Monthly Comparison** - Compare performance across time periods
+### Flexible Timer System
+- **⏱️ Custom Timers** - Set any duration with HH:MM:SS precision or use quick presets
+- **⚡ Interval Training** - Pomodoro and custom work/rest cycles
+- **🔗 Composite Timers** - Build multi-step sequences for complex activities
+- **🏃‍♂️ Activity Presets** - Ready-made timers for workouts, study sessions, creative work
+- **💾 Saved Configurations** - Save your favorite timer setups
 
-### Smart Features
-- **✨ Smart Insights** - Pattern recognition and personalized suggestions
-- **📩 Time Capsule** - Write messages to your future self
-- **🔴 "Active Now" Counter** - See how many people are focusing right now
+### Personalization & Themes
+- **🎨 Custom Themes** - Unlimited color schemes and visual styles
+- **🎬 Immersive Scenes** - 8+ contextual backgrounds (coffee shop, gym, forest, etc.)
+- **⚙️ Settings Panel** - Control animations, themes, and preferences
+- **📱 Mobile Optimized** - Responsive design for phones and tablets
+
+### Engagement & Tracking
+- **🏆 Achievement System** - Unlock badges for milestones and consistency
+- **🔥 Streak Tracking** - Build daily and weekly focus habits
+- **📊 Progress Analytics** - Detailed statistics and insights
+- **🔴 Live Activity** - See global focus activity and community engagement
 - **📜 History Tracking** - Last 10 completed sessions with timestamps
 - **🎯 Daily Challenge** - Complete daily goals for extra motivation
 - **🎨 Custom Theme Creation** - Create unlimited custom themes with color picker
