@@ -445,7 +445,7 @@ export default function TimerApp() {
       if (!displayName) {
         const service = RealtimeServiceFactory.getServiceSafe();
         const userId = service?.currentUserId || 'anonymous';
-        displayName = `User ${userId.substring(0, 6)}`;
+        displayName = `User ${userId.substring(0, 5)}`;
         localStorage.setItem('userDisplayName', displayName);
       }
       

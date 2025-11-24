@@ -289,7 +289,7 @@ const useFocusRoom = () => {
         if (!displayName) {
           const service = RealtimeServiceFactory.getServiceSafe();
           const userId = service?.currentUserId || 'anonymous';
-          displayName = roomData.creatorName || `User ${userId.substring(0, 6)}`;
+          displayName = roomData.creatorName || `User ${userId.substring(0, 5)}`;
           localStorage.setItem('userDisplayName', displayName);
         }
         
