@@ -1,0 +1,37 @@
+[debug] [2025-11-21T20:21:28.486Z] ----------------------------------------------------------------------
+[debug] [2025-11-21T20:21:28.488Z] Command:       /Users/cemakpolat/.nvm/versions/node/v24.11.1/bin/node /opt/homebrew/bin/firebase deploy --only functions:scheduledRoomCleanup --force
+[debug] [2025-11-21T20:21:28.488Z] CLI Version:   14.25.0
+[debug] [2025-11-21T20:21:28.488Z] Platform:      darwin
+[debug] [2025-11-21T20:21:28.488Z] Node Version:  v24.11.1
+[debug] [2025-11-21T20:21:28.488Z] Time:          Fri Nov 21 2025 21:21:28 GMT+0100 (Central European Standard Time)
+[debug] [2025-11-21T20:21:28.488Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-21T20:21:28.561Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-21T20:21:28.561Z] > authorizing via signed-in user (akpolatcem@gmail.com)
+[debug] [2025-11-21T20:21:28.561Z] [iam] checking project timerapp-2997d for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-11-21T20:21:28.561Z] Checked if tokens are valid: false, expires at: 1763746702299
+[debug] [2025-11-21T20:21:28.561Z] Checked if tokens are valid: false, expires at: 1763746702299
+[debug] [2025-11-21T20:21:28.561Z] > refreshing access token with scopes: []
+[debug] [2025-11-21T20:21:28.562Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-11-21T20:21:28.562Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-21T20:21:29.457Z] ----------------------------------------------------------------------
+[debug] [2025-11-21T20:21:29.458Z] Command:       /Users/cemakpolat/.nvm/versions/node/v24.11.1/bin/node /opt/homebrew/bin/firebase deploy --only functions:scheduledRoomCleanup --force
+[debug] [2025-11-21T20:21:29.459Z] CLI Version:   14.25.0
+[debug] [2025-11-21T20:21:29.459Z] Platform:      darwin
+[debug] [2025-11-21T20:21:29.459Z] Node Version:  v24.11.1
+[debug] [2025-11-21T20:21:29.459Z] Time:          Fri Nov 21 2025 21:21:29 GMT+0100 (Central European Standard Time)
+[debug] [2025-11-21T20:21:29.459Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-21T20:21:29.529Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-21T20:21:29.529Z] > authorizing via signed-in user (akpolatcem@gmail.com)
+[debug] [2025-11-21T20:21:29.530Z] [iam] checking project timerapp-2997d for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-11-21T20:21:29.530Z] Checked if tokens are valid: false, expires at: 1763746702299
+[debug] [2025-11-21T20:21:29.530Z] Checked if tokens are valid: false, expires at: 1763746702299
+[debug] [2025-11-21T20:21:29.530Z] > refreshing access token with scopes: []
+[debug] [2025-11-21T20:21:29.531Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-11-21T20:21:29.531Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-21T20:21:29.652Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-11-21T20:21:29.652Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-21T20:21:29.666Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/timerapp-2997d:testIamPermissions [none]
+[debug] [2025-11-21T20:21:29.666Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/timerapp-2997d:testIamPermissions x-goog-quota-user=projects/timerapp-2997d
+[debug] [2025-11-21T20:21:29.666Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/timerapp-2997d:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
