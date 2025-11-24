@@ -440,7 +440,16 @@ export default function TimerApp() {
   // Wrapped join/create handlers so we can show toasts on failure
   const handleJoinRoom = useCallback(async (roomId) => {
     try {
-      await joinRoom(roomId, { displayName: 'You' });
+      // Get or generate display name
+      let displayName = localStorage.getItem('userDisplayName');
+      if (!displayName) {
+        const service = RealtimeServiceFactory.getServiceSafe();
+        const userId = service?.currentUserId || 'anonymous';
+        displayName = `User ${userId.substring(0, 6)}`;
+        localStorage.setItem('userDisplayName', displayName);
+      }
+      
+      await joinRoom(roomId, { displayName });
     } catch (err) {
       console.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');

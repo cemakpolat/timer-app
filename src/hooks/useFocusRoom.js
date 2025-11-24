@@ -284,7 +284,16 @@ const useFocusRoom = () => {
 
       // Auto-join the created room only if it's not scheduled
       if (room.status !== 'scheduled') {
-        await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
+        // Get or generate display name for the creator
+        let displayName = localStorage.getItem('userDisplayName');
+        if (!displayName) {
+          const service = RealtimeServiceFactory.getServiceSafe();
+          const userId = service?.currentUserId || 'anonymous';
+          displayName = roomData.creatorName || `User ${userId.substring(0, 6)}`;
+          localStorage.setItem('userDisplayName', displayName);
+        }
+        
+        await joinRoom(room.id, { displayName });
       }
 
       // Refresh the room list to include the newly created room
