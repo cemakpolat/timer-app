@@ -282,10 +282,8 @@ const useFocusRoom = () => {
 
       const room = await service.createFocusRoom(roomData);
 
-      // Auto-join the created room only if it's not scheduled
-      if (room.status !== 'scheduled') {
-        await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
-      }
+      // Auto-join the created room (even if scheduled, so creator is "ready")
+      await joinRoom(room.id, { displayName: roomData.creatorName || 'You' });
 
       // Refresh the room list to include the newly created room
       fetchRooms().catch(err => console.error('Failed to refresh rooms after creation:', err));
