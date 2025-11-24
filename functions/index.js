@@ -164,6 +164,7 @@ exports.activateScheduledRooms = functions.pubsub.schedule(CLEANUP_SCHEDULE).onR
           };
           activatedCount++;
           console.log(`Activated scheduled room: ${room.name} (${roomId}) and auto-started timer`);
+        }
       } catch (e) {
         console.error(`Error processing room ${roomId} for activation:`, e);
       }
