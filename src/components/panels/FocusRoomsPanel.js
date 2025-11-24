@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Plus, Clock, Calendar, Play, Send, Search, X, LogOut, Settings, Share2, Trash2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
@@ -77,7 +77,24 @@ function FocusRoomsPanel({
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
+  const [timeTrigger, setTimeTrigger] = useState(0); // Used to trigger re-renders when scheduled times arrive
   const sortBy = 'participants'; // Default sort by participants
+
+  // Check for scheduled rooms becoming available every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hasScheduledRooms = rooms.some(room => 
+        room.status === 'scheduled' && room.scheduledFor && now >= room.scheduledFor
+      );
+      
+      if (hasScheduledRooms) {
+        setTimeTrigger(prev => prev + 1); // Trigger re-render
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [rooms]);
 
   // Filter and sort rooms
   const filteredRooms = rooms
