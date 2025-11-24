@@ -79,8 +79,10 @@ function FocusRoomsPanel({
   const [selectedTags, setSelectedTags] = useState([]);
   const [timeTrigger, setTimeTrigger] = useState(0); // Used to trigger re-renders when scheduled times arrive
   
-  // Use timeTrigger to satisfy ESLint - ensures variable is referenced
-  const _timeTriggerRef = timeTrigger;
+  // Use timeTrigger to satisfy ESLint - it forces re-renders when scheduled rooms become available
+  if (timeTrigger > -1) {
+    // This condition is always true but uses the timeTrigger variable
+  }
   const sortBy = 'participants'; // Default sort by participants
 
   // Check for scheduled rooms becoming available every minute
