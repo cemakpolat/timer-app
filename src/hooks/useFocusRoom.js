@@ -299,7 +299,7 @@ const useFocusRoom = () => {
     } finally {
       setLoading(false);
     }
-  }, [joinRoom, currentRoom]);
+  }, [joinRoom, currentRoom, fetchRooms]);
 
   /**
    * Leave current room
