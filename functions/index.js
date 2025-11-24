@@ -155,9 +155,15 @@ exports.activateScheduledRooms = functions.pubsub.schedule(CLEANUP_SCHEDULE).onR
         // If room is scheduled and scheduledFor time has arrived, activate it
         if (room && room.status === 'scheduled' && room.scheduledFor && room.scheduledFor <= now) {
           updates[`focusRooms/${roomId}/status`] = 'active';
+          // Auto-start the timer at the scheduled time
+          const duration = room.duration || 1500; // default 25 min
+          updates[`focusRooms/${roomId}/timer`] = {
+            startedAt: room.scheduledFor,
+            endsAt: room.scheduledFor + (duration * 1000),
+            duration: duration
+          };
           activatedCount++;
-          console.log(`Activated scheduled room: ${room.name} (${roomId})`);
-        }
+          console.log(`Activated scheduled room: ${room.name} (${roomId}) and auto-started timer`);
       } catch (e) {
         console.error(`Error processing room ${roomId} for activation:`, e);
       }
