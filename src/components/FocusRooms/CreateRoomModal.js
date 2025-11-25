@@ -207,7 +207,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               alignItems: 'center',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+            onMouseEnter={(e) => e.target.style.background = `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}
             onMouseLeave={(e) => e.target.style.background = 'transparent'}
           >
             <X size={24} />
@@ -230,7 +230,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
-                border: `2px solid ${roomName ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                border: `2px solid ${roomName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                 borderRadius: 10,
                 padding: 12,
                 color: theme.text,
@@ -256,7 +256,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
-                border: `2px solid ${displayName ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                border: `2px solid ${displayName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                 borderRadius: 10,
                 padding: 12,
                 color: theme.text,
@@ -280,8 +280,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                   type="button"
                   onClick={() => setSelectedTag(tag.value)}
                   style={{
-                    background: selectedTag === tag.value ? theme.accent : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${selectedTag === tag.value ? theme.accent : 'rgba(255,255,255,0.08)'}`,
+                    background: selectedTag === tag.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.06)`,
+                    border: `1px solid ${selectedTag === tag.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
                     borderRadius: 9999,
                     padding: '6px 12px',
                     color: theme.text,
@@ -349,8 +349,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                         type="button"
                         onClick={() => setDuration(preset.value)}
                         style={{
-                          background: duration === preset.value ? theme.accent : 'rgba(255,255,255,0.06)',
-                          border: `1px solid ${duration === preset.value ? theme.accent : 'rgba(255,255,255,0.08)'}`,
+                          background: duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.06)`,
+                          border: `1px solid ${duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
                           borderRadius: 10,
                           padding: '10px 6px',
                           minHeight: 44,
@@ -375,7 +375,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTempDuration(duration); setShowDurationEditor(true); } }}
                       style={{
                         background: !presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.05)',
-                        border: `1px solid ${!presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                        border: `1px solid ${!presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                         borderRadius: 10,
                         padding: '10px 6px',
                         minHeight: 44,
@@ -426,7 +426,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                         onClick={() => setSelectedTimer(timer)}
                         style={{
                           background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: `1px solid ${isSelected ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                          border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                           borderRadius: 8,
                           padding: '8px 10px',
                           color: theme.text,
@@ -474,7 +474,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                   onClick={() => setMaxParticipants(preset.value)}
                   style={{
                       background: maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
-                      border: `2px solid ${maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                      border: `2px solid ${maxParticipants === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                       borderRadius: 10,
                       padding: '10px 6px',
                       minHeight: 44,
@@ -499,7 +499,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTempParticipants(maxParticipants); setShowParticipantsEditor(true); } }}
                 style={{
                   background: !presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.18)' : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${!presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.5)' : 'rgba(255,255,255,0.1)'}`,
+                  border: `2px solid ${!presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                   borderRadius: 10,
                   padding: '10px 6px',
                   minHeight: 44,
@@ -525,7 +525,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               style={{
                 width: '100%',
                 background: scheduleRoom ? theme.accent : 'rgba(255,255,255,0.05)',
-                border: `2px solid ${scheduleRoom ? theme.accent : 'rgba(255,255,255,0.1)'}`,
+                border: `2px solid ${scheduleRoom ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                 borderRadius: 12,
                 padding: 14,
                 color: theme.text,
@@ -645,7 +645,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               )}
               <div>Capacity: Up to {maxParticipants} people</div>
               {scheduleRoom && scheduledDate && scheduledTime && (
-                <div style={{ marginTop: 8, padding: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 13 }}>
+                <div style={{ marginTop: 8, padding: 8, background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, borderRadius: 6, fontSize: 13 }}>
                   📅 Scheduled: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
                 </div>
               )}
@@ -668,7 +668,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
               onClick={onClose}
               style={{
                 flex: 1,
-                background: 'rgba(255,255,255,0.1)',
+                background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                 border: 'none',
                 borderRadius: 12,
                 padding: 16,
@@ -679,7 +679,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
-              onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.target.style.background = `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}
             >
               Cancel
             </button>
@@ -691,7 +691,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 border: 'none',
                 borderRadius: 12,
                 padding: 16,
-                color: theme.text,
+                color: getContrastColor(theme.accent),
                 cursor: 'pointer',
                 fontSize: 15,
                 fontWeight: 600,

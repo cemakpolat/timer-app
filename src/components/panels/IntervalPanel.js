@@ -33,7 +33,7 @@ const IntervalPanel = ({
         <button 
           onClick={shareCurrentTimer} 
           style={{ 
-            background: 'rgba(255,255,255,0.1)', 
+            background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, 
             border: 'none', 
             borderRadius: 10, 
             padding: '10px 15px', 

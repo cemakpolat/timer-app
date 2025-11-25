@@ -2644,7 +2644,7 @@ export default function TimerApp() {
                         border: 'none',
                         borderRadius: 8,
                         padding: '8px 10px',
-                        color: theme.isDefault ? 'rgba(255,255,255,0.3)' : '#ff4444',
+                        color: theme.isDefault ? getTextOpacity(theme, 0.3) : '#ff4444',
                         cursor: theme.isDefault ? 'not-allowed' : 'pointer',
                         fontSize: 13,
                         fontWeight: 500,
