@@ -481,7 +481,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: theme.text,
+                      color: maxParticipants === preset.value ? getContrastColor(theme.accent) : theme.text,
                       cursor: 'pointer',
                       fontSize: 14,
                       fontWeight: 600,

@@ -1,6 +1,16 @@
 import React from 'react';
 import { Play, Save, ChevronUp, ChevronDown, ChevronRight, X } from 'lucide-react';
 
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text;
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 /**
  * CompositePanel Component
  * Handles sequence builder for creating multi-step timer sequences
@@ -93,7 +103,7 @@ const CompositePanel = ({
                     </button>
                   </div>
                   
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+                  <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5) }}>
                     {idx + 1}.
                   </div>
                   
@@ -110,13 +120,13 @@ const CompositePanel = ({
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>
                       {timer.name}
                     </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                    <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.5) }}>
                       {timer.duration} {timer.unit}
                     </div>
                   </div>
                   
                   {idx < sequence.length - 1 && (
-                    <ChevronRight size={16} style={{ color: 'rgba(255,255,255,0.3)' }} />
+                    <ChevronRight size={16} style={{ color: getTextOpacity(theme, 0.3) }} />
                   )}
                   
                   <button 
@@ -124,7 +134,7 @@ const CompositePanel = ({
                     style={{ 
                       background: 'transparent', 
                       border: 'none', 
-                      color: 'rgba(255,255,255,0.5)', 
+                      color: getTextOpacity(theme, 0.5), 
                       cursor: 'pointer', 
                       padding: 4 
                     }}
@@ -181,7 +191,7 @@ const CompositePanel = ({
               background: 'rgba(255,255,255,0.03)', 
               borderRadius: 10, 
               fontSize: 13, 
-              color: 'rgba(255,255,255,0.6)' 
+              color: getTextOpacity(theme, 0.6) 
             }}
           >
             💡 Click + on timers below to build sequence

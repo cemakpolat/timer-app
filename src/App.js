@@ -3124,7 +3124,7 @@ export default function TimerApp() {
 
             {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
             {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32 }}>
+              <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -3436,7 +3436,7 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
                   <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
                   <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
                     {formatTime(time)}
