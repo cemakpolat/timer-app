@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info, Edit } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
@@ -21,6 +21,44 @@ import shareService from './services/shareService';
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
 const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
+
+// Utility function to calculate relative luminance of a color
+const getLuminance = (hexColor) => {
+  // Convert hex to RGB
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+
+  // Apply gamma correction
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+
+  // Calculate relative luminance
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+};
+
+// Determine if a color is light (returns true for light colors)
+const isLightColor = (hexColor) => {
+  return getLuminance(hexColor) > 0.5;
+};
+
+// Get contrasting text color for a given background
+const getContrastColor = (bgColor) => {
+  return isLightColor(bgColor) ? '#000000' : '#ffffff';
+};
+
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text;
+  // Convert hex to rgba
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 const DEFAULT_THEMES = [
   { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isDefault: true },
@@ -115,13 +153,13 @@ const defaultSavedTimers = [
 ];
 
 // Centralized styles for inputs for consistency and easier modification
-const inputStyle = (accentColor) => ({
+const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)') => ({
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
-    border: `1px solid rgba(255,255,255,0.1)`,
+    border: `1px solid ${borderColor}`,
     borderRadius: 8,
     padding: 12,
-    color: 'white',
+    color: textColor,
     fontSize: 14,
     boxSizing: 'border-box', // Ensure padding doesn't add to total width
 });
@@ -249,12 +287,24 @@ export default function TimerApp() {
     }
   };
 
+  // Load deleted default themes from localStorage
+  const [deletedDefaultThemes, setDeletedDefaultThemes] = useState(() => {
+    try {
+      const stored = localStorage.getItem('deletedDefaultThemes');
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error("Failed to load deleted default themes:", error);
+      return [];
+    }
+  });
+
   // Load themes from localStorage (default + custom)
   const [themes, setThemes] = useState(() => {
     try {
       const storedCustomThemes = localStorage.getItem('customThemes');
       const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-      return [...DEFAULT_THEMES, ...customThemes];
+      const availableDefaultThemes = DEFAULT_THEMES.filter(t => !deletedDefaultThemes.includes(t.name));
+      return [...availableDefaultThemes, ...customThemes];
     } catch (error) {
       console.error("Failed to load custom themes:", error);
       return DEFAULT_THEMES;
@@ -283,7 +333,7 @@ export default function TimerApp() {
       return;
     }
 
-    const newTheme = {
+    const themeData = {
       name: newThemeName.trim(),
       bg: newThemeBg,
       card: newThemeCard,
@@ -295,19 +345,47 @@ export default function TimerApp() {
     try {
       const storedCustomThemes = localStorage.getItem('customThemes');
       const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-      
-      // Check if theme name already exists
-      if (customThemes.some(t => t.name.toLowerCase() === newTheme.name.toLowerCase())) {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
-        return;
+
+      if (editingTheme) {
+        // Editing existing theme
+        const index = customThemes.findIndex(t => t.name === editingTheme.name);
+        if (index !== -1) {
+          // If name changed, check for duplicates
+          if (editingTheme.name !== themeData.name && customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
+            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
+            return;
+          }
+          customThemes[index] = themeData;
+          localStorage.setItem('customThemes', JSON.stringify(customThemes));
+
+          // Update themes state
+          setThemes(prev => prev.map(t => t.name === editingTheme.name ? themeData : t));
+
+          // If currently selected theme was edited, update it
+          if (theme.name === editingTheme.name) {
+            setTheme(themeData);
+            localStorage.setItem('selectedThemeName', themeData.name);
+          }
+
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme updated!', type: 'success', ttl: 3000 } }));
+        }
+      } else {
+        // Creating new theme
+        // Check if theme name already exists
+        if (customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
+          return;
+        }
+
+        customThemes.push(themeData);
+        localStorage.setItem('customThemes', JSON.stringify(customThemes));
+
+        // Update themes state
+        setThemes(prev => [...prev, themeData]);
+
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
       }
 
-      customThemes.push(newTheme);
-      localStorage.setItem('customThemes', JSON.stringify(customThemes));
-      
-      // Update themes state
-      setThemes(prev => [...prev, newTheme]);
-      
       // Reset form
       setNewThemeName('');
       setNewThemeBg('#000000');
@@ -315,13 +393,52 @@ export default function TimerApp() {
       setNewThemeAccent('#3b82f6');
       setNewThemeText('#ffffff');
       setShowColorPicker(false);
-      
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
+      setEditingTheme(null);
     } catch (error) {
       console.error('Error saving custom theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
     }
   };
+
+  // Delete theme function
+  const deleteTheme = (themeToDelete) => {
+    try {
+      if (themeToDelete.isDefault) {
+        // For default themes, add to deleted list
+        const updatedDeleted = [...deletedDefaultThemes, themeToDelete.name];
+        setDeletedDefaultThemes(updatedDeleted);
+        localStorage.setItem('deletedDefaultThemes', JSON.stringify(updatedDeleted));
+
+        // Update themes state to remove the deleted default theme
+        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+      } else {
+        // For custom themes, remove from localStorage
+        const storedCustomThemes = localStorage.getItem('customThemes');
+        const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
+
+        const updatedThemes = customThemes.filter(t => t.name !== themeToDelete.name);
+        localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
+
+        // Update themes state
+        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+      }
+
+      // If the deleted theme was the current theme, switch to Midnight
+      if (theme.name === themeToDelete.name) {
+        const midnight = themes.find(t => t.name === 'Midnight') || DEFAULT_THEMES[0];
+        setTheme(midnight);
+        localStorage.setItem('selectedThemeName', midnight.name);
+      }
+
+      setShowDeleteThemeModal(false);
+      setThemeToDelete(null);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme deleted!', type: 'success', ttl: 3000 } }));
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to delete theme', type: 'error', ttl: 3000 } }));
+    }
+  };
+
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Settings states
@@ -331,11 +448,14 @@ export default function TimerApp() {
 
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(null);
   const [newThemeName, setNewThemeName] = useState('');
   const [newThemeBg, setNewThemeBg] = useState('#000000');
   const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
   const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
   const [newThemeText, setNewThemeText] = useState('#ffffff');
+  const [showDeleteThemeModal, setShowDeleteThemeModal] = useState(false);
+  const [themeToDelete, setThemeToDelete] = useState(null);
 
   // Accordion state for timer groups
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -1584,7 +1704,7 @@ export default function TimerApp() {
             <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16, margin: 0 }}>
               Time Capsule Opened!
             </h2>
-            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 32 }}>
+            <p style={{ fontSize: 16, color: getTextOpacity(theme, 0.7), marginBottom: 32 }}>
               A message from your past self, {Math.floor((Date.now() - showCapsuleNotification.createdAt) / (1000 * 60 * 60 * 24))} days ago:
             </p>
             <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 15, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
@@ -1592,7 +1712,7 @@ export default function TimerApp() {
             </div>
             <button
               onClick={() => setShowCapsuleNotification(null)}
-              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 10, padding: 15, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 10, padding: 15, color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
             >
               Close
             </button>
@@ -1622,16 +1742,16 @@ export default function TimerApp() {
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, margin: 0 }}>
                 Well Done!
               </h2>
-              <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)', marginBottom: 32 }}>
+              <p style={{ fontSize: 18, color: getTextOpacity(theme, 0.7), marginBottom: 32 }}>
                 You completed your {completedSession?.type}!
               </p>
               <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 32 }}>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
+                <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginBottom: 8 }}>Total Time</div>
                 <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent }}>
                   {formatTime(completedSession?.totalSeconds || 0)}
                 </div>
                 {completedSession?.details && (
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>
+                  <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginTop: 8 }}>
                     {completedSession.details}
                   </div>
                 )}
@@ -1661,7 +1781,7 @@ export default function TimerApp() {
                       startTimer(initialTime);
                     }
                   }}
-                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: '20px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: '20px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
                 >
                   Start Again
                 </button>
@@ -1671,7 +1791,7 @@ export default function TimerApp() {
         </>
       )}
 
-      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Close</button></div></div>}
+      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: getContrastColor(theme.accent), cursor: 'pointer' }}>Close</button></div></div>}
       {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
@@ -1690,13 +1810,16 @@ export default function TimerApp() {
             zIndex: 2000,
             padding: 20
           }}
-          onClick={() => setShowColorPicker(false)}
+          onClick={() => {
+            setShowColorPicker(false);
+            setEditingTheme(null);
+          }}
         >
           <div
             style={{
               background: theme.card,
               borderRadius: 24,
-              padding: 32,
+              padding: '24px 20px',
               maxWidth: 500,
               width: '100%',
               maxHeight: '90vh',
@@ -1704,8 +1827,8 @@ export default function TimerApp() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
-              🎨 Create Custom Theme
+            <h2 style={{ margin: 0, marginBottom: 20, fontSize: 18, fontWeight: 700 }}>
+              {editingTheme ? '✏️ Edit Theme' : '🎨 Create Custom Theme'}
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1722,7 +1845,7 @@ export default function TimerApp() {
                   style={{
                     width: '100%',
                     background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                     borderRadius: 8,
                     padding: 12,
                     color: theme.text,
@@ -1732,7 +1855,7 @@ export default function TimerApp() {
               </div>
 
               {/* Color Pickers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
                     Background
@@ -1757,7 +1880,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1792,7 +1915,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1827,7 +1950,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1862,7 +1985,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1907,18 +2030,21 @@ export default function TimerApp() {
               </div>
 
               {/* Buttons */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: window.innerWidth < 400 ? 'column' : 'row', gap: 10, marginTop: 8 }}>
                 <button
-                  onClick={() => setShowColorPicker(false)}
+                  onClick={() => {
+                    setShowColorPicker(false);
+                    setEditingTheme(null);
+                  }}
                   style={{
                     flex: 1,
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: 16,
+                    borderRadius: 10,
+                    padding: '14px',
                     color: theme.text,
                     cursor: 'pointer',
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: 600
                   }}
                 >
@@ -1931,16 +2057,16 @@ export default function TimerApp() {
                     flex: 1,
                     background: newThemeName.trim() ? newThemeAccent : 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: 16,
-                    color: 'white',
+                    borderRadius: 10,
+                    padding: '14px',
+                    color: newThemeName.trim() ? getContrastColor(newThemeAccent) : theme.text,
                     cursor: newThemeName.trim() ? 'pointer' : 'not-allowed',
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: 600,
                     opacity: newThemeName.trim() ? 1 : 0.5
                   }}
                 >
-                  Save Theme
+                  {editingTheme ? 'Update Theme' : 'Save Theme'}
                 </button>
               </div>
             </div>
@@ -1978,17 +2104,17 @@ export default function TimerApp() {
               <div style={{ fontSize: 32 }}>⚠️</div>
               <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clear All Cache?</h3>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 24, lineHeight: 1.6 }}>
               This action will permanently delete all your data, including:
             </p>
-            <ul style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 24, marginLeft: 20, lineHeight: 1.8 }}>
+            <ul style={{ color: getTextOpacity(theme, 0.6), marginBottom: 24, marginLeft: 20, lineHeight: 1.8 }}>
               <li>All saved timers</li>
               <li>Timer history</li>
               <li>Custom themes</li>
               <li>Achievements and statistics</li>
               <li>All settings</li>
             </ul>
-            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24, fontWeight: 500 }}>
+            <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 24, fontWeight: 500 }}>
               The app will reset to its initial state. This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -2019,7 +2145,7 @@ export default function TimerApp() {
                   border: 'none',
                   borderRadius: 12,
                   padding: 14,
-                  color: 'white',
+                  color: getContrastColor('#ef4444'),
                   cursor: 'pointer',
                   fontSize: 14,
                   fontWeight: 600,
@@ -2030,6 +2156,87 @@ export default function TimerApp() {
                 onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
               >
                 Clear Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Theme Confirmation Modal */}
+      {showDeleteThemeModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: 20
+          }}
+          onClick={() => setShowDeleteThemeModal(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 20,
+              padding: '24px',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 28 }}>🗑️</div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delete Theme?</h3>
+            </div>
+            <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 20, lineHeight: 1.5, fontSize: 14 }}>
+              Are you sure you want to delete <strong style={{ color: theme.text }}>"{themeToDelete?.name}"</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowDeleteThemeModal(false);
+                  setThemeToDelete(null);
+                }}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '12px',
+                  color: theme.text,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteTheme(themeToDelete)}
+                style={{
+                  flex: 1,
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '12px',
+                  color: getContrastColor('#ef4444'),
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              >
+                Delete Theme
               </button>
             </div>
           </div>
@@ -2380,31 +2587,142 @@ export default function TimerApp() {
 
               {settingsView === 'themes' && (
                 <>
-                  {/* Back Button */}
-                  <button
-                    onClick={() => setSettingsView('main')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '10px 12px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      marginBottom: 4
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Back</span>
-                  </button>
+                  {/* Header with Back, Edit, Delete, Add icons */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setSettingsView('main')}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Back"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    {/* Edit Icon */}
+                    <button
+                      onClick={() => {
+                        if (!theme.isDefault || theme.name !== 'Midnight') {
+                          setEditingTheme(theme);
+                          setNewThemeName(theme.name);
+                          setNewThemeBg(theme.bg);
+                          setNewThemeCard(theme.card);
+                          setNewThemeAccent(theme.accent);
+                          setNewThemeText(theme.text);
+                          setShowColorPicker(true);
+                          setShowSettings(false);
+                        }
+                      }}
+                      disabled={theme.isDefault && theme.name === 'Midnight'}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.isDefault && theme.name === 'Midnight' ? 'rgba(255,255,255,0.3)' : theme.text,
+                        cursor: theme.isDefault && theme.name === 'Midnight' ? 'not-allowed' : 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px',
+                        opacity: theme.isDefault && theme.name === 'Midnight' ? 0.5 : 1
+                      }}
+                      onMouseEnter={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255,255,255,0.1)' }}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title={theme.isDefault && theme.name === 'Midnight' ? 'Midnight theme cannot be edited' : 'Edit Current Theme'}
+                    >
+                      <Edit size={18} />
+                    </button>
+
+                    {/* Delete Icon */}
+                    <button
+                      onClick={() => {
+                        if (!(theme.isDefault && theme.name === 'Midnight')) {
+                          setThemeToDelete(theme);
+                          setShowDeleteThemeModal(true);
+                        }
+                      }}
+                      disabled={theme.isDefault && theme.name === 'Midnight'}
+                      style={{
+                        background: (theme.isDefault && theme.name === 'Midnight') ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: (theme.isDefault && theme.name === 'Midnight') ? getTextOpacity(theme, 0.3) : '#ff4444',
+                        cursor: (theme.isDefault && theme.name === 'Midnight') ? 'not-allowed' : 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px',
+                        opacity: (theme.isDefault && theme.name === 'Midnight') ? 0.5 : 1
+                      }}
+                      onMouseEnter={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.2)' }}
+                      onMouseLeave={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.1)' }}
+                      title={(theme.isDefault && theme.name === 'Midnight') ? 'Midnight theme cannot be deleted' : 'Delete Current Theme'}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+
+                    <div style={{ flex: 1 }} />
+
+                    {/* Add New Theme Icon */}
+                    <button
+                      onClick={() => {
+                        setEditingTheme(null);
+                        setNewThemeName('');
+                        setNewThemeBg('#000000');
+                        setNewThemeCard('#1a1a1a');
+                        setNewThemeAccent('#3b82f6');
+                        setNewThemeText('#ffffff');
+                        setShowColorPicker(true);
+                        setShowSettings(false);
+                      }}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Create New Theme"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
 
                   {/* Theme Grid */}
                   <div style={{ 
@@ -2434,7 +2752,8 @@ export default function TimerApp() {
                           color: t.text,
                           textAlign: 'center',
                           transition: 'all 0.2s',
-                          position: 'relative'
+                          position: 'relative',
+                          minHeight: 48
                         }}
                       >
                         {t.name}
@@ -2449,32 +2768,6 @@ export default function TimerApp() {
                         )}
                       </button>
                     ))}
-                    {/* Add Custom Theme Button */}
-                    <button
-                      onClick={() => {
-                        setShowColorPicker(true);
-                        setShowSettings(false);
-                        setSettingsView('main');
-                      }}
-                      style={{
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '2px dashed rgba(255,255,255,0.3)',
-                        borderRadius: 8,
-                        padding: 12,
-                        cursor: 'pointer',
-                        fontSize: 20,
-                        fontWeight: 600,
-                        color: theme.text,
-                        textAlign: 'center',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title="Create Custom Theme"
-                    >
-                      <Plus size={24} />
-                    </button>
                   </div>
                 </>
               )}
@@ -2509,14 +2802,14 @@ export default function TimerApp() {
 
                   {/* Sound Type */}
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Sound Type</label>
+                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Sound Type</label>
                     <select
                       value={alarmSoundType}
                       onChange={(e) => setAlarmSoundType(e.target.value)}
                       style={{ 
                         width: '100%', 
                         background: 'rgba(255,255,255,0.05)', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`, 
                         borderRadius: 8, 
                         padding: 8, 
                         color: theme.text, 
@@ -2532,7 +2825,7 @@ export default function TimerApp() {
 
                   {/* Volume Control */}
                   <div>
-                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>
                       Volume: {Math.round(alarmVolume * 100)}%
                     </label>
                     <input
@@ -2578,13 +2871,13 @@ export default function TimerApp() {
                   </button>
 
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Animations</label>
+                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Animations</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button
                         onClick={() => setAnimationsEnabled(!animationsEnabled)}
                         style={{
                           background: animationsEnabled ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.1)',
+                          border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                           borderRadius: 8,
                           padding: '8px 12px',
                           color: theme.text,
@@ -2599,7 +2892,7 @@ export default function TimerApp() {
                         {animationsEnabled ? 'Enabled' : 'Disabled'}
                       </button>
                     </div>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                    <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
                       Enable smooth animations for timer progress and transitions
                     </p>
                   </div>
@@ -2633,7 +2926,7 @@ export default function TimerApp() {
                   border: 'none',
                   borderRadius: 10,
                   padding: '8px 6px',
-                  color: theme.text,
+                  color: activeMainTab === tab.value ? getContrastColor(theme.accent) : theme.text,
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 600,
@@ -2674,10 +2967,10 @@ export default function TimerApp() {
                 title={tab.label}
                 style={{
                   background: activeFeatureTab === tab.value ? theme.accent : 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                   borderRadius: 10,
                   padding: 10,
-                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2702,10 +2995,10 @@ export default function TimerApp() {
                 style={{
                   flex: 1,
                   background: activeFeatureTab === tab.value ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                   borderRadius: 10,
                   padding: '8px 10px',
-                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 500,
@@ -2728,7 +3021,7 @@ export default function TimerApp() {
         {activeMainTab === 'rooms' && (
           <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s ease-in-out infinite' }} />
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+            <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.7) }}>
               <span style={{ fontWeight: 600, color: theme.accent }}>{activeUsers}</span> people getting focused right now
             </div>
           </div>
@@ -2755,7 +3048,7 @@ export default function TimerApp() {
                   <div style={{ fontSize: 14, fontWeight: 600, color: SCENES[activeScene].accent }}>
                     {SCENES[activeScene].name}
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                  <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.5) }}>
                     Immersive scene active
                   </div>
                 </div>
@@ -2777,18 +3070,18 @@ export default function TimerApp() {
               <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : (animationsEnabled && isRunning ? 'pulse 2s ease-in-out infinite' : 'none'), filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
               
               {(mode === 'interval' || mode === 'sequence') && calculateTotalRemaining() > 0 && (
-                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 24, marginTop: 4 }}>
+                  <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginBottom: 24, marginTop: 4 }}>
                       Total Remaining: {formatTime(calculateTotalRemaining())}
                   </div>
               )}
 
-              {mode === 'interval' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Round {currentRound}/{rounds} • {isWork ? '💪 Work' : '😌 Rest'}</div>}
-              {mode === 'sequence' && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>Step {currentStep + 1} of {sequence.length}{currentStep < sequence.length - 1 && <div style={{ marginTop: 8 }}>Next: {sequence[currentStep + 1].name}</div>}</div>}
+              {mode === 'interval' && <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.6), marginBottom: 24 }}>Round {currentRound}/{rounds} • {isWork ? '💪 Work' : '😌 Rest'}</div>}
+              {mode === 'sequence' && <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.6), marginBottom: 24 }}>Step {currentStep + 1} of {sequence.length}{currentStep < sequence.length - 1 && <div style={{ marginTop: 8 }}>Next: {sequence[currentStep + 1].name}</div>}</div>}
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
                 <button onClick={() => { setIsRunning(false); setTime(0); setCurrentStep(0); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
                 {mode !== 'stopwatch' && (
-                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
                 )}
               </div>
             </div>
@@ -2854,7 +3147,7 @@ export default function TimerApp() {
 
             {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
             {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && (
-              <div style={{ background: theme.card, borderRadius: 24, padding: 32 }}>
+              <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -2865,7 +3158,7 @@ export default function TimerApp() {
                         border: 'none',
                         borderRadius: 8,
                         padding: '6px 12px',
-                        color: 'rgba(255,255,255,0.6)',
+                        color: getTextOpacity(theme, 0.6),
                         cursor: 'pointer',
                         fontSize: 12,
                         fontWeight: 600
@@ -2885,7 +3178,7 @@ export default function TimerApp() {
                         border: 'none',
                         borderRadius: 8,
                         padding: '6px 12px',
-                        color: 'rgba(255,255,255,0.6)',
+                        color: getTextOpacity(theme, 0.6),
                         cursor: 'pointer',
                         fontSize: 12,
                         fontWeight: 600
@@ -2895,14 +3188,14 @@ export default function TimerApp() {
                       <ChevronUp size={14} />
                     </button>
                     {activeMainTab === 'timer' && (
-                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
+                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
                     )}
                   </div>
                 </div>
 
               {showCreateTimer && (
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent), marginBottom: 12 }} />
+                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1)), marginBottom: 12 }} />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input
@@ -2910,21 +3203,21 @@ export default function TimerApp() {
                         placeholder={newTimerUnit === 'min' ? 'Minutes' : 'Seconds'}
                         value={newTimerMin}
                         onChange={(e) => setNewTimerMin(Math.max(0, parseInt(e.target.value) || 0))}
-                        style={inputStyle(theme.accent)}
+                        style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))}
                       />
                       <select
                         value={newTimerUnit}
                         onChange={(e) => setNewTimerUnit(e.target.value)}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
                       >
                         <option value="min" style={{ background: theme.card }}>Min</option>
                         <option value="sec" style={{ background: theme.card }}>Sec</option>
                       </select>
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent)} />
+                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))} />
                       {showGroupDropdown && groups.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
                           {filteredGroups.map(g => (
                             <button key={g} onClick={() => { setNewTimerGroup(g); setShowGroupDropdown(false); }} style={{ width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', color: theme.text, textAlign: 'left', cursor: 'pointer', fontSize: 14 }} onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>{g}</button>
                           ))}
@@ -2936,15 +3229,15 @@ export default function TimerApp() {
                     {colorOptions.map(color => <button key={color} onClick={() => setNewTimerColor(color)} style={{ minWidth: 40, height: 40, borderRadius: 8, background: color, border: newTimerColor === color ? '3px solid white' : 'none', cursor: 'pointer', flexShrink: 0 }} />)}
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8, display: 'block' }}>Immersive Scene (Optional)</label>
-                    <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
+                    <label style={{ fontSize: 12, color: getTextOpacity(theme, 0.6), marginBottom: 8, display: 'block' }}>Immersive Scene (Optional)</label>
+                    <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
                       {Object.entries(SCENES).map(([key, scene]) => (
                         <option key={key} value={key} style={{ background: theme.card }}>
                           {scene.emoji} {scene.name}
                         </option>
                       ))}
                     </select>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                    <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
                       {SCENES[newTimerScene].description || 'No immersive background'}
                     </div>
                   </div>
@@ -2952,7 +3245,7 @@ export default function TimerApp() {
                     <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ flex: 1, background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
                       <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
                     </button>
-                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: getTextOpacity(theme, 0.6), cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                       <X size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cancel
                     </button>
                   </div>
@@ -2982,8 +3275,8 @@ export default function TimerApp() {
                       onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {isCollapsed ? <ChevronRight size={16} color={theme.accent} /> : <ChevronDown size={16} color={theme.accent} />}
+                        <div style={{ fontSize: 12, fontWeight: 600, color: getTextOpacity(theme, 0.7), textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           {group} ({groupTimers.length})
                         </div>
                       </div>
@@ -2994,24 +3287,33 @@ export default function TimerApp() {
                             shareTimerGroup(group);
                           }}
                           style={{
-                            background: 'rgba(255,255,255,0.05)',
                             border: 'none',
-                            borderRadius: 6,
-                            padding: '4px 12px',
-                            color: 'rgba(255,255,255,0.6)',
+                            borderRadius: 10,
+                            padding: 8,
+                            color: theme.accent,
                             cursor: 'pointer',
-                            fontSize: 11,
-                            fontWeight: 600,
+                            transition: 'all 0.2s',
                             display: 'flex',
-                            gap: 4
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'transparent'
                           }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = `${theme.accent}20`;
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                          title="Share Group"
                         >
-                          <Share size={12} />Share
+                          <Share size={16} />
                         </button>
                       )}
                     </div>
                     {!isCollapsed && groupTimers.map((timer) => (
-                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 16, padding: 20, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ width: 6, height: 40, borderRadius: 3, background: timer.color, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: '120px' }}>
                           <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3020,14 +3322,14 @@ export default function TimerApp() {
                               <span style={{ fontSize: 16 }} title={SCENES[timer.scene].name}>{SCENES[timer.scene].emoji}</span>
                             )}
                           </div>
-                          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
+                          <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5) }}>
                             {timer.isSequence ? `${timer.min} min • ${timer.steps.length} steps` : `${timer.duration} ${timer.unit}`}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
                           {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
-                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: 'white', cursor: 'pointer' }}><Play size={16} /></button>
-                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: getContrastColor(theme.accent), cursor: 'pointer' }}><Play size={16} /></button>
+                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: getTextOpacity(theme, 0.5), cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
                       </div>
                     ))}
@@ -3157,16 +3459,16 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && (
-                <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+                <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
                   <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
                   <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
                     {formatTime(time)}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
-                    <button onClick={startStopwatch} disabled={isRunning} style={{ background: isRunning ? 'rgba(255,255,255,0.1)' : theme.accent, border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                    <button onClick={startStopwatch} disabled={isRunning} style={{ background: isRunning ? 'rgba(255,255,255,0.1)' : theme.accent, border: 'none', borderRadius: 12, padding: '16px 32px', color: isRunning ? theme.text : getContrastColor(theme.accent), cursor: isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
                       <Play size={20} />
                     </button>
-                    <button onClick={pauseStopwatch} disabled={!isRunning} style={{ background: !isRunning ? 'rgba(255,255,255,0.1)' : '#f59e0b', border: 'none', borderRadius: 12, padding: '16px 32px', color: 'white', cursor: !isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
+                    <button onClick={pauseStopwatch} disabled={!isRunning} style={{ background: !isRunning ? 'rgba(255,255,255,0.1)' : '#f59e0b', border: 'none', borderRadius: 12, padding: '16px 32px', color: !isRunning ? theme.text : getContrastColor('#f59e0b'), cursor: !isRunning ? 'not-allowed' : 'pointer', fontSize: 16 }}>
                       <Pause size={20} />
                     </button>
                     <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: '16px 32px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
@@ -3216,7 +3518,7 @@ export default function TimerApp() {
                   border: 'none',
                   borderRadius: 8,
                   padding: 8,
-                  color: 'rgba(255,255,255,0.6)',
+                  color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   fontSize: 20,
                   zIndex: 10

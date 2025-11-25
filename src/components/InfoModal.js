@@ -1,6 +1,29 @@
 import React from 'react';
 import { X, Users, Clock, Zap, Gift, Award, Repeat } from 'lucide-react';
 
+// Utility function to get contrasting text color
+const getContrastColor = (bgColor) => {
+  const hex = bgColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+  const luminance = 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text;
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 /**
  * InfoModal Component
  * Explains the main features of Focus & Fit
@@ -70,6 +93,7 @@ export default function InfoModal({ theme, onClose }) {
 					width: '100%',
 					maxHeight: 'clamp(500px, 85vh, 92vh)',
 					boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
+					border: `1px solid ${getTextOpacity(theme, 0.1)}`,
 					position: 'relative',
 					marginBottom: '20px',
 					display: 'flex',
@@ -89,7 +113,7 @@ export default function InfoModal({ theme, onClose }) {
 						border: 'none',
 						borderRadius: 8,
 						padding: 8,
-						color: 'rgba(255,255,255,0.6)',
+						color: getTextOpacity(theme, 0.6),
 						cursor: 'pointer',
 						fontSize: 20,
 						display: 'flex',
@@ -125,7 +149,7 @@ export default function InfoModal({ theme, onClose }) {
 					style={{
 						margin: '0 0 32px 0',
 						fontSize: 14,
-						color: 'rgba(255,255,255,0.6)',
+						color: getTextOpacity(theme, 0.6),
 						lineHeight: 1.6
 					}}
 				>
@@ -150,7 +174,7 @@ export default function InfoModal({ theme, onClose }) {
 									background: 'rgba(255,255,255,0.03)',
 									borderRadius: 16,
 									padding: 20,
-									border: `1px solid rgba(255,255,255,0.05)`,
+									border: `1px solid ${getTextOpacity(theme, 0.05)}`,
 									transition: 'all 0.3s'
 								}}
 								onMouseEnter={(e) => {
@@ -192,7 +216,7 @@ export default function InfoModal({ theme, onClose }) {
 											style={{
 												margin: 0,
 												fontSize: 13,
-												color: 'rgba(255,255,255,0.6)',
+												color: getTextOpacity(theme, 0.6),
 												lineHeight: 1.5
 											}}
 										>
@@ -213,7 +237,7 @@ export default function InfoModal({ theme, onClose }) {
 						borderRadius: 12,
 						borderTop: '1px solid rgba(255,255,255,0.05)',
 						fontSize: 12,
-						color: 'rgba(255,255,255,0.5)',
+						color: getTextOpacity(theme, 0.5),
 						textAlign: 'center',
 						lineHeight: 1.5
 					}}
@@ -239,7 +263,7 @@ export default function InfoModal({ theme, onClose }) {
 						border: 'none',
 						borderRadius: 12,
 						padding: 14,
-						color: 'white',
+						color: getContrastColor(theme.accent),
 						cursor: 'pointer',
 						fontSize: 16,
 						fontWeight: 600,
