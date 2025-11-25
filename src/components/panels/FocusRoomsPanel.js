@@ -166,7 +166,7 @@ function FocusRoomsPanel({
                   border: 'none',
                   borderRadius: 8,
                   padding: '8px 16px',
-                  color: theme.text,
+                  color: getContrastColor(theme.accent),
                   cursor: 'pointer',
                   fontSize: 14,
                   fontWeight: 600,

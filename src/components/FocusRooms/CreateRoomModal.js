@@ -44,15 +44,15 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
   // Get all available timers (including composite timers)
   const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
 
-  // Available tags for rooms (simple text tags)
+  // Available tags for rooms (with colors matching FocusRoomsPanel)
   const availableTags = [
-    { value: 'work', label: 'Work' },
-    { value: 'study', label: 'Study' },
-    { value: 'fitness', label: 'Fitness' },
-    { value: 'meditation', label: 'Meditation' },
-    { value: 'creative', label: 'Creative' },
-    { value: 'social', label: 'Social' },
-    { value: 'other', label: 'Other' }
+    { value: 'work', label: 'Work', color: '#ef4444' },
+    { value: 'study', label: 'Study', color: '#3b82f6' },
+    { value: 'fitness', label: 'Fitness', color: '#10b981' },
+    { value: 'meditation', label: 'Meditation', color: '#8b5cf6' },
+    { value: 'creative', label: 'Creative', color: '#f59e0b' },
+    { value: 'social', label: 'Social', color: '#ec4899' },
+    { value: 'other', label: 'Other', color: '#6b7280' }
   ];
 
   const { alert } = useModal();
@@ -280,11 +280,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                   type="button"
                   onClick={() => setSelectedTag(tag.value)}
                   style={{
-                    background: selectedTag === tag.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.06)`,
-                    border: `1px solid ${selectedTag === tag.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
+                    background: selectedTag === tag.value ? tag.color + '20' : 'transparent',
+                    border: `1px solid ${selectedTag === tag.value ? tag.color : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
                     borderRadius: 9999,
                     padding: '6px 12px',
-                    color: theme.text,
+                    color: selectedTag === tag.value ? tag.color : theme.text,
                     cursor: 'pointer',
                     fontSize: 12,
                     fontWeight: 600,
@@ -328,7 +328,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                   border: 'none',
                   borderBottom: timerTab === 'available' ? `2px solid ${theme.accent}` : `2px solid transparent`,
                   padding: '8px 12px',
-                  color: timerTab === 'available' ? theme.accent : 'rgba(255,255,255,0.6)',
+                  color: timerTab === 'available' ? theme.accent : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   fontSize: 13,
                   fontWeight: 600,
@@ -357,7 +357,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: theme.text,
+                          color: duration === preset.value ? getContrastColor(theme.accent) : theme.text,
                           cursor: 'pointer',
                           fontSize: 13,
                           fontWeight: 600,
@@ -398,7 +398,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 {availableTimers.length === 0 ? (
                   <div style={{
                     background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                     borderRadius: 8,
                     padding: 12,
                     textAlign: 'center',
@@ -429,7 +429,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                           border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
                           borderRadius: 8,
                           padding: '8px 10px',
-                          color: theme.text,
+                          color: isSelected ? getContrastColor(theme.accent) : theme.text,
                           cursor: 'pointer',
                           fontSize: 12,
                           transition: 'all 0.2s',
@@ -552,7 +552,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                     style={{
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                       borderRadius: 8,
                       padding: 10,
                       color: theme.text,
@@ -572,7 +572,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                     style={{
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                       borderRadius: 8,
                       padding: 10,
                       color: theme.text,
@@ -600,7 +600,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
                 style={{
                   width: 120,
                   background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                   borderRadius: 8,
                   padding: 10,
                   color: theme.text,

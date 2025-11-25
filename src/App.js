@@ -3290,7 +3290,7 @@ export default function TimerApp() {
                       )}
                     </div>
                     {!isCollapsed && groupTimers.map((timer) => (
-                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 16, padding: 20, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ width: 6, height: 40, borderRadius: 3, background: timer.color, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: '120px' }}>
                           <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>

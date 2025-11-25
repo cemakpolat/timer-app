@@ -93,6 +93,7 @@ export default function InfoModal({ theme, onClose }) {
 					width: '100%',
 					maxHeight: 'clamp(500px, 85vh, 92vh)',
 					boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
+					border: `1px solid ${getTextOpacity(theme, 0.1)}`,
 					position: 'relative',
 					marginBottom: '20px',
 					display: 'flex',
@@ -173,7 +174,7 @@ export default function InfoModal({ theme, onClose }) {
 									background: 'rgba(255,255,255,0.03)',
 									borderRadius: 16,
 									padding: 20,
-									border: `1px solid rgba(255,255,255,0.05)`,
+									border: `1px solid ${getTextOpacity(theme, 0.05)}`,
 									transition: 'all 0.3s'
 								}}
 								onMouseEnter={(e) => {

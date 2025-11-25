@@ -183,7 +183,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
-                border: '2px solid rgba(255,255,255,0.1)',
+                border: `2px solid ${getTextOpacity(theme, 0.1)}`,
                 borderRadius: 10,
                 padding: 14,
                 color: theme.text,
@@ -210,7 +210,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
-                border: '2px solid rgba(255,255,255,0.1)',
+                border: `2px solid ${getTextOpacity(theme, 0.1)}`,
                 borderRadius: 10,
                 padding: 14,
                 color: theme.text,
@@ -303,7 +303,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             style={{
               width: '100%',
               background: suggestion.trim() ? theme.accent : 'rgba(255,255,255,0.1)',
-              border: 'none',
+              border: suggestion.trim() ? 'none' : `1px solid ${getTextOpacity(theme, 0.2)}`,
               borderRadius: 10,
               padding: 16,
               color: suggestion.trim() ? getContrastColor(theme.accent) : theme.text,
