@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info, Edit } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
@@ -283,7 +283,7 @@ export default function TimerApp() {
       return;
     }
 
-    const newTheme = {
+    const themeData = {
       name: newThemeName.trim(),
       bg: newThemeBg,
       card: newThemeCard,
@@ -295,19 +295,47 @@ export default function TimerApp() {
     try {
       const storedCustomThemes = localStorage.getItem('customThemes');
       const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-      
-      // Check if theme name already exists
-      if (customThemes.some(t => t.name.toLowerCase() === newTheme.name.toLowerCase())) {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
-        return;
+
+      if (editingTheme) {
+        // Editing existing theme
+        const index = customThemes.findIndex(t => t.name === editingTheme.name);
+        if (index !== -1) {
+          // If name changed, check for duplicates
+          if (editingTheme.name !== themeData.name && customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
+            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
+            return;
+          }
+          customThemes[index] = themeData;
+          localStorage.setItem('customThemes', JSON.stringify(customThemes));
+
+          // Update themes state
+          setThemes(prev => prev.map(t => t.name === editingTheme.name ? themeData : t));
+
+          // If currently selected theme was edited, update it
+          if (theme.name === editingTheme.name) {
+            setTheme(themeData);
+            localStorage.setItem('selectedThemeName', themeData.name);
+          }
+
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme updated!', type: 'success', ttl: 3000 } }));
+        }
+      } else {
+        // Creating new theme
+        // Check if theme name already exists
+        if (customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
+          return;
+        }
+
+        customThemes.push(themeData);
+        localStorage.setItem('customThemes', JSON.stringify(customThemes));
+
+        // Update themes state
+        setThemes(prev => [...prev, themeData]);
+
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
       }
 
-      customThemes.push(newTheme);
-      localStorage.setItem('customThemes', JSON.stringify(customThemes));
-      
-      // Update themes state
-      setThemes(prev => [...prev, newTheme]);
-      
       // Reset form
       setNewThemeName('');
       setNewThemeBg('#000000');
@@ -315,13 +343,41 @@ export default function TimerApp() {
       setNewThemeAccent('#3b82f6');
       setNewThemeText('#ffffff');
       setShowColorPicker(false);
-      
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
+      setEditingTheme(null);
     } catch (error) {
       console.error('Error saving custom theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
     }
   };
+
+  // Delete theme function
+  const deleteTheme = (themeToDelete) => {
+    try {
+      const storedCustomThemes = localStorage.getItem('customThemes');
+      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
+
+      const updatedThemes = customThemes.filter(t => t.name !== themeToDelete.name);
+      localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
+
+      // Update themes state
+      setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+
+      // If the deleted theme was the current theme, switch to Midnight
+      if (theme.name === themeToDelete.name) {
+        const midnight = DEFAULT_THEMES[0];
+        setTheme(midnight);
+        localStorage.setItem('selectedThemeName', midnight.name);
+      }
+
+      setShowDeleteThemeModal(false);
+      setThemeToDelete(null);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme deleted!', type: 'success', ttl: 3000 } }));
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to delete theme', type: 'error', ttl: 3000 } }));
+    }
+  };
+
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Settings states
@@ -331,11 +387,14 @@ export default function TimerApp() {
 
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(null);
   const [newThemeName, setNewThemeName] = useState('');
   const [newThemeBg, setNewThemeBg] = useState('#000000');
   const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
   const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
   const [newThemeText, setNewThemeText] = useState('#ffffff');
+  const [showDeleteThemeModal, setShowDeleteThemeModal] = useState(false);
+  const [themeToDelete, setThemeToDelete] = useState(null);
 
   // Accordion state for timer groups
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -1690,13 +1749,16 @@ export default function TimerApp() {
             zIndex: 2000,
             padding: 20
           }}
-          onClick={() => setShowColorPicker(false)}
+          onClick={() => {
+            setShowColorPicker(false);
+            setEditingTheme(null);
+          }}
         >
           <div
             style={{
               background: theme.card,
               borderRadius: 24,
-              padding: 32,
+              padding: '24px 20px',
               maxWidth: 500,
               width: '100%',
               maxHeight: '90vh',
@@ -1704,8 +1766,8 @@ export default function TimerApp() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
-              🎨 Create Custom Theme
+            <h2 style={{ margin: 0, marginBottom: 20, fontSize: 18, fontWeight: 700 }}>
+              {editingTheme ? '✏️ Edit Theme' : '🎨 Create Custom Theme'}
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1732,7 +1794,7 @@ export default function TimerApp() {
               </div>
 
               {/* Color Pickers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
                     Background
@@ -1907,18 +1969,21 @@ export default function TimerApp() {
               </div>
 
               {/* Buttons */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: window.innerWidth < 400 ? 'column' : 'row', gap: 10, marginTop: 8 }}>
                 <button
-                  onClick={() => setShowColorPicker(false)}
+                  onClick={() => {
+                    setShowColorPicker(false);
+                    setEditingTheme(null);
+                  }}
                   style={{
                     flex: 1,
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: 16,
+                    borderRadius: 10,
+                    padding: '14px',
                     color: theme.text,
                     cursor: 'pointer',
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: 600
                   }}
                 >
@@ -1931,16 +1996,16 @@ export default function TimerApp() {
                     flex: 1,
                     background: newThemeName.trim() ? newThemeAccent : 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 12,
-                    padding: 16,
+                    borderRadius: 10,
+                    padding: '14px',
                     color: 'white',
                     cursor: newThemeName.trim() ? 'pointer' : 'not-allowed',
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: 600,
                     opacity: newThemeName.trim() ? 1 : 0.5
                   }}
                 >
-                  Save Theme
+                  {editingTheme ? 'Update Theme' : 'Save Theme'}
                 </button>
               </div>
             </div>
@@ -2030,6 +2095,87 @@ export default function TimerApp() {
                 onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
               >
                 Clear Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Theme Confirmation Modal */}
+      {showDeleteThemeModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: 20
+          }}
+          onClick={() => setShowDeleteThemeModal(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 20,
+              padding: '24px',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 28 }}>🗑️</div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delete Theme?</h3>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 20, lineHeight: 1.5, fontSize: 14 }}>
+              Are you sure you want to delete <strong style={{ color: theme.text }}>"{themeToDelete?.name}"</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowDeleteThemeModal(false);
+                  setThemeToDelete(null);
+                }}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '12px',
+                  color: theme.text,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteTheme(themeToDelete)}
+                style={{
+                  flex: 1,
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '12px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              >
+                Delete Theme
               </button>
             </div>
           </div>
@@ -2387,23 +2533,24 @@ export default function TimerApp() {
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
                       borderRadius: 8,
-                      padding: '10px 12px',
+                      padding: '8px 10px',
                       color: theme.text,
                       cursor: 'pointer',
                       fontSize: 13,
                       fontWeight: 500,
-                      textAlign: 'left',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 8,
+                      justifyContent: 'center',
                       transition: 'all 0.2s',
-                      marginBottom: 4
+                      marginBottom: 4,
+                      minWidth: '40px',
+                      minHeight: '40px'
                     }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Back"
                   >
-                    <ChevronLeft size={16} />
-                    <span>Back</span>
+                    <ChevronLeft size={18} />
                   </button>
 
                   {/* Theme Grid */}
@@ -2416,38 +2563,110 @@ export default function TimerApp() {
                     padding: 4
                   }}>
                     {themes.map(t => (
-                      <button
+                      <div
                         key={t.name}
-                        onClick={() => {
-                          setTheme(t);
-                          setShowSettings(false);
-                          setSettingsView('main');
-                        }}
                         style={{
-                          background: t.bg,
-                          border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
-                          borderRadius: 8,
-                          padding: 12,
-                          cursor: 'pointer',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: t.text,
-                          textAlign: 'center',
-                          transition: 'all 0.2s',
-                          position: 'relative'
+                          position: 'relative',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4
                         }}
                       >
-                        {t.name}
-                        {theme.name === t.name && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            color: t.accent,
-                            fontSize: 14
-                          }}>✓</div>
+                        <button
+                          onClick={() => {
+                            setTheme(t);
+                            setShowSettings(false);
+                            setSettingsView('main');
+                          }}
+                          style={{
+                            background: t.bg,
+                            border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
+                            borderRadius: 8,
+                            padding: 12,
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: t.text,
+                            textAlign: 'center',
+                            transition: 'all 0.2s',
+                            position: 'relative',
+                            minHeight: 48
+                          }}
+                        >
+                          {t.name}
+                          {theme.name === t.name && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              color: t.accent,
+                              fontSize: 14
+                            }}>✓</div>
+                          )}
+                        </button>
+                        {(t.name !== 'Midnight' || !t.isDefault) && (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTheme(t);
+                                setNewThemeName(t.name);
+                                setNewThemeBg(t.bg);
+                                setNewThemeCard(t.card);
+                                setNewThemeAccent(t.accent);
+                                setNewThemeText(t.text);
+                                setShowColorPicker(true);
+                                setShowSettings(false);
+                              }}
+                              style={{
+                                flex: 1,
+                                background: 'rgba(255,255,255,0.05)',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '6px',
+                                color: theme.text,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                              title="Edit Theme"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            {!t.isDefault && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setThemeToDelete(t);
+                                  setShowDeleteThemeModal(true);
+                                }}
+                                style={{
+                                  flex: 1,
+                                  background: 'rgba(255, 0, 0, 0.1)',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '6px',
+                                  color: '#ff4444',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)'}
+                                title="Delete Theme"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         )}
-                      </button>
+                      </div>
                     ))}
                     {/* Add Custom Theme Button */}
                     <button
