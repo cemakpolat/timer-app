@@ -153,10 +153,10 @@ const defaultSavedTimers = [
 ];
 
 // Centralized styles for inputs for consistency and easier modification
-const inputStyle = (accentColor, textColor = '#ffffff') => ({
+const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)') => ({
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
-    border: `1px solid rgba(255,255,255,0.1)`,
+    border: `1px solid ${borderColor}`,
     borderRadius: 8,
     padding: 12,
     color: textColor,
@@ -1822,7 +1822,7 @@ export default function TimerApp() {
                   style={{
                     width: '100%',
                     background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                     borderRadius: 8,
                     padding: 12,
                     color: theme.text,
@@ -1857,7 +1857,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1892,7 +1892,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1927,7 +1927,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -1962,7 +1962,7 @@ export default function TimerApp() {
                       style={{
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                         borderRadius: 6,
                         padding: '6px 8px',
                         color: theme.text,
@@ -2786,7 +2786,7 @@ export default function TimerApp() {
                       style={{ 
                         width: '100%', 
                         background: 'rgba(255,255,255,0.05)', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`, 
                         borderRadius: 8, 
                         padding: 8, 
                         color: theme.text, 
@@ -2854,7 +2854,7 @@ export default function TimerApp() {
                         onClick={() => setAnimationsEnabled(!animationsEnabled)}
                         style={{
                           background: animationsEnabled ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.1)',
+                          border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                           borderRadius: 8,
                           padding: '8px 12px',
                           color: theme.text,
@@ -2903,7 +2903,7 @@ export default function TimerApp() {
                   border: 'none',
                   borderRadius: 10,
                   padding: '8px 6px',
-                  color: theme.text,
+                  color: activeMainTab === tab.value ? getContrastColor(theme.accent) : theme.text,
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 600,
@@ -2944,10 +2944,10 @@ export default function TimerApp() {
                 title={tab.label}
                 style={{
                   background: activeFeatureTab === tab.value ? theme.accent : 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                   borderRadius: 10,
                   padding: 10,
-                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2972,10 +2972,10 @@ export default function TimerApp() {
                 style={{
                   flex: 1,
                   background: activeFeatureTab === tab.value ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                   borderRadius: 10,
                   padding: '8px 10px',
-                  color: activeFeatureTab === tab.value ? 'white' : 'rgba(255,255,255,0.6)',
+                  color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   fontSize: 11,
                   fontWeight: 500,
@@ -3172,7 +3172,7 @@ export default function TimerApp() {
 
               {showCreateTimer && (
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text), marginBottom: 12 }} />
+                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1)), marginBottom: 12 }} />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input
@@ -3180,21 +3180,21 @@ export default function TimerApp() {
                         placeholder={newTimerUnit === 'min' ? 'Minutes' : 'Seconds'}
                         value={newTimerMin}
                         onChange={(e) => setNewTimerMin(Math.max(0, parseInt(e.target.value) || 0))}
-                        style={inputStyle(theme.accent, theme.text)}
+                        style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))}
                       />
                       <select
                         value={newTimerUnit}
                         onChange={(e) => setNewTimerUnit(e.target.value)}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
                       >
                         <option value="min" style={{ background: theme.card }}>Min</option>
                         <option value="sec" style={{ background: theme.card }}>Sec</option>
                       </select>
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent, theme.text)} />
+                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))} />
                       {showGroupDropdown && groups.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
                           {filteredGroups.map(g => (
                             <button key={g} onClick={() => { setNewTimerGroup(g); setShowGroupDropdown(false); }} style={{ width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', color: theme.text, textAlign: 'left', cursor: 'pointer', fontSize: 14 }} onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>{g}</button>
                           ))}
@@ -3207,7 +3207,7 @@ export default function TimerApp() {
                   </div>
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 12, color: getTextOpacity(theme, 0.6), marginBottom: 8, display: 'block' }}>Immersive Scene (Optional)</label>
-                    <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
+                    <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
                       {Object.entries(SCENES).map(([key, scene]) => (
                         <option key={key} value={key} style={{ background: theme.card }}>
                           {scene.emoji} {scene.name}
@@ -3222,7 +3222,7 @@ export default function TimerApp() {
                     <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ flex: 1, background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
                       <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
                     </button>
-                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 12, color: getTextOpacity(theme, 0.6), cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: getTextOpacity(theme, 0.6), cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                       <X size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cancel
                     </button>
                   </div>
@@ -3252,7 +3252,7 @@ export default function TimerApp() {
                       onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                        {isCollapsed ? <ChevronRight size={16} color={theme.accent} /> : <ChevronDown size={16} color={theme.accent} />}
                         <div style={{ fontSize: 12, fontWeight: 600, color: getTextOpacity(theme, 0.7), textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           {group} ({groupTimers.length})
                         </div>
