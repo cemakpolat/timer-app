@@ -3264,19 +3264,28 @@ export default function TimerApp() {
                             shareTimerGroup(group);
                           }}
                           style={{
-                            background: 'rgba(255,255,255,0.05)',
                             border: 'none',
-                            borderRadius: 6,
-                            padding: '4px 12px',
-                            color: getTextOpacity(theme, 0.6),
+                            borderRadius: 10,
+                            padding: 8,
+                            color: theme.accent,
                             cursor: 'pointer',
-                            fontSize: 11,
-                            fontWeight: 600,
+                            transition: 'all 0.2s',
                             display: 'flex',
-                            gap: 4
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'transparent'
                           }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = `${theme.accent}20`;
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                          title="Share Group"
                         >
-                          <Share size={12} />Share
+                          <Share size={16} />
                         </button>
                       )}
                     </div>

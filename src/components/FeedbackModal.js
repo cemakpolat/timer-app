@@ -2,6 +2,29 @@ import React, { useState } from 'react';
 import { useModal } from '../context/ModalContext';
 import { X, Send, Lightbulb } from 'lucide-react';
 
+// Utility function to get contrasting text color
+const getContrastColor = (bgColor) => {
+  const hex = bgColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+  const luminance = 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text;
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 /**
  * Modal for submitting feedback and suggestions
  */
@@ -107,7 +130,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,0.6)',
+              color: getTextOpacity(theme, 0.6),
               cursor: 'pointer',
               padding: 8,
               borderRadius: 8,
@@ -137,19 +160,19 @@ const FeedbackModal = ({ theme, onClose }) => {
             <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: theme.accent }}>
               About
             </h3>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: getTextOpacity(theme, 0.8) }}>
               This app is a social timer tool designed to help you stay focused and accountable for any timed activity, from workouts to work sessions.
               With Pomodoro timers, interval training, collaborative focus rooms, and achievement tracking,
               we're building tools that help you stay motivated and productive.
             </p>
-            <p style={{ margin: '12px 0 0 0', fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+            <p style={{ margin: '12px 0 0 0', fontSize: 14, lineHeight: 1.6, color: getTextOpacity(theme, 0.8) }}>
               We're constantly improving based on your feedback. Share your ideas, report bugs,
               or suggest new features below!
             </p>
           </div>
           {/* Name (Optional) */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: getTextOpacity(theme, 0.9) }}>
               Your Name (Optional)
             </label>
             <input
@@ -163,7 +186,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 border: '2px solid rgba(255,255,255,0.1)',
                 borderRadius: 10,
                 padding: 14,
-                color: 'white',
+                color: theme.text,
                 fontSize: 15,
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -176,7 +199,7 @@ const FeedbackModal = ({ theme, onClose }) => {
 
           {/* Email (Optional) */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: getTextOpacity(theme, 0.9) }}>
               Your Email (Optional - for follow-up)
             </label>
             <input
@@ -190,7 +213,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 border: '2px solid rgba(255,255,255,0.1)',
                 borderRadius: 10,
                 padding: 14,
-                color: 'white',
+                color: theme.text,
                 fontSize: 15,
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -203,7 +226,7 @@ const FeedbackModal = ({ theme, onClose }) => {
 
           {/* Suggestion */}
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'rgba(255,255,255,0.9)' }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: getTextOpacity(theme, 0.9) }}>
               Your Suggestion or Feedback *
             </label>
             <textarea
@@ -218,7 +241,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 border: `2px solid ${suggestion ? theme.accent : 'rgba(255,255,255,0.1)'}`,
                 borderRadius: 10,
                 padding: 14,
-                color: 'white',
+                color: theme.text,
                 fontSize: 15,
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -227,7 +250,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 fontFamily: 'inherit'
               }}
             />
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.5), marginTop: 6 }}>
               Share your ideas, report bugs, or suggest improvements
             </div>
           </div>
@@ -283,7 +306,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               border: 'none',
               borderRadius: 10,
               padding: 16,
-              color: 'white',
+              color: suggestion.trim() ? getContrastColor(theme.accent) : theme.text,
               cursor: suggestion.trim() ? 'pointer' : 'not-allowed',
               fontSize: 16,
               fontWeight: 600,
@@ -312,7 +335,7 @@ const FeedbackModal = ({ theme, onClose }) => {
 
           <div style={{
             fontSize: 12,
-            color: 'rgba(255,255,255,0.5)',
+            color: getTextOpacity(theme, 0.5),
             marginTop: 12,
             textAlign: 'center'
           }}>
