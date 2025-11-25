@@ -5,6 +5,29 @@ import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
 import RoomExpirationModal from '../FocusRooms/RoomExpirationModal';
 import RealtimeServiceFactory from '../../services/RealtimeServiceFactory';
 
+// Utility function to get contrasting text color
+const getContrastColor = (bgColor) => {
+  const hex = bgColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+  const luminance = 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text;
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 /**
  * FocusRoomsPanel Component
  * Displays list of focus rooms or active room details with participants, timer, and chat
@@ -143,7 +166,7 @@ function FocusRoomsPanel({
                   border: 'none',
                   borderRadius: 8,
                   padding: '8px 16px',
-                  color: theme.text,
+                  color: getContrastColor(theme.accent),
                   cursor: 'pointer',
                   fontSize: 14,
                   fontWeight: 600,
@@ -214,7 +237,7 @@ function FocusRoomsPanel({
                         }}
                         style={{
                           background: isSelected ? tag.color + '20' : 'transparent',
-                          border: `1px solid ${isSelected ? tag.color : 'rgba(255,255,255,0.08)'}`,
+                          border: `1px solid ${isSelected ? tag.color : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
                           borderRadius: 9999,
                           padding: '2px 8px',
                           color: isSelected ? '#000' : theme.text,
@@ -283,7 +306,7 @@ function FocusRoomsPanel({
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 16, fontSize: 13, color: getTextOpacity(theme, 0.6), flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Users size={14} />
                             {getParticipantCount(room)}/{room.maxParticipants}
@@ -331,11 +354,11 @@ function FocusRoomsPanel({
                           <button
                             onClick={() => handleShareRoomLink(room)}
                             style={{
-                              background: 'rgba(59,130,246,0.2)',
-                              border: '1px solid rgba(59,130,246,0.5)',
-                              borderRadius: 8,
-                              padding: '8px',
-                              color: '#3b82f6',
+                              background: 'transparent',
+                              border: 'none',
+                              borderRadius: 10,
+                              padding: 8,
+                              color: theme.accent,
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
@@ -343,10 +366,12 @@ function FocusRoomsPanel({
                               transition: 'all 0.2s'
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.background = 'rgba(59,130,246,0.3)';
+                              e.currentTarget.style.background = `${theme.accent}20`;
+                              e.currentTarget.style.transform = 'scale(1.05)';
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.background = 'rgba(59,130,246,0.2)';
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.transform = 'scale(1)';
                             }}
                             title="Share room link"
                           >
@@ -391,11 +416,11 @@ function FocusRoomsPanel({
                           onClick={() => handleJoinRoom(room.id)}
                           disabled={isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)}
                           style={{
-                            background: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'rgba(255,255,255,0.1)' : theme.accent,
+                            background: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)` : theme.accent,
                             border: 'none',
                             borderRadius: 12,
                             padding: '10px 20px',
-                            color: theme.text,
+                            color: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? theme.text : getContrastColor(theme.accent),
                             cursor: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'not-allowed' : 'pointer',
                             fontSize: 14,
                             fontWeight: 600,
@@ -419,7 +444,7 @@ function FocusRoomsPanel({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.6) }}>
                   Host: {currentRoom.creatorName || currentRoom.createdBy}
                 </div>
               </div>
@@ -427,7 +452,7 @@ function FocusRoomsPanel({
                 <button
                   onClick={leaveRoom}
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
+                    background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                     border: 'none',
                     borderRadius: 8,
                     padding: '8px',
@@ -491,15 +516,24 @@ function FocusRoomsPanel({
                 <button
                   onClick={() => handleShareRoomLink(currentRoom)}
                   style={{
-                    background: 'rgba(59,130,246,0.2)',
+                    background: 'transparent',
                     border: 'none',
-                    borderRadius: 8,
-                    padding: '8px',
-                    color: '#3b82f6',
+                    borderRadius: 10,
+                    padding: 8,
+                    color: theme.accent,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `${theme.accent}20`;
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.transform = 'scale(1)';
                   }}
                   title="Share Room Link"
                 >
@@ -567,7 +601,7 @@ function FocusRoomsPanel({
                   <div
                     key={userId}
                     style={{
-                      background: 'rgba(255,255,255,0.1)',
+                      background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                       borderRadius: 8,
                       padding: '6px 12px',
                       fontSize: 13,
@@ -601,8 +635,8 @@ function FocusRoomsPanel({
                     <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
                       {currentRoom.compositeTimer.steps.map((step, idx) => (
                         <React.Fragment key={idx}>
-                          <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                          {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
+                          <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
+                          {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
                         </React.Fragment>
                       ))}
                     </div>
@@ -648,7 +682,7 @@ function FocusRoomsPanel({
 
             {/* Timer Info */}
             {!currentRoom.timer && currentRoom.timerType === 'composite' && currentRoom.compositeTimer && (
-              <div style={{ marginBottom: 24, textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+              <div style={{ marginBottom: 24, textAlign: 'center', fontSize: 13, color: getTextOpacity(theme, 0.6) }}>
                 {currentRoom.compositeTimer.steps.length} steps • {Math.floor(currentRoom.duration / 60)} min total
               </div>
             )}
@@ -700,7 +734,7 @@ function FocusRoomsPanel({
                         </div>
                         <div
                           style={{
-                            background: isMe ? theme.accent : 'rgba(255,255,255,0.1)',
+                            background: isMe ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                             borderRadius: 12,
                             padding: '8px 12px',
                             maxWidth: '70%',
@@ -891,13 +925,13 @@ function FocusRoomsPanel({
                   border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 12,
                   padding: 16,
-                  color: 'rgba(255,255,255,0.6)',
+                  color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
                   fontSize: 15,
                   fontWeight: 600,
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseEnter={(e) => e.target.style.background = `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}
                 onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
               >
                 Cancel
