@@ -56,7 +56,7 @@ const CompositePanel = ({
             placeholder="Sequence name" 
             value={seqName} 
             onChange={(e) => setSeqName(e.target.value)} 
-            style={inputStyle(theme.accent)} 
+            style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))} 
           />
           
           {sequence.length > 0 && (

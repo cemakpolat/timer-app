@@ -32,6 +32,8 @@ const FeedbackModal = ({ theme, onClose }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [suggestion, setSuggestion] = useState('');
+  const [borderFeedback, setBorderFeedback] = useState('');
+  const [intervalTimerSettings, setIntervalTimerSettings] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' or 'error'
 
@@ -52,7 +54,7 @@ const FeedbackModal = ({ theme, onClose }) => {
       // Create mailto link as backend fallback
       const subject = encodeURIComponent('Suggestion');
       const body = encodeURIComponent(
-        `Name: ${name || 'Anonymous'}\nEmail: ${email || 'Not provided'}\n\nSuggestion:\n${suggestion}`
+        `Name: ${name || 'Anonymous'}\nEmail: ${email || 'Not provided'}\n\nBorder Feedback:\n${borderFeedback || 'Not provided'}\n\nInterval Timer Settings:\n${intervalTimerSettings || 'Not provided'}\n\nSuggestion:\n${suggestion}`
       );
 
       // Open mailto link (fallback)
@@ -67,6 +69,8 @@ const FeedbackModal = ({ theme, onClose }) => {
       setTimeout(() => {
         setName('');
         setEmail('');
+        setBorderFeedback('');
+        setIntervalTimerSettings('');
         setSuggestion('');
         setTimeout(onClose, 1500);
       }, 2000);
@@ -207,6 +211,60 @@ const FeedbackModal = ({ theme, onClose }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="john@example.com"
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: `2px solid ${getTextOpacity(theme, 0.1)}`,
+                borderRadius: 10,
+                padding: 14,
+                color: theme.text,
+                fontSize: 15,
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = theme.accent}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            />
+          </div>
+
+          {/* Border Feedback */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: getTextOpacity(theme, 0.9) }}>
+              Border Feedback (Optional)
+            </label>
+            <input
+              type="text"
+              value={borderFeedback}
+              onChange={(e) => setBorderFeedback(e.target.value)}
+              placeholder="Suggestions for border styling, colors, etc."
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: `2px solid ${getTextOpacity(theme, 0.1)}`,
+                borderRadius: 10,
+                padding: 14,
+                color: theme.text,
+                fontSize: 15,
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = theme.accent}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            />
+          </div>
+
+          {/* Interval Timer Settings */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: getTextOpacity(theme, 0.9) }}>
+              Interval Timer Settings (Optional)
+            </label>
+            <input
+              type="text"
+              value={intervalTimerSettings}
+              onChange={(e) => setIntervalTimerSettings(e.target.value)}
+              placeholder="Suggestions for interval timer features, UI, etc."
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',

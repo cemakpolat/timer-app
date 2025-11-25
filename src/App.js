@@ -287,12 +287,24 @@ export default function TimerApp() {
     }
   };
 
+  // Load deleted default themes from localStorage
+  const [deletedDefaultThemes, setDeletedDefaultThemes] = useState(() => {
+    try {
+      const stored = localStorage.getItem('deletedDefaultThemes');
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error("Failed to load deleted default themes:", error);
+      return [];
+    }
+  });
+
   // Load themes from localStorage (default + custom)
   const [themes, setThemes] = useState(() => {
     try {
       const storedCustomThemes = localStorage.getItem('customThemes');
       const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-      return [...DEFAULT_THEMES, ...customThemes];
+      const availableDefaultThemes = DEFAULT_THEMES.filter(t => !deletedDefaultThemes.includes(t.name));
+      return [...availableDefaultThemes, ...customThemes];
     } catch (error) {
       console.error("Failed to load custom themes:", error);
       return DEFAULT_THEMES;
@@ -391,18 +403,29 @@ export default function TimerApp() {
   // Delete theme function
   const deleteTheme = (themeToDelete) => {
     try {
-      const storedCustomThemes = localStorage.getItem('customThemes');
-      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
+      if (themeToDelete.isDefault) {
+        // For default themes, add to deleted list
+        const updatedDeleted = [...deletedDefaultThemes, themeToDelete.name];
+        setDeletedDefaultThemes(updatedDeleted);
+        localStorage.setItem('deletedDefaultThemes', JSON.stringify(updatedDeleted));
 
-      const updatedThemes = customThemes.filter(t => t.name !== themeToDelete.name);
-      localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
+        // Update themes state to remove the deleted default theme
+        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+      } else {
+        // For custom themes, remove from localStorage
+        const storedCustomThemes = localStorage.getItem('customThemes');
+        const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
 
-      // Update themes state
-      setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+        const updatedThemes = customThemes.filter(t => t.name !== themeToDelete.name);
+        localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
+
+        // Update themes state
+        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
+      }
 
       // If the deleted theme was the current theme, switch to Midnight
       if (theme.name === themeToDelete.name) {
-        const midnight = DEFAULT_THEMES[0];
+        const midnight = themes.find(t => t.name === 'Midnight') || DEFAULT_THEMES[0];
         setTheme(midnight);
         localStorage.setItem('selectedThemeName', midnight.name);
       }
@@ -2633,19 +2656,19 @@ export default function TimerApp() {
                     {/* Delete Icon */}
                     <button
                       onClick={() => {
-                        if (!theme.isDefault) {
+                        if (!(theme.isDefault && theme.name === 'Midnight')) {
                           setThemeToDelete(theme);
                           setShowDeleteThemeModal(true);
                         }
                       }}
-                      disabled={theme.isDefault}
+                      disabled={theme.isDefault && theme.name === 'Midnight'}
                       style={{
-                        background: theme.isDefault ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
+                        background: (theme.isDefault && theme.name === 'Midnight') ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
                         border: 'none',
                         borderRadius: 8,
                         padding: '8px 10px',
-                        color: theme.isDefault ? getTextOpacity(theme, 0.3) : '#ff4444',
-                        cursor: theme.isDefault ? 'not-allowed' : 'pointer',
+                        color: (theme.isDefault && theme.name === 'Midnight') ? getTextOpacity(theme, 0.3) : '#ff4444',
+                        cursor: (theme.isDefault && theme.name === 'Midnight') ? 'not-allowed' : 'pointer',
                         fontSize: 13,
                         fontWeight: 500,
                         display: 'flex',
@@ -2654,11 +2677,11 @@ export default function TimerApp() {
                         transition: 'all 0.2s',
                         minWidth: '40px',
                         minHeight: '40px',
-                        opacity: theme.isDefault ? 0.5 : 1
+                        opacity: (theme.isDefault && theme.name === 'Midnight') ? 0.5 : 1
                       }}
-                      onMouseEnter={(e) => { if (!theme.isDefault) e.target.style.background = 'rgba(255, 0, 0, 0.2)' }}
-                      onMouseLeave={(e) => { if (!theme.isDefault) e.target.style.background = 'rgba(255, 0, 0, 0.1)' }}
-                      title={theme.isDefault ? 'Default themes cannot be deleted' : 'Delete Current Theme'}
+                      onMouseEnter={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.2)' }}
+                      onMouseLeave={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.1)' }}
+                      title={(theme.isDefault && theme.name === 'Midnight') ? 'Midnight theme cannot be deleted' : 'Delete Current Theme'}
                     >
                       <Trash2 size={18} />
                     </button>
