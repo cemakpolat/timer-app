@@ -470,17 +470,6 @@ export default function TimerApp() {
   const [isRunning, setIsRunning] = useState(false);
   const [time, setTime] = useState(0);
 
-  // Sync mode with activeMainTab when not running
-  useEffect(() => {
-    if (!isRunning && time === 0) {
-      if (activeMainTab === 'composite') {
-        setMode('sequence');
-      } else if (activeMainTab !== 'stopwatch') {
-        setMode(activeMainTab);
-      }
-    }
-  }, [activeMainTab, isRunning, time]);
-
   // HH:MM:SS input states
   const [inputHours, setInputHours] = useState('');
   const [inputMinutes, setInputMinutes] = useState('');
@@ -680,6 +669,17 @@ export default function TimerApp() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
 
+  // Sync mode with activeMainTab when not running (but NOT during transitions)
+  useEffect(() => {
+    if (!isRunning && time === 0 && !isTransitioning) {
+      if (activeMainTab === 'composite') {
+        setMode('sequence');
+      } else if (activeMainTab !== 'stopwatch') {
+        setMode(activeMainTab);
+      }
+    }
+  }, [activeMainTab, isRunning, time, isTransitioning]);
+
   const [alarmSoundType, setAlarmSoundType] = useState(() => {
     try { return localStorage.getItem('alarmSoundType') || 'bell'; }
     catch (error) { return 'bell'; }
@@ -763,6 +763,8 @@ export default function TimerApp() {
   const lastActiveTimeRef = useRef(null);
   const handleCompleteRef = useRef(null);
   const chatInputRef = useRef(null);
+  const currentStepRef = useRef(0);
+  const sequenceRef = useRef([]);
 
   // Persistence Effects
   useEffect(() => localStorage.setItem('selectedThemeName', theme.name), [theme]);
@@ -1080,7 +1082,7 @@ export default function TimerApp() {
   const handleComplete = React.useCallback(() => {
     setIsTransitioning(true);
     setIsRunning(false);
-    setActiveScene('none'); // Clear active scene on completion
+    // Don't clear scene here - only clear when fully complete
 
     playAlarmSound();
 
@@ -1090,15 +1092,19 @@ export default function TimerApp() {
     }
     setConfettiActiveDuration(sessionConfettiDuration);
 
+    // Capture mode and other state for use in timeout
+    const localMode = mode;
+    const localIsWork = isWork;
+    const localCurrentRound = currentRound;
 
     setTimeout(() => {
-      if (mode === 'interval') {
-        if (isWork) {
+      if (localMode === 'interval') {
+        if (localIsWork) {
           setIsWork(false);
           setTime(rest);
           setIsRunning(true);
           setIsTransitioning(false);
-        } else if (currentRound < rounds) {
+        } else if (localCurrentRound < rounds) {
           setCurrentRound(prev => prev + 1);
           setIsWork(true);
           setTime(work);
@@ -1122,28 +1128,37 @@ export default function TimerApp() {
             setIsRunning(true);
             setIsTransitioning(false);
           } else {
+            setActiveScene('none');
             setCompletedSession(completionData);
             setShowCelebration(true);
             setIsTransitioning(false);
           }
         }
-      } else if (mode === 'sequence') {
-        if (currentStep < sequence.length - 1) {
-          const nextStep = currentStep + 1;
-          setCurrentStep(nextStep);
-          const nextTimer = sequence[nextStep];
+      } else if (localMode === 'sequence') {
+        // Use refs for sequence logic to ensure we have latest values
+        const currentSeq = sequenceRef.current;
+        const currStep = currentStepRef.current;
+
+        if (currStep < currentSeq.length - 1) {
+          const nextStep = currStep + 1;
+          const nextTimer = currentSeq[nextStep];
           const nextDuration = nextTimer.unit === 'sec' ? nextTimer.duration : nextTimer.duration * 60;
-          setTime(nextDuration);
-          setIsRunning(true);
-          setIsTransitioning(false);
+          
           // Apply scene for next step in sequence
           if (nextTimer.scene) {
             setActiveScene(nextTimer.scene);
             setCurrentTimerScene(nextTimer.scene);
           }
+
+          setCurrentStep(nextStep);
+          setTime(nextDuration);
+          setIsRunning(true);
+          
+          // Small delay to ensure state updates propagate before hiding transition overlay
+          setTimeout(() => setIsTransitioning(false), 50);
         } else {
             // Sequence Completed
-            const totalSeconds = sequence.reduce((sum, t) => {
+            const totalSeconds = currentSeq.reduce((sum, t) => {
               return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
             }, 0);
             const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
@@ -1151,24 +1166,25 @@ export default function TimerApp() {
                 type: 'Sequence',
                 name: sequenceName,
                 totalSeconds: totalSeconds,
-                details: `${sequence.length} steps`
+                details: `${currentSeq.length} steps`
             };
             addToHistory(completionData);
 
           if (repeatEnabled) {
             setCurrentStep(0);
-            const firstTimer = sequence[0];
+            const firstTimer = currentSeq[0];
             const firstDuration = firstTimer.unit === 'sec' ? firstTimer.duration : firstTimer.duration * 60;
             setTime(firstDuration);
             setIsRunning(true);
             setIsTransitioning(false);
           } else {
+            setActiveScene('none');
             setCompletedSession(completionData);
             setShowCelebration(true);
             setIsTransitioning(false);
           }
         }
-      } else if (mode === 'timer') {
+      } else if (localMode === 'timer') {
           // Timer Completed
           const timerName = saved.find(t => t.isSequence === false && t.duration * (t.unit === 'min' ? 60 : 1) === initialTime)?.name || `Quick Timer`; // Try to find name if it was a saved timer
           const completionData = {
@@ -1184,11 +1200,13 @@ export default function TimerApp() {
           setIsRunning(true);
           setIsTransitioning(false);
         } else {
+          setActiveScene('none');
           setCompletedSession(completionData);
           setShowCelebration(true);
           setIsTransitioning(false);
         }
       } else {
+        setActiveScene('none');
         setIsTransitioning(false);
       }
     }, 500);
@@ -1199,8 +1217,6 @@ export default function TimerApp() {
     rounds,
     work,
     rest,
-    sequence,
-    currentStep,
     repeatEnabled,
     initialTime,
     saved,
@@ -1213,6 +1229,15 @@ export default function TimerApp() {
   useEffect(() => {
     handleCompleteRef.current = handleComplete;
   }, [handleComplete]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+  }, [currentStep]);
+
+  useEffect(() => {
+    sequenceRef.current = sequence;
+  }, [sequence]);
 
   const startTimer = (totalSeconds, scene = 'none') => {
     setMode('timer');
@@ -3041,7 +3066,9 @@ export default function TimerApp() {
                 alignItems: 'center',
                 gap: 10,
                 margin: '0 auto 16px',
-                border: `1px solid ${SCENES[activeScene].accent}40`
+                border: `1px solid ${SCENES[activeScene].accent}40`,
+                transition: 'all 0.5s ease-in-out',
+                opacity: isTransitioning ? 0.5 : 1
               }}>
                 <span style={{ fontSize: 24 }}>{SCENES[activeScene].emoji}</span>
                 <div>
