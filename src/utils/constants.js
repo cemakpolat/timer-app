@@ -11,8 +11,14 @@ export const THEMES = [
 // Ambient sound configurations
 export const AMBIENT_SOUNDS = [
   { name: "None", file: null },
-  { name: "Rain", file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-  { name: "Forest", file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" }
+  { name: "Jazz Guitar - Ambient", file: "/sounds/jazz-guitar-ambient.wav" },
+  { name: "Jazz Guitar - Smooth", file: "/sounds/jazz-guitar-smooth.wav" },
+  { name: "Jazz Guitar - Blues", file: "/sounds/jazz-guitar-blues.wav" },
+  { name: "Jazz Piano - Chords", file: "/sounds/jazz-piano-chords.wav" },
+  { name: "Jazz Piano - Relaxing", file: "/sounds/jazz-piano-relaxing.wav" },
+  { name: "Jazz Piano - Lo-fi", file: "/sounds/jazz-piano-lofi.wav" },
+  { name: "Violin - Ambient Strings", file: "/sounds/violin-strings-ambient.wav" },
+  { name: "Violin - Sad Loop", file: "/sounds/violin-sad-loop.wav" }
 ];
 
 // Sound file paths
