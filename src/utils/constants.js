@@ -26,7 +26,16 @@ export const AMBIENT_SOUNDS = [
   { name: "Deep Work - Piano Focus", file: "/sounds/focus-piano-noir.wav" },
   { name: "Pomodoro - Atmospheric Focus", file: "/sounds/pomodoro-focus-atmospheric.wav" },
   { name: "Coffee Break - Romantic Chill", file: "/sounds/coffee-break-romantic.wav" },
-  { name: "Workout - Energetic Loop", file: "/sounds/workout-energetic-loop.wav" }
+  { name: "Workout - Energetic Loop", file: "/sounds/workout-energetic-loop.wav" },
+  { name: "Nature - Forest Rain", file: "/sounds/nature-rain-forest.wav" },
+  { name: "Nature - Gentle Stream", file: "/sounds/nature-stream-gentle.wav" },
+  { name: "Nature - Birds & Rain", file: "/sounds/nature-birds-rain.wav" },
+  { name: "Nature - Ocean Waves", file: "/sounds/nature-ocean-waves.wav" },
+  { name: "Nature - Strong Wind", file: "/sounds/nature-wind-strong.wav" },
+  { name: "Season - Spring Bees", file: "/sounds/season-spring-bees.wav" },
+  { name: "Season - Summer Cicadas", file: "/sounds/season-summer-cicadas.wav" },
+  { name: "Season - Autumn Leaves", file: "/sounds/season-autumn-leaves.wav" },
+  { name: "Season - Winter Snow", file: "/sounds/season-winter-snow.wav" }
 ];
 
 // Sound file paths
