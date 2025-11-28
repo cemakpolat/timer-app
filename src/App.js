@@ -3067,7 +3067,7 @@ export default function TimerApp() {
             )}
             <div style={{ flex: 1, marginLeft: mode === 'sequence' ? 40 : 0, marginRight: mode === 'sequence' ? 40 : 0, width: '100%' }}>
               {mode === 'sequence' && sequence[currentStep] && <div style={{ fontSize: 16, color: sequence[currentStep].color, marginBottom: 12, fontWeight: 600 }}>{sequence[currentStep].name}</div>}
-              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : (animationsEnabled && isRunning ? 'pulse 2s ease-in-out infinite' : 'none'), filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
               
               {(mode === 'interval' || mode === 'sequence') && calculateTotalRemaining() > 0 && (
                   <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginBottom: 24, marginTop: 4 }}>
