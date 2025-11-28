@@ -15,6 +15,8 @@ import IntervalPanel from './components/panels/IntervalPanel';
 import CompositePanel from './components/panels/CompositePanel';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 import { formatDate } from './utils/formatters';
+import { AMBIENT_SOUNDS } from './utils/constants';
+import { useSound } from './hooks/useSound';
 import shareService from './services/shareService';
 
 // Lazy-loaded components
@@ -221,6 +223,7 @@ export default function TimerApp() {
     getParticipantCount,
     isRoomFull
   } = useFocusRoom();
+
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const handleSaveRoomSettings = async (updates) => {
     if (!currentRoom) return;
@@ -470,17 +473,6 @@ export default function TimerApp() {
   const [isRunning, setIsRunning] = useState(false);
   const [time, setTime] = useState(0);
 
-  // Sync mode with activeMainTab when not running
-  useEffect(() => {
-    if (!isRunning && time === 0) {
-      if (activeMainTab === 'composite') {
-        setMode('sequence');
-      } else if (activeMainTab !== 'stopwatch') {
-        setMode(activeMainTab);
-      }
-    }
-  }, [activeMainTab, isRunning, time]);
-
   // HH:MM:SS input states
   const [inputHours, setInputHours] = useState('');
   const [inputMinutes, setInputMinutes] = useState('');
@@ -680,6 +672,17 @@ export default function TimerApp() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
 
+  // Sync mode with activeMainTab when not running (but NOT during transitions)
+  useEffect(() => {
+    if (!isRunning && time === 0 && !isTransitioning) {
+      if (activeMainTab === 'composite') {
+        setMode('sequence');
+      } else if (activeMainTab !== 'stopwatch') {
+        setMode(activeMainTab);
+      }
+    }
+  }, [activeMainTab, isRunning, time, isTransitioning]);
+
   const [alarmSoundType, setAlarmSoundType] = useState(() => {
     try { return localStorage.getItem('alarmSoundType') || 'bell'; }
     catch (error) { return 'bell'; }
@@ -688,6 +691,27 @@ export default function TimerApp() {
     try { return parseFloat(localStorage.getItem('alarmVolume')) || 0.5; }
     catch (error) { return 0.5; }
   });
+  const [ambientSoundType, setAmbientSoundType] = useState(() => {
+    try { return localStorage.getItem('ambientSoundType') || 'None'; }
+    catch (error) { return 'None'; }
+  });
+  const [ambientVolume, setAmbientVolume] = useState(() => {
+    try { return parseFloat(localStorage.getItem('ambientVolume')) || 0.3; }
+    catch (error) { return 0.3; }
+  });
+
+  // Use sound hook
+  const {
+    playAlarm,
+    startAmbient,
+    stopAmbient
+  } = useSound({
+    alarmType: alarmSoundType,
+    alarmVolume,
+    ambientType: ambientSoundType,
+    ambientVolume
+  });
+
   const [animationsEnabled, setAnimationsEnabled] = useState(() => {
     try { return localStorage.getItem('animationsEnabled') !== 'false'; }
     catch (error) { return true; }
@@ -763,6 +787,8 @@ export default function TimerApp() {
   const lastActiveTimeRef = useRef(null);
   const handleCompleteRef = useRef(null);
   const chatInputRef = useRef(null);
+  const currentStepRef = useRef(0);
+  const sequenceRef = useRef([]);
 
   // Persistence Effects
   useEffect(() => localStorage.setItem('selectedThemeName', theme.name), [theme]);
@@ -771,6 +797,8 @@ export default function TimerApp() {
   useEffect(() => localStorage.setItem('repeatEnabled', repeatEnabled), [repeatEnabled]);
   useEffect(() => localStorage.setItem('alarmSoundType', alarmSoundType), [alarmSoundType]);
   useEffect(() => localStorage.setItem('alarmVolume', alarmVolume.toString()), [alarmVolume]);
+  useEffect(() => localStorage.setItem('ambientSoundType', ambientSoundType), [ambientSoundType]);
+  useEffect(() => localStorage.setItem('ambientVolume', ambientVolume.toString()), [ambientVolume]);
   useEffect(() => localStorage.setItem('animationsEnabled', animationsEnabled.toString()), [animationsEnabled]);
   useEffect(() => localStorage.setItem('currentStreak', currentStreak.toString()), [currentStreak]);
   useEffect(() => localStorage.setItem('lastCompletionDate', lastCompletionDate), [lastCompletionDate]);
@@ -968,37 +996,8 @@ export default function TimerApp() {
   }, [achievements, totalCompletions, currentStreak, history, ACHIEVEMENTS]);
 
   const playAlarmSound = useCallback(() => {
-    if (alarmSoundType === 'silent') return;
-
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    gain.gain.setValueAtTime(alarmVolume, ctx.currentTime);
-
-    if (alarmSoundType === 'bell') {
-      osc.frequency.value = 800;
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } else if (alarmSoundType === 'chime') {
-      osc.frequency.value = 600;
-      gain.gain.setValueAtTime(alarmVolume * 0.7, ctx.currentTime);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.2);
-
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.frequency.value = 900;
-      gain2.gain.setValueAtTime(alarmVolume, ctx.currentTime + 0.2);
-      osc2.start(ctx.currentTime + 0.2);
-      osc2.stop(ctx.currentTime + 0.5);
-    }
-  }, [alarmSoundType, alarmVolume]);
+    playAlarm();
+  }, [playAlarm]);
 
   const addToHistory = React.useCallback((entry) => {
     setHistory(prev => [
@@ -1080,7 +1079,8 @@ export default function TimerApp() {
   const handleComplete = React.useCallback(() => {
     setIsTransitioning(true);
     setIsRunning(false);
-    setActiveScene('none'); // Clear active scene on completion
+    // Stop ambient sound when timer completes
+    stopAmbient();
 
     playAlarmSound();
 
@@ -1090,15 +1090,19 @@ export default function TimerApp() {
     }
     setConfettiActiveDuration(sessionConfettiDuration);
 
+    // Capture mode and other state for use in timeout
+    const localMode = mode;
+    const localIsWork = isWork;
+    const localCurrentRound = currentRound;
 
     setTimeout(() => {
-      if (mode === 'interval') {
-        if (isWork) {
+      if (localMode === 'interval') {
+        if (localIsWork) {
           setIsWork(false);
           setTime(rest);
           setIsRunning(true);
           setIsTransitioning(false);
-        } else if (currentRound < rounds) {
+        } else if (localCurrentRound < rounds) {
           setCurrentRound(prev => prev + 1);
           setIsWork(true);
           setTime(work);
@@ -1122,28 +1126,37 @@ export default function TimerApp() {
             setIsRunning(true);
             setIsTransitioning(false);
           } else {
+            setActiveScene('none');
             setCompletedSession(completionData);
             setShowCelebration(true);
             setIsTransitioning(false);
           }
         }
-      } else if (mode === 'sequence') {
-        if (currentStep < sequence.length - 1) {
-          const nextStep = currentStep + 1;
-          setCurrentStep(nextStep);
-          const nextTimer = sequence[nextStep];
+      } else if (localMode === 'sequence') {
+        // Use refs for sequence logic to ensure we have latest values
+        const currentSeq = sequenceRef.current;
+        const currStep = currentStepRef.current;
+
+        if (currStep < currentSeq.length - 1) {
+          const nextStep = currStep + 1;
+          const nextTimer = currentSeq[nextStep];
           const nextDuration = nextTimer.unit === 'sec' ? nextTimer.duration : nextTimer.duration * 60;
-          setTime(nextDuration);
-          setIsRunning(true);
-          setIsTransitioning(false);
+          
           // Apply scene for next step in sequence
           if (nextTimer.scene) {
             setActiveScene(nextTimer.scene);
             setCurrentTimerScene(nextTimer.scene);
           }
+
+          setCurrentStep(nextStep);
+          setTime(nextDuration);
+          setIsRunning(true);
+          
+          // Small delay to ensure state updates propagate before hiding transition overlay
+          setTimeout(() => setIsTransitioning(false), 50);
         } else {
             // Sequence Completed
-            const totalSeconds = sequence.reduce((sum, t) => {
+            const totalSeconds = currentSeq.reduce((sum, t) => {
               return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
             }, 0);
             const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
@@ -1151,24 +1164,25 @@ export default function TimerApp() {
                 type: 'Sequence',
                 name: sequenceName,
                 totalSeconds: totalSeconds,
-                details: `${sequence.length} steps`
+                details: `${currentSeq.length} steps`
             };
             addToHistory(completionData);
 
           if (repeatEnabled) {
             setCurrentStep(0);
-            const firstTimer = sequence[0];
+            const firstTimer = currentSeq[0];
             const firstDuration = firstTimer.unit === 'sec' ? firstTimer.duration : firstTimer.duration * 60;
             setTime(firstDuration);
             setIsRunning(true);
             setIsTransitioning(false);
           } else {
+            setActiveScene('none');
             setCompletedSession(completionData);
             setShowCelebration(true);
             setIsTransitioning(false);
           }
         }
-      } else if (mode === 'timer') {
+      } else if (localMode === 'timer') {
           // Timer Completed
           const timerName = saved.find(t => t.isSequence === false && t.duration * (t.unit === 'min' ? 60 : 1) === initialTime)?.name || `Quick Timer`; // Try to find name if it was a saved timer
           const completionData = {
@@ -1184,11 +1198,13 @@ export default function TimerApp() {
           setIsRunning(true);
           setIsTransitioning(false);
         } else {
+          setActiveScene('none');
           setCompletedSession(completionData);
           setShowCelebration(true);
           setIsTransitioning(false);
         }
       } else {
+        setActiveScene('none');
         setIsTransitioning(false);
       }
     }, 500);
@@ -1199,13 +1215,12 @@ export default function TimerApp() {
     rounds,
     work,
     rest,
-    sequence,
-    currentStep,
     repeatEnabled,
     initialTime,
     saved,
     addToHistory,
     playAlarmSound,
+    stopAmbient,
     seqName,
   ]);
 
@@ -1213,6 +1228,15 @@ export default function TimerApp() {
   useEffect(() => {
     handleCompleteRef.current = handleComplete;
   }, [handleComplete]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+  }, [currentStep]);
+
+  useEffect(() => {
+    sequenceRef.current = sequence;
+  }, [sequence]);
 
   const startTimer = (totalSeconds, scene = 'none') => {
     setMode('timer');
@@ -1226,6 +1250,13 @@ export default function TimerApp() {
       setInputMinutes('');
       setInputSeconds('');
     }
+    // Start ambient sound if configured
+    if (ambientSoundType !== 'None') {
+      const soundConfig = AMBIENT_SOUNDS.find(s => s.name === ambientSoundType);
+      if (soundConfig) {
+        startAmbient(soundConfig.file);
+      }
+    }
   };
 
   const startStopwatch = () => {
@@ -1237,8 +1268,17 @@ export default function TimerApp() {
   };
   const startInterval = () => { setMode('interval'); setTime(work); setCurrentRound(1); setIsWork(true); setIsRunning(true); };
 
-  const pauseTimer = () => { setIsRunning(false); };
-  const resetTimer = () => { setIsRunning(false); setTime(initialTime); };
+  const pauseTimer = () => { 
+    setIsRunning(false); 
+    // Stop ambient sound when paused
+    stopAmbient();
+  };
+  const resetTimer = () => { 
+    setIsRunning(false); 
+    setTime(initialTime);
+    // Stop ambient sound when reset
+    stopAmbient();
+  };
   const pauseStopwatch = () => { setIsRunning(false); };
   const resetStopwatch = () => { setIsRunning(false); setTime(0); };
 
@@ -2838,6 +2878,49 @@ export default function TimerApp() {
                       style={{ width: '100%', cursor: 'pointer' }}
                     />
                   </div>
+
+                  {/* Ambient Sound Type */}
+                  <div style={{ marginTop: 16 }}>
+                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Ambient Sound</label>
+                    <select
+                      value={ambientSoundType}
+                      onChange={(e) => setAmbientSoundType(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        background: 'rgba(255,255,255,0.05)', 
+                        border: `1px solid ${getTextOpacity(theme, 0.1)}`, 
+                        borderRadius: 8, 
+                        padding: 8, 
+                        color: theme.text, 
+                        fontSize: 13, 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      {AMBIENT_SOUNDS.map(sound => (
+                        <option key={sound.name} value={sound.name} style={{ background: theme.card }}>
+                          {sound.name === 'AI Jazz' ? '🎷 AI Jazz' : sound.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ambient Volume Control */}
+                  {ambientSoundType !== 'None' && (
+                    <div style={{ marginTop: 12 }}>
+                      <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>
+                        Ambient Volume: {Math.round(ambientVolume * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={ambientVolume}
+                        onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
+                        style={{ width: '100%', cursor: 'pointer' }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -3041,7 +3124,9 @@ export default function TimerApp() {
                 alignItems: 'center',
                 gap: 10,
                 margin: '0 auto 16px',
-                border: `1px solid ${SCENES[activeScene].accent}40`
+                border: `1px solid ${SCENES[activeScene].accent}40`,
+                transition: 'all 0.5s ease-in-out',
+                opacity: isTransitioning ? 0.5 : 1
               }}>
                 <span style={{ fontSize: 24 }}>{SCENES[activeScene].emoji}</span>
                 <div>
@@ -3067,7 +3152,7 @@ export default function TimerApp() {
             )}
             <div style={{ flex: 1, marginLeft: mode === 'sequence' ? 40 : 0, marginRight: mode === 'sequence' ? 40 : 0, width: '100%' }}>
               {mode === 'sequence' && sequence[currentStep] && <div style={{ fontSize: 16, color: sequence[currentStep].color, marginBottom: 12, fontWeight: 600 }}>{sequence[currentStep].name}</div>}
-              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : (animationsEnabled && isRunning ? 'pulse 2s ease-in-out infinite' : 'none'), filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+              <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
               
               {(mode === 'interval' || mode === 'sequence') && calculateTotalRemaining() > 0 && (
                   <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginBottom: 24, marginTop: 4 }}>
@@ -3078,8 +3163,25 @@ export default function TimerApp() {
               {mode === 'interval' && <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.6), marginBottom: 24 }}>Round {currentRound}/{rounds} • {isWork ? '💪 Work' : '😌 Rest'}</div>}
               {mode === 'sequence' && <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.6), marginBottom: 24 }}>Step {currentStep + 1} of {sequence.length}{currentStep < sequence.length - 1 && <div style={{ marginTop: 8 }}>Next: {sequence[currentStep + 1].name}</div>}</div>}
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button onClick={() => setIsRunning(!isRunning)} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
-                <button onClick={() => { setIsRunning(false); setTime(0); setCurrentStep(0); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
+                <button onClick={() => { 
+                  const newRunningState = !isRunning;
+                  setIsRunning(newRunningState); 
+                  if (newRunningState && ambientSoundType !== 'None') {
+                    // Start ambient sound when timer starts
+                    const soundFile = AMBIENT_SOUNDS.find(s => s.name === ambientSoundType)?.file;
+                    if (soundFile) startAmbient(soundFile);
+                  } else if (!newRunningState) {
+                    // Stop ambient sound when timer pauses
+                    stopAmbient();
+                  }
+                }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                <button onClick={() => { 
+                  setIsRunning(false); 
+                  setTime(0); 
+                  setCurrentStep(0);
+                  // Stop ambient sound when timer resets
+                  stopAmbient();
+                }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
                 {mode !== 'stopwatch' && (
                   <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
                 )}

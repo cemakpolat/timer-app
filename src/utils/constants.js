@@ -11,8 +11,31 @@ export const THEMES = [
 // Ambient sound configurations
 export const AMBIENT_SOUNDS = [
   { name: "None", file: null },
-  { name: "Rain", file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-  { name: "Forest", file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" }
+  { name: "Jazz Guitar - Ambient", file: "/sounds/jazz-guitar-ambient.wav" },
+  { name: "Jazz Guitar - Smooth", file: "/sounds/jazz-guitar-smooth.wav" },
+  { name: "Jazz Guitar - Blues", file: "/sounds/jazz-guitar-blues.wav" },
+  { name: "Jazz Piano - Chords", file: "/sounds/jazz-piano-chords.wav" },
+  { name: "Jazz Piano - Relaxing", file: "/sounds/jazz-piano-relaxing.wav" },
+  { name: "Jazz Piano - Lo-fi", file: "/sounds/jazz-piano-lofi.wav" },
+  { name: "Violin - Ambient Strings", file: "/sounds/violin-strings-ambient.wav" },
+  { name: "Violin - Sad Loop", file: "/sounds/violin-sad-loop.wav" },
+  { name: "Therapy - Deep Sleep (30min)", file: "/sounds/healing-meditation-30min.wav" },
+  { name: "Therapy - Relaxation Music", file: "/sounds/relaxation-music-zhro.wav" },
+  { name: "Therapy - Native Flute", file: "/sounds/native-flute-meditation.wav" },
+  { name: "Therapy - Atmospheric", file: "/sounds/silentium-atmospheric.wav" },
+  { name: "Deep Work - Piano Focus", file: "/sounds/focus-piano-noir.wav" },
+  { name: "Pomodoro - Atmospheric Focus", file: "/sounds/pomodoro-focus-atmospheric.wav" },
+  { name: "Coffee Break - Romantic Chill", file: "/sounds/coffee-break-romantic.wav" },
+  { name: "Workout - Energetic Loop", file: "/sounds/workout-energetic-loop.wav" },
+  { name: "Nature - Forest Rain", file: "/sounds/nature-rain-forest.wav" },
+  { name: "Nature - Gentle Stream", file: "/sounds/nature-stream-gentle.wav" },
+  { name: "Nature - Birds & Rain", file: "/sounds/nature-birds-rain.wav" },
+  { name: "Nature - Ocean Waves", file: "/sounds/nature-ocean-waves.wav" },
+  { name: "Nature - Strong Wind", file: "/sounds/nature-wind-strong.wav" },
+  { name: "Season - Spring Bees", file: "/sounds/season-spring-bees.wav" },
+  { name: "Season - Summer Cicadas", file: "/sounds/season-summer-cicadas.wav" },
+  { name: "Season - Autumn Leaves", file: "/sounds/season-autumn-leaves.wav" },
+  { name: "Season - Winter Snow", file: "/sounds/season-winter-snow.wav" }
 ];
 
 // Sound file paths
@@ -20,10 +43,29 @@ export const COUNTDOWN_NOISE_SOUND = "/sounds/beep.mp3";
 
 // Default saved timers
 export const DEFAULT_SAVED_TIMERS = [
+  // Work/Pomodoro timers
   { name: "Pomodoro", duration: 25, unit: "min", min: 25, color: "#ef4444", group: "Work" },
-  { name: "Short Break", duration: 5, unit: "min", min: 5, color: "#10b981", group: "Work" },
+  { name: "Pomodoro Short", duration: 15, unit: "min", min: 15, color: "#f97316", group: "Work" },
+  { name: "Pomodoro Long", duration: 45, unit: "min", min: 45, color: "#dc2626", group: "Work" },
+
+  // Deep Work sessions
   { name: "Deep Work", duration: 50, unit: "min", min: 50, color: "#8b5cf6", group: "Work" },
-  { name: "Workout", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness" }
+  { name: "Deep Focus", duration: 90, unit: "min", min: 90, color: "#7c3aed", group: "Work" },
+  { name: "Flow State", duration: 120, unit: "min", min: 120, color: "#6d28d9", group: "Work" },
+
+  // Coffee Breaks
+  { name: "Coffee Break", duration: 10, unit: "min", min: 10, color: "#92400e", group: "Break" },
+  { name: "Quick Coffee", duration: 5, unit: "min", min: 5, color: "#a16207", group: "Break" },
+  { name: "Extended Break", duration: 15, unit: "min", min: 15, color: "#78350f", group: "Break" },
+
+  // Workout sessions
+  { name: "Workout", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness" },
+  { name: "HIIT Session", duration: 20, unit: "min", min: 20, color: "#d97706", group: "Fitness" },
+  { name: "Long Workout", duration: 60, unit: "min", min: 60, color: "#b45309", group: "Fitness" },
+
+  // Additional breaks
+  { name: "Short Break", duration: 5, unit: "min", min: 5, color: "#10b981", group: "Work" },
+  { name: "Lunch Break", duration: 60, unit: "min", min: 60, color: "#059669", group: "Break" }
 ];
 
 // Color options for timer creation

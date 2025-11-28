@@ -101,9 +101,11 @@ export const useSound = ({
 
   // Start ambient sound
   const startAmbient = useCallback((soundFile) => {
-    if (!ambientAudioRef.current || !soundFile) return;
+    if (!soundFile) return;
 
     try {
+      // Handle regular audio files (including our new jazz files)
+      if (!ambientAudioRef.current) return;
       ambientAudioRef.current.src = soundFile;
       ambientAudioRef.current.volume = ambientVolume;
       ambientAudioRef.current.play().catch(e => {
@@ -116,11 +118,12 @@ export const useSound = ({
 
   // Stop ambient sound
   const stopAmbient = useCallback(() => {
-    if (!ambientAudioRef.current) return;
-
     try {
-      ambientAudioRef.current.pause();
-      ambientAudioRef.current.currentTime = 0;
+      // Stop regular audio
+      if (ambientAudioRef.current) {
+        ambientAudioRef.current.pause();
+        ambientAudioRef.current.currentTime = 0;
+      }
     } catch (error) {
       console.error('Error stopping ambient sound:', error);
     }
