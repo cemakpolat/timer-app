@@ -312,6 +312,14 @@ input[type='number'] {
     font-size: 16px !important;
   }
 
+  /* Improve select elements for mobile touch interaction */
+  select {
+    padding: 12px 8px !important;
+    min-height: 44px !important; /* Minimum touch target size */
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
   /* Stack cards vertically on very small screens */
   .card-grid {
     grid-template-columns: 1fr !important;
@@ -329,6 +337,15 @@ input[type='number'] {
   h1 {
     font-size: 28px !important;
     margin-bottom: 16px !important;
+  }
+}
+
+/* Tablet and mobile responsive select elements */
+@media (max-width: 768px) {
+  select {
+    padding: 10px 8px !important;
+    min-height: 40px !important;
+    font-size: 16px !important;
   }
 }
 

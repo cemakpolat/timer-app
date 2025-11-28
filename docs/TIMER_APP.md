@@ -383,6 +383,17 @@ Study Session:
 - Persistent settings
 - Preview sounds before selecting
 
+### Ambient Music Library
+The app includes a curated library of ambient music tracks for different activities:
+
+- **🎷 Jazz Music**: Guitar and piano jazz for general ambiance
+- **🧘 Therapy Music**: Meditation, relaxation, and healing tracks
+- **💼 Productivity Music**: Focus music for deep work, pomodoro sessions, coffee breaks, and workouts
+
+**Access**: Click the music note button (🎵) to open ambient music settings.
+
+> 📖 **Technical Details**: See [AUDIO_STORAGE.md](AUDIO_STORAGE.md) for complete audio storage setup, file management, and migration options.
+
 ## Troubleshooting
 
 ### Timer Won't Start
