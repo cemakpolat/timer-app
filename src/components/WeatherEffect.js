@@ -123,7 +123,7 @@ const WeatherEffect = ({ type, config }) => {
             position: 'absolute',
             inset: 0,
             background: `linear-gradient(to bottom, ${config?.color || 'rgba(200,210,220,0.1)'} 0%, rgba(220,230,240,0.02) 100%)`,
-            opacity: config?.opacity ?? 1
+            opacity: (config?.opacity ?? 1) * 0.15
           }} />
           
           {/* Cloud 1 - Standard Puffy */}
