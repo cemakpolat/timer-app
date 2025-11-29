@@ -5,7 +5,14 @@ export const THEMES = [
   { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981" },
   { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6" },
   { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047" },
-  { name: "Crimson Sunset", bg: "#220000", card: "#4d0000", accent: "#ff4500" }
+  { name: "Crimson Sunset", bg: "#220000", card: "#4d0000", accent: "#ff4500" },
+  { name: "Easter", bg: "#fdf2f8", card: "#fce7f3", accent: "#f472b6", text: "#831843" }, // Pink/Pastel
+  { name: "Christmas", bg: "#022c22", card: "#064e3b", accent: "#ef4444" }, // Dark Green/Red
+  { name: "Summer", bg: "#fff7ed", card: "#ffedd5", accent: "#f97316", text: "#7c2d12" }, // Orange/Warm
+  { name: "Holiday", bg: "#422006", card: "#713f12", accent: "#eab308" }, // Brown/Gold
+  { name: "Winter Holiday", bg: "#172554", card: "#1e3a8a", accent: "#60a5fa" }, // Deep Blue/Ice
+  { name: "Spring", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d" }, // Light Green
+  { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706" } // Brown/Orange
 ];
 
 // Ambient sound configurations
