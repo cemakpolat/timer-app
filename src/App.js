@@ -443,6 +443,9 @@ export default function TimerApp() {
   const [showClearCacheModal, setShowClearCacheModal] = useState(false);
   const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'weather', 'sound', 'animations'
 
+  // Ref for settings panel to handle click outside
+  const settingsPanelRef = useRef(null);
+
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [editingTheme, setEditingTheme] = useState(null);
@@ -793,6 +796,23 @@ export default function TimerApp() {
   useEffect(() => { if (firstTimerDate) localStorage.setItem('firstTimerDate', firstTimerDate); }, [firstTimerDate]);
   useEffect(() => localStorage.setItem('dailyChallenge', JSON.stringify(dailyChallenge)), [dailyChallenge]);
   useEffect(() => localStorage.setItem('timeCapsules', JSON.stringify(timeCapsules)), [timeCapsules]);
+
+  // Handle clicks outside settings panel to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSettings && settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) {
+        setShowSettings(false);
+      }
+    };
+
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
 
   // Update active users count every 30 seconds with realistic variation
   // Active users now managed by usePresence hook
@@ -2430,7 +2450,9 @@ export default function TimerApp() {
 
               {/* Settings Dropdown */}
               {showSettings && (
-                <div style={{
+                <div 
+                  ref={settingsPanelRef}
+                  style={{
                   position: 'absolute',
                   top: 50,
                   right: 0,
