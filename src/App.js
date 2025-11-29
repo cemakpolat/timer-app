@@ -2302,8 +2302,7 @@ export default function TimerApp() {
           justifyContent: 'space-between', 
           alignItems: 'center',
           padding: '20px 0 16px',
-          position: 'sticky',
-          top: 0,
+          position: 'relative',
           background: 'transparent',
           zIndex: 100
         }}>
