@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info, Edit } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info, Edit, Cloud } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
@@ -18,6 +18,8 @@ import { formatDate } from './utils/formatters';
 import { AMBIENT_SOUNDS } from './utils/constants';
 import { useSound } from './hooks/useSound';
 import shareService from './services/shareService';
+import useSettings from './hooks/useSettings';
+import WeatherEffect from './components/WeatherEffect';
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -70,6 +72,12 @@ const DEFAULT_THEMES = [
   { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true },
   { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true },
   { name: "Pure Black", bg: "#000000", card: "#111111", accent: "#ffffff", text: "#ffffff", isDefault: true },
+  // Seasonal themes
+  { name: "Autumn", bg: "#4a2c2a", card: "#783525", accent: "#e67e22", text: "#ffffff", isDefault: true },
+  { name: "Spring", bg: "#2e4a3d", card: "#4a7a5d", accent: "#81c784", text: "#ffffff", isDefault: true },
+  { name: "Winter", bg: "#1e293b", card: "#334155", accent: "#93c5fd", text: "#ffffff", isDefault: true },
+  { name: "Christmas", bg: "#165b33", card: "#bb2528", accent: "#f8b229", text: "#ffffff", isDefault: true },
+  { name: "Easter", bg: "#fdf4e3", card: "#e6e6fa", accent: "#dda0dd", text: "#000000", isDefault: true },
   // Fitness-inspired themes
   { name: "Energy Boost", bg: "#1e40af", card: "#3b82f6", accent: "#fbbf24", text: "#ffffff", isDefault: true },
   { name: "Sunrise Run", bg: "#ea580c", card: "#fb923c", accent: "#fef3c7", text: "#ffffff", isDefault: true },
@@ -447,7 +455,7 @@ export default function TimerApp() {
   // Settings states
   const [showSettings, setShowSettings] = useState(false);
   const [showClearCacheModal, setShowClearCacheModal] = useState(false);
-  const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'sound', 'animations'
+  const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'weather', 'sound', 'animations'
 
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -525,7 +533,7 @@ export default function TimerApp() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [timerToDelete, setTimerToDelete] = useState(null);
   const [calendarExportRoom, setCalendarExportRoom] = useState(null); // Task 5: Calendar export modal state
-  
+  const [editingWeather, setEditingWeather] = useState(null);
 
   // Helper to show friendly toasts for realtime permission/init errors
   const showRealtimeErrorToast = (err, action = 'Operation') => {
@@ -668,6 +676,24 @@ export default function TimerApp() {
       }
   });
 
+  // Use settings hook
+  const {
+    alarmSoundType,
+    setAlarmSoundType,
+    alarmVolume,
+    setAlarmVolume,
+    animationsEnabled,
+    setAnimationsEnabled,
+    weatherEffect,
+    setWeatherEffect,
+    weatherConfig,
+    setWeatherConfig,
+    ambientSoundType,
+    setAmbientSoundType,
+    ambientVolume,
+    setAmbientVolume
+  } = useSettings();
+
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
@@ -683,23 +709,6 @@ export default function TimerApp() {
     }
   }, [activeMainTab, isRunning, time, isTransitioning]);
 
-  const [alarmSoundType, setAlarmSoundType] = useState(() => {
-    try { return localStorage.getItem('alarmSoundType') || 'bell'; }
-    catch (error) { return 'bell'; }
-  });
-  const [alarmVolume, setAlarmVolume] = useState(() => {
-    try { return parseFloat(localStorage.getItem('alarmVolume')) || 0.5; }
-    catch (error) { return 0.5; }
-  });
-  const [ambientSoundType, setAmbientSoundType] = useState(() => {
-    try { return localStorage.getItem('ambientSoundType') || 'None'; }
-    catch (error) { return 'None'; }
-  });
-  const [ambientVolume, setAmbientVolume] = useState(() => {
-    try { return parseFloat(localStorage.getItem('ambientVolume')) || 0.3; }
-    catch (error) { return 0.3; }
-  });
-
   // Use sound hook
   const {
     playAlarm,
@@ -710,11 +719,6 @@ export default function TimerApp() {
     alarmVolume,
     ambientType: ambientSoundType,
     ambientVolume
-  });
-
-  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
-    try { return localStorage.getItem('animationsEnabled') !== 'false'; }
-    catch (error) { return true; }
   });
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
@@ -795,11 +799,6 @@ export default function TimerApp() {
   useEffect(() => localStorage.setItem('savedTimers', JSON.stringify(saved)), [saved]);
   useEffect(() => localStorage.setItem('timerHistory', JSON.stringify(history)), [history]);
   useEffect(() => localStorage.setItem('repeatEnabled', repeatEnabled), [repeatEnabled]);
-  useEffect(() => localStorage.setItem('alarmSoundType', alarmSoundType), [alarmSoundType]);
-  useEffect(() => localStorage.setItem('alarmVolume', alarmVolume.toString()), [alarmVolume]);
-  useEffect(() => localStorage.setItem('ambientSoundType', ambientSoundType), [ambientSoundType]);
-  useEffect(() => localStorage.setItem('ambientVolume', ambientVolume.toString()), [ambientVolume]);
-  useEffect(() => localStorage.setItem('animationsEnabled', animationsEnabled.toString()), [animationsEnabled]);
   useEffect(() => localStorage.setItem('currentStreak', currentStreak.toString()), [currentStreak]);
   useEffect(() => localStorage.setItem('lastCompletionDate', lastCompletionDate), [lastCompletionDate]);
   useEffect(() => localStorage.setItem('totalCompletions', totalCompletions.toString()), [totalCompletions]);
@@ -1380,7 +1379,16 @@ export default function TimerApp() {
       monthlyStats,
       firstTimerDate,
       timeCapsules: timeCapsules.filter(c => !c.opened), // Only export unopened capsules
-      theme: theme.name
+      theme: theme.name,
+      settings: {
+        alarmSoundType,
+        alarmVolume,
+        animationsEnabled,
+        repeatEnabled,
+        weatherEffect,
+        ambientSoundType,
+        ambientVolume
+      }
     };
 
     const dataStr = JSON.stringify(allData, null, 2);
@@ -1419,6 +1427,16 @@ export default function TimerApp() {
           if (imported.theme) {
             const importedTheme = themes.find(t => t.name === imported.theme);
             if (importedTheme) setTheme(importedTheme);
+          }
+          // Import settings if present
+          if (imported.settings) {
+            if (imported.settings.alarmSoundType) setAlarmSoundType(imported.settings.alarmSoundType);
+            if (imported.settings.alarmVolume !== undefined) setAlarmVolume(imported.settings.alarmVolume);
+            if (imported.settings.animationsEnabled !== undefined) setAnimationsEnabled(imported.settings.animationsEnabled);
+            if (imported.settings.repeatEnabled !== undefined) setRepeatEnabled(imported.settings.repeatEnabled);
+            if (imported.settings.weatherEffect) setWeatherEffect(imported.settings.weatherEffect);
+            if (imported.settings.ambientSoundType) setAmbientSoundType(imported.settings.ambientSoundType);
+            if (imported.settings.ambientVolume !== undefined) setAmbientVolume(imported.settings.ambientVolume);
           }
 
           window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Data imported successfully!', type: 'success', ttl: 3000 } }));
@@ -1647,9 +1665,12 @@ export default function TimerApp() {
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
         fontFamily: 'system-ui',
-        transition: 'background 1s ease-in-out, color 0.3s ease-in-out'
+        transition: 'background     1s ease-in-out, color 0.3s ease-in-out',
+        position: 'relative',
+        zIndex: 1
       }}
     >
+      <WeatherEffect type={weatherEffect} config={weatherConfig?.[weatherEffect]} />
       <ModalProvider theme={theme}>
       <ToastProvider theme={theme}>
       <style>{`
@@ -1874,7 +1895,7 @@ export default function TimerApp() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Theme Name */}
               <div>
-                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: theme.text }}>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500, color: theme.text, opacity: 0.8 }}>
                   Theme Name
                 </label>
                 <input
@@ -1897,7 +1918,7 @@ export default function TimerApp() {
               {/* Color Pickers */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 500, color: theme.text }}>
                     Background
                   </label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1932,7 +1953,7 @@ export default function TimerApp() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 500, color: theme.text }}>
                     Card
                   </label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1967,7 +1988,7 @@ export default function TimerApp() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 500, color: theme.text }}>
                     Accent
                   </label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -2002,7 +2023,7 @@ export default function TimerApp() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 600, color: theme.text }}>
+                  <label style={{ display: 'block', marginBottom: 8, fontSize: 12, fontWeight: 500, color: theme.text }}>
                     Text
                   </label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -2134,15 +2155,18 @@ export default function TimerApp() {
               background: theme.card,
               borderRadius: 24,
               padding: 32,
+              width: '90%',
               maxWidth: 450,
-              width: '100%',
+              border: '1px solid rgba(255,255,255,0.1)',
               boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ fontSize: 32 }}>⚠️</div>
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Clear All Cache?</h3>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: theme.text }}>
+                Clear All Cache?
+              </h3>
             </div>
             <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 24, lineHeight: 1.6 }}>
               This action will permanently delete all your data, including:
@@ -2464,6 +2488,34 @@ export default function TimerApp() {
                     title="Themes"
                   >
                     <Palette size={18} />
+                  </button>
+
+                  {/* Weather Effects Option */}
+                  <button
+                    onClick={() => setSettingsView('weather')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '40px',
+                      minHeight: '40px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Weather Effects"
+                  >
+                    <Cloud size={18} />
                   </button>
 
                   {/* Sound Settings Option */}
@@ -2812,6 +2864,96 @@ export default function TimerApp() {
                 </>
               )}
 
+              {settingsView === 'weather' && (
+                <>
+                  {/* Back Button */}
+                  <button
+                    onClick={() => setSettingsView('main')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      marginBottom: 8
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Back"
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Back</span>
+                  </button>
+
+                  {/* Weather Effects Options */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      { value: 'none', label: 'None', desc: 'No weather effect' },
+                      { value: 'rain', label: 'Rain', desc: 'Gentle falling rain' },
+                      { value: 'cloudy', label: 'Cloudy', desc: 'Moving clouds' },
+                      { value: 'winter', label: 'Winter', desc: 'Falling snow' },
+                      { value: 'sunny', label: 'Sunny', desc: 'Warm sun rays' }
+                    ].map((effect) => (
+                      <div key={effect.value} style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => setWeatherEffect(effect.value)}
+                          style={{
+                            flex: 1,
+                            background: weatherEffect === effect.value ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                            border: weatherEffect === effect.value ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: 8,
+                            padding: '12px',
+                            color: theme.text,
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ fontWeight: 600 }}>{effect.label}</div>
+                          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{effect.desc}</div>
+                        </button>
+                        {effect.value !== 'none' && (
+                          <button
+                            onClick={() => setEditingWeather(effect.value)}
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: 8,
+                              width: 40,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: theme.text,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                            title="Customize effect"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
               {settingsView === 'sound' && (
                 <>
                   {/* Back Button */}
@@ -2986,9 +3128,6 @@ export default function TimerApp() {
         </div>
       </div>
       </div>
-      </div>
-
-      <div style={{ maxWidth: 600, margin: '20px auto 0', padding: '0' }}>
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
         {!isRunning && time === 0 && !isTransitioning && (
@@ -3110,9 +3249,7 @@ export default function TimerApp() {
           </div>
         )}
 
-        {(isRunning || time > 0 || isTransitioning) && (
-          <>
-            {activeScene !== 'none' && SCENES[activeScene] && (
+        {(isRunning || time > 0 || isTransitioning) && activeScene !== 'none' && SCENES[activeScene] && (
               <div style={{
                 background: 'rgba(0,0,0,0.3)',
                 backdropFilter: 'blur(10px)',
@@ -3139,11 +3276,12 @@ export default function TimerApp() {
                 </div>
               </div>
             )}
+            {(isRunning || time > 0 || isTransitioning) && (
             <div style={{ background: theme.card, borderRadius: 10, padding: '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'center', flexDirection: 'column' }}>
-            {mode === 'sequence' && sequence.length > 0 && (
-              <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {sequence.map((step, idx) => (
-                  <React.Fragment key={idx}>
+              {mode === 'sequence' && sequence.length > 0 && (
+                <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {sequence.map((step, idx) => (
+                    <React.Fragment key={idx}>
                     <div style={{ width: idx === currentStep ? 16 : 12, height: idx === currentStep ? 16 : 12, borderRadius: '50%', background: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === currentStep ? `3px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === currentStep ? `0 0 20px ${step.color}60` : 'none', margin: '0 auto' }} />
                     {idx < sequence.length - 1 && <div style={{ width: 2, height: 16, background: idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
                   </React.Fragment>
@@ -3193,7 +3331,6 @@ export default function TimerApp() {
               </div>
             )}
           </div>
-          </>
         )}
 
         {!isRunning && time === 0 && !isTransitioning && (
@@ -3203,7 +3340,7 @@ export default function TimerApp() {
               <IntervalPanel
                 theme={theme}
                 work={work}
-                rest={rest}
+                               rest={rest}
                 rounds={rounds}
                 setWork={setWork}
                 setRest={setRest}
@@ -3440,6 +3577,8 @@ export default function TimerApp() {
               })}
             </div>
             )}
+          </>
+        )}
 
             {/* Main Content - Suspense Boundary for Lazy-Loaded Components */}
             <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
@@ -3576,7 +3715,7 @@ export default function TimerApp() {
                     <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: '16px 32px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
                       <RotateCcw size={20} />
                     </button>
-                  </div>
+                </div>
                 </div>
               )}
 
@@ -3584,8 +3723,8 @@ export default function TimerApp() {
                 <AchievementsPanel theme={theme} formatDate={formatDate} />
               )}
             </Suspense>
-          </>
-        )}
+      </div>
+
 {/* Room Template Selector Modal */}
         {showTemplateSelector && (
           <div style={{
@@ -3608,7 +3747,6 @@ export default function TimerApp() {
               overflowY: 'auto',
               position: 'relative'
             }}>
-              {/* Close Button */}
               <button
                 onClick={() => setShowTemplateSelector(false)}
                 style={{
@@ -3637,37 +3775,138 @@ export default function TimerApp() {
                 />
               </Suspense>
 
-              <>
-                {selectedTemplate && (
-                  <div style={{ padding: 20, borderTop: `1px solid rgba(255,255,255,0.1)`, textAlign: 'center', background: theme.card }}>
-                    <button
-                      onClick={handleCreateRoomFromTemplate}
-                      style={{
-                        background: theme.accent,
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: 12,
-                        padding: '12px 24px',
-                        cursor: 'pointer',
-                        fontSize: 16,
-                        fontWeight: 600,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      Create Room from {selectedTemplate.name}
-                    </button>
-                  </div>
-                )}
-              </>
-            </div> {/* This div closes the main content container (the one with maxWidth: 600) */}
+              {selectedTemplate && (
+                <div style={{ padding: 20, borderTop: `1px solid rgba(255,255,255,0.1)`, textAlign: 'center', background: theme.card }}>
+                  <button
+                    onClick={handleCreateRoomFromTemplate}
+                    style={{
+                      background: theme.accent,
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: 12,
+                      padding: '12px 24px',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    Create Room from {selectedTemplate.name}
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
         )}
+
+      {/* Weather Customization Modal */}
+      {editingWeather && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(5px)'
+        }} onClick={() => setEditingWeather(null)}>
+          <div style={{
+            background: theme.card,
+            borderRadius: 24,
+            padding: 24,
+            width: '90%',
+            maxWidth: 400,
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: theme.text }}>
+                Customize {editingWeather.charAt(0).toUpperCase() + editingWeather.slice(1)}
+              </h3>
+              <button
+                onClick={() => setEditingWeather(null)}
+                style={{ background: 'none', border: 'none', color: theme.text, cursor: 'pointer', opacity: 0.7 }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500, color: theme.text, opacity: 0.8 }}>
+                  Color
+                </label>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <input
+                    type="color"
+                    value={weatherConfig[editingWeather]?.color || '#ffffff'}
+                    onChange={(e) => setWeatherConfig(prev => ({
+                      ...prev,
+                      [editingWeather]: { ...prev[editingWeather], color: e.target.value }
+                    }))}
+                    style={{
+                      width: 50,
+                      height: 50,
+                      padding: 0,
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      background: 'none'
+                    }}
+                  />
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 8, color: theme.text, fontSize: 14 }}>
+                    {weatherConfig[editingWeather]?.color || '#ffffff'}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500, color: theme.text, opacity: 0.8 }}>
+                  Opacity ({Math.round((weatherConfig[editingWeather]?.opacity ?? 1) * 100)}%)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={weatherConfig[editingWeather]?.opacity ?? 1}
+                  onChange={(e) => setWeatherConfig(prev => ({
+                    ...prev,
+                    [editingWeather]: { ...prev[editingWeather], opacity: parseFloat(e.target.value) }
+                  }))}
+                  style={{
+                    width: '100%',
+                    accentColor: theme.accent
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  onClick={() => setEditingWeather(null)}
+                  style={{
+                    background: theme.accent,
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '12px 24px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
       </ToastProvider>
       </ModalProvider>
     </div>
   );
-  
-  }
+}
