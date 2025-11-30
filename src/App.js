@@ -683,6 +683,11 @@ export default function TimerApp() {
     setAmbientVolume
   } = useSettings();
 
+  // Handle weather effect selection
+  const handleWeatherEffectChange = (effectValue) => {
+    setWeatherEffect(effectValue);
+  };
+
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
@@ -2920,7 +2925,6 @@ export default function TimerApp() {
                       { value: 'sakura', label: 'Cherry Blossoms', desc: 'Pink sakura petals' },
                       { value: 'fireflies', label: 'Fireflies', desc: 'Glowing lights' },
                       { value: 'butterflies', label: 'Butterflies', desc: 'Flying butterflies' },
-                      { value: 'fire', label: 'Fireplace', desc: 'Cozy flames' },
                       { value: 'lanterns', label: 'Lanterns', desc: 'Asian floating lanterns' },
                       { value: 'aurora', label: 'Aurora', desc: 'Northern lights' },
                       { value: 'desert', label: 'Desert', desc: 'Blowing sand' },
@@ -2928,7 +2932,7 @@ export default function TimerApp() {
                     ].map((effect) => (
                       <div key={effect.value} style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => setWeatherEffect(effect.value)}
+                          onClick={() => handleWeatherEffectChange(effect.value)}
                           style={{
                             flex: 1,
                             background: weatherEffect === effect.value ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
@@ -3748,6 +3752,11 @@ export default function TimerApp() {
               )}
             </Suspense>
       </div>
+
+      {/* Weather Effect Canvas */}
+      {weatherEffect !== 'none' && (
+        <WeatherEffect type={weatherEffect} config={weatherConfig} />
+      )}
 
 {/* Room Template Selector Modal */}
         {showTemplateSelector && (

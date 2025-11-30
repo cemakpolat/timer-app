@@ -5,7 +5,7 @@ const WeatherEffect = ({ type, config }) => {
   const animationRef = useRef(null);
 
   useEffect(() => {
-    if (type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'fire' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical') {
+    if (type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical') {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -14,13 +14,15 @@ const WeatherEffect = ({ type, config }) => {
       canvas.height = window.innerHeight;
 
       let particles = [];
-      const particleCount = type === 'rain' ? 150 : type === 'winter' ? 80 : type === 'autumn' ? 40 : type === 'spring' ? 50 : type === 'sakura' ? 60 : type === 'fireflies' ? 30 : type === 'butterflies' ? 20 : type === 'fire' ? 100 : type === 'lanterns' ? 25 : type === 'aurora' ? 50 : type === 'desert' ? 120 : type === 'tropical' ? 40 : 50;
+
+      const particleCount = type === 'rain' ? 150 : type === 'winter' ? 80 : type === 'autumn' ? 40 : type === 'spring' ? 50 : type === 'sakura' ? 60 : type === 'fireflies' ? 30 : type === 'butterflies' ? 20 : type === 'lanterns' ? 25 : type === 'aurora' ? 50 : type === 'desert' ? 120 : type === 'tropical' ? 40 : 50;
 
       class Particle {
         constructor() {
           this.x = Math.random() * canvas.width;
           this.y = Math.random() * canvas.height - canvas.height;
-          this.speed = type === 'rain' ? Math.random() * 12 + 8 : type === 'autumn' ? Math.random() * 1.8 + 0.8 : type === 'spring' ? Math.random() * 1.2 + 0.4 : Math.random() * 3 + 1;
+          // Normalize speeds to be more consistent - reduced variance for all types
+          this.speed = type === 'rain' ? Math.random() * 2 + 3 : type === 'autumn' ? Math.random() * 0.4 + 0.8 : type === 'spring' ? Math.random() * 0.3 + 0.6 : Math.random() * 0.5 + 1;
           this.size = type === 'rain' ? Math.random() * 1.5 + 0.8 : type === 'autumn' ? Math.random() * 10 + 8 : type === 'spring' ? Math.random() * 7 + 5 : Math.random() * 3 + 2;
           this.opacity = type === 'rain' ? Math.random() * 0.4 + 0.3 : Math.random() * 0.7 + 0.3;
           this.rotation = Math.random() * 360;
@@ -28,10 +30,10 @@ const WeatherEffect = ({ type, config }) => {
           
           // Enhanced wind parameters for autumn and spring
           this.windDirection = Math.random() > 0.5 ? 1 : -1;
-          this.swayAmplitude = type === 'autumn' ? Math.random() * 3 + 2 : type === 'spring' ? Math.random() * 2.5 + 1.5 : Math.random() * 2 + 1;
+          this.swayAmplitude = type === 'autumn' ? Math.random() * 0.7 + 0.8 : type === 'spring' ? Math.random() * 2.5 + 1.5 : Math.random() * 2 + 1;
           this.swaySpeed = type === 'autumn' ? Math.random() * 0.015 + 0.008 : type === 'spring' ? Math.random() * 0.012 + 0.006 : Math.random() * 0.02 + 0.01;
           this.swayOffset = Math.random() * Math.PI * 2;
-          this.horizontalDrift = type === 'autumn' ? (Math.random() - 0.3) * 0.8 : type === 'spring' ? (Math.random() - 0.3) * 0.5 : 0;
+          this.horizontalDrift = type === 'autumn' ? (Math.random() - 0.5) * 0.4 : type === 'spring' ? (Math.random() - 0.3) * 0.5 : 0;
           
           // Rain droplet length
           this.length = type === 'rain' ? Math.random() * 15 + 10 : 0;
@@ -46,22 +48,6 @@ const WeatherEffect = ({ type, config }) => {
           if (type === 'spring') {
             const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFE4E1', '#DB7093', '#FFDAB9', '#F0E68C', '#E6E6FA', '#DDA0DD'];
             this.color = colors[Math.floor(Math.random() * colors.length)];
-          }
-          
-          // Fire/Fireplace flames
-          if (type === 'fire') {
-            this.y = canvas.height + Math.random() * 100;
-            this.x = Math.random() * canvas.width;
-            this.speed = -(Math.random() * 4 + 2); // Negative for upward movement
-            this.size = Math.random() * 15 + 10;
-            const colors = ['#FF4500', '#FF6347', '#FF8C00', '#FFA500', '#FFD700', '#FFFF00'];
-            this.color = colors[Math.floor(Math.random() * colors.length)];
-            this.opacity = Math.random() * 0.6 + 0.4;
-            this.flickerSpeed = Math.random() * 0.05 + 0.02;
-            this.flickerOffset = Math.random() * Math.PI * 2;
-            this.horizontalDrift = (Math.random() - 0.5) * 2;
-            this.life = 1.0;
-            this.lifeDecay = Math.random() * 0.01 + 0.005;
           }
           
           // Sakura petals
@@ -85,13 +71,14 @@ const WeatherEffect = ({ type, config }) => {
           
           // Butterflies
           if (type === 'butterflies') {
-            const colors = ['#FF69B4', '#FF1493', '#FFB6C1', '#FFA500', '#FFD700', '#87CEEB'];
+            // More realistic butterfly wing colors
+            const colors = ['#FF6B9D', '#FF1493', '#FFB6C1', '#FFA07A', '#FFD700', '#87CEEB', '#9370DB', '#FF6347', '#32CD32', '#FF4500'];
             this.color = colors[Math.floor(Math.random() * colors.length)];
-            this.speed = Math.random() * 1 + 0.5;
-            this.size = Math.random() * 8 + 10;
-            this.wingBeat = 0;
-            this.wingBeatSpeed = Math.random() * 0.2 + 0.1;
-            this.floatAmplitude = Math.random() * 4 + 2;
+            this.speed = Math.random() * 0.8 + 0.3; // Slower, more graceful movement
+            this.size = Math.random() * 6 + 8; // Slightly smaller for realism
+            this.wingBeat = Math.random() * Math.PI * 2; // Random starting phase
+            this.wingBeatSpeed = Math.random() * 0.15 + 0.08; // Varied wing beat speeds
+            this.floatAmplitude = Math.random() * 2 + 1; // Gentler floating
           }
           
           // Asian Lanterns
@@ -143,10 +130,18 @@ const WeatherEffect = ({ type, config }) => {
             this.swaySpeed = Math.random() * 0.015 + 0.01;
             this.swayOffset = Math.random() * Math.PI * 2;
           }
+
         }
 
         update() {
           this.y += this.speed;
+          // Defensive clamp: ensure vertical speed for autumn doesn't exceed expected bounds
+          if (type === 'autumn') {
+            const maxVy = 2.0; // pixels per frame
+            if (this.speed > maxVy) this.speed = maxVy;
+            if (this.speed < 0.2) this.speed = 0.2; // prevent near-zero stalls
+            }
+          
           
           if (type === 'fireflies' || type === 'butterflies') {
             // Wrap around for floating effects
@@ -155,10 +150,15 @@ const WeatherEffect = ({ type, config }) => {
             if (this.x > canvas.width + 50) this.x = -50;
             if (this.x < -50) this.x = canvas.width + 50;
           } else if (this.y > canvas.height + 50) {
-            this.y = -50;
-            this.x = Math.random() * canvas.width;
+            // When particles exit the bottom, respawn them slightly above the top
+            // For leaf-like particles, respawn a bit further off-screen so they don't pop into view
             if (type === 'autumn' || type === 'spring' || type === 'sakura') {
+              this.y = -Math.random() * (canvas.height * 0.18) - 20; // respawn up to ~18% of height above
+              this.x = Math.random() * canvas.width;
               this.windDirection = Math.random() > 0.5 ? 1 : -1;
+            } else {
+              this.y = -50;
+              this.x = Math.random() * canvas.width;
             }
           }
           
@@ -172,13 +172,20 @@ const WeatherEffect = ({ type, config }) => {
             this.rotation += this.rotationSpeed * 0.3;
           } else if (type === 'autumn') {
             // Leaves tumble with varied wind
-            this.rotation += this.rotationSpeed;
-            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * this.windDirection;
-            this.x += this.horizontalDrift;
-            // Add occasional gusts
-            if (Math.random() > 0.98) {
-              this.x += (Math.random() - 0.5) * 5;
+            // Compute horizontal delta and clamp it to avoid extreme outliers
+            this.rotation += this.rotationSpeed * 0.8;
+            const sway = Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * this.windDirection;
+            // Occasional gentle gusts (rare and small)
+            let gust = 0;
+            if (Math.random() > 0.995) {
+              gust = (Math.random() - 0.5) * 1; // very rare small gust
+            } else if (Math.random() > 0.98) {
+              gust = (Math.random() - 0.5) * 0.6; // occasional smaller gust
             }
+            let dx = sway + this.horizontalDrift + gust;
+            const maxDx = 1.5; // limit horizontal movement per frame
+            dx = Math.max(-maxDx, Math.min(maxDx, dx));
+            this.x += dx;
           } else if (type === 'spring') {
             // Flowers float gracefully with gentle spiral
             this.rotation += this.rotationSpeed;
@@ -196,22 +203,14 @@ const WeatherEffect = ({ type, config }) => {
             this.x += Math.sin(this.y * 0.03) * this.floatAmplitude;
             this.y += Math.sin(this.x * 0.02) * 0.5;
           } else if (type === 'butterflies') {
-            // Butterflies flutter
+            // Butterflies flutter with more natural movement
             this.wingBeat += this.wingBeatSpeed;
-            this.x += Math.sin(this.wingBeat) * 2;
-            this.y += Math.cos(this.wingBeat * 0.5) * 0.3;
-            this.rotation = Math.sin(this.wingBeat) * 15;
-          } else if (type === 'fire') {
-            // Fire rises and flickers
-            this.life -= this.lifeDecay;
-            if (this.life <= 0 || this.y < -50) {
-              this.y = canvas.height + Math.random() * 50;
-              this.x = Math.random() * canvas.width;
-              this.life = 1.0;
-            }
-            this.x += this.horizontalDrift + Math.sin(this.y * 0.05) * 0.5;
-            this.opacity = (Math.sin(this.y * this.flickerSpeed + this.flickerOffset) * 0.3 + 0.7) * this.life;
-            this.size = this.size * (0.995); // Shrink as it rises
+            // Gentle forward movement with occasional direction changes
+            this.x += Math.sin(this.wingBeat * 0.3) * 0.8 + Math.sin(this.y * 0.01) * 0.3;
+            // Subtle up/down floating motion
+            this.y += Math.cos(this.wingBeat * 0.2) * 0.4 + Math.sin(this.x * 0.008) * 0.2;
+            // Gentle body rotation for realism
+            this.rotation = Math.sin(this.wingBeat * 0.8) * 8;
           } else if (type === 'lanterns') {
             // Lanterns float upward gently
             this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude;
@@ -339,55 +338,120 @@ const WeatherEffect = ({ type, config }) => {
             ctx.arc(0, 0, this.size, 0, 2 * Math.PI);
             ctx.fill();
           } else if (type === 'butterflies') {
-            // Draw butterfly wings
+            // Draw realistic butterfly wings
             const wingAngle = Math.sin(this.wingBeat) * 25;
             ctx.fillStyle = this.color;
-            
-            // Left wing
+
+            // Left upper wing (forewing) - more tapered and elegant
             ctx.save();
             ctx.rotate((-wingAngle * Math.PI) / 180);
             ctx.beginPath();
-            ctx.ellipse(-this.size / 3, 0, this.size / 2.5, this.size / 1.5, 0, 0, 2 * Math.PI);
+            ctx.moveTo(-this.size / 5, -this.size / 10);
+            // Top curve
+            ctx.bezierCurveTo(-this.size / 2.5, -this.size / 2.2, -this.size / 3.5, -this.size / 1.8, -this.size / 6, -this.size / 1.2);
+            // Right side - leading edge
+            ctx.bezierCurveTo(0, -this.size / 1.5, this.size / 8, -this.size / 2, this.size / 6, -this.size / 3);
+            // Bottom curve
+            ctx.bezierCurveTo(this.size / 8, -this.size / 8, this.size / 10, this.size / 6, -this.size / 12, this.size / 5);
+            // Trailing edge back to start
+            ctx.bezierCurveTo(-this.size / 6, this.size / 8, -this.size / 4, 0, -this.size / 5, -this.size / 10);
             ctx.fill();
             ctx.restore();
-            
-            // Right wing
+
+            // Right upper wing (forewing) - mirror of left
             ctx.save();
             ctx.rotate((wingAngle * Math.PI) / 180);
             ctx.beginPath();
-            ctx.ellipse(this.size / 3, 0, this.size / 2.5, this.size / 1.5, 0, 0, 2 * Math.PI);
+            ctx.moveTo(this.size / 5, -this.size / 10);
+            // Top curve
+            ctx.bezierCurveTo(this.size / 2.5, -this.size / 2.2, this.size / 3.5, -this.size / 1.8, this.size / 6, -this.size / 1.2);
+            // Left side - leading edge
+            ctx.bezierCurveTo(0, -this.size / 1.5, -this.size / 8, -this.size / 2, -this.size / 6, -this.size / 3);
+            // Bottom curve
+            ctx.bezierCurveTo(-this.size / 8, -this.size / 8, -this.size / 10, this.size / 6, this.size / 12, this.size / 5);
+            // Trailing edge back to start
+            ctx.bezierCurveTo(this.size / 6, this.size / 8, this.size / 4, 0, this.size / 5, -this.size / 10);
             ctx.fill();
             ctx.restore();
-            
-            // Body
-            ctx.fillStyle = '#333';
+
+            // Left lower wing (hindwing) - more rounded and organic
+            ctx.save();
+            ctx.rotate((-wingAngle * Math.PI) / 180);
             ctx.beginPath();
-            ctx.ellipse(0, 0, this.size / 6, this.size / 1.8, 0, 0, 2 * Math.PI);
+            ctx.moveTo(-this.size / 4.5, this.size / 12);
+            // Top/inner curve
+            ctx.bezierCurveTo(-this.size / 2, -this.size / 4, -this.size / 2.8, this.size / 3, -this.size / 8, this.size / 1.5);
+            // Bottom curve - more rounded
+            ctx.bezierCurveTo(this.size / 12, this.size / 1.2, this.size / 3, this.size / 1.5, this.size / 2.5, this.size / 3);
+            // Back side - trailing edge
+            ctx.bezierCurveTo(this.size / 2.2, this.size / 6, this.size / 4, -this.size / 8, this.size / 8, this.size / 6);
+            // Curve back to center
+            ctx.bezierCurveTo(-this.size / 10, this.size / 12, -this.size / 3, this.size / 10, -this.size / 4.5, this.size / 12);
             ctx.fill();
-          } else if (type === 'fire') {
-            // Draw realistic flame
-            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
-            gradient.addColorStop(0, this.color);
-            gradient.addColorStop(0.4, '#FF6347');
-            gradient.addColorStop(0.7, '#FF4500');
-            gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
-            ctx.fillStyle = gradient;
-            ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.7);
-            
-            // Draw flickering flame shape
+            ctx.restore();
+
+            // Right lower wing (hindwing) - mirror of left
+            ctx.save();
+            ctx.rotate((wingAngle * Math.PI) / 180);
             ctx.beginPath();
-            ctx.moveTo(0, this.size / 2);
-            ctx.bezierCurveTo(
-              -this.size / 3, this.size / 4,
-              -this.size / 2, -this.size / 4,
-              0, -this.size
-            );
-            ctx.bezierCurveTo(
-              this.size / 2, -this.size / 4,
-              this.size / 3, this.size / 4,
-              0, this.size / 2
-            );
+            ctx.moveTo(this.size / 4.5, this.size / 12);
+            // Top/inner curve
+            ctx.bezierCurveTo(this.size / 2, -this.size / 4, this.size / 2.8, this.size / 3, this.size / 8, this.size / 1.5);
+            // Bottom curve - more rounded
+            ctx.bezierCurveTo(-this.size / 12, this.size / 1.2, -this.size / 3, this.size / 1.5, -this.size / 2.5, this.size / 3);
+            // Back side - trailing edge
+            ctx.bezierCurveTo(-this.size / 2.2, this.size / 6, -this.size / 4, -this.size / 8, -this.size / 8, this.size / 6);
+            // Curve back to center
+            ctx.bezierCurveTo(this.size / 10, this.size / 12, this.size / 3, this.size / 10, this.size / 4.5, this.size / 12);
             ctx.fill();
+            ctx.restore();
+
+            // Body - more elongated and segmented
+            ctx.fillStyle = '#2d1810'; // Dark brown body
+            ctx.beginPath();
+            ctx.ellipse(0, 0, this.size / 8, this.size / 1.2, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Thorax (middle segment)
+            ctx.fillStyle = '#4a2c17';
+            ctx.beginPath();
+            ctx.ellipse(0, -this.size / 6, this.size / 6, this.size / 4, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Antennae
+            ctx.strokeStyle = '#2d1810';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-this.size / 12, -this.size / 3);
+            ctx.lineTo(-this.size / 8, -this.size / 2);
+            ctx.moveTo(this.size / 12, -this.size / 3);
+            ctx.lineTo(this.size / 8, -this.size / 2);
+            ctx.stroke();
+
+            // Add subtle wing veins/patterns
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 0.5;
+            ctx.save();
+            ctx.rotate((-wingAngle * Math.PI) / 180);
+            // Left wing veins
+            ctx.beginPath();
+            ctx.moveTo(-this.size / 4, -this.size / 6);
+            ctx.lineTo(-this.size / 8, this.size / 6);
+            ctx.moveTo(-this.size / 6, -this.size / 4);
+            ctx.lineTo(0, this.size / 8);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.save();
+            ctx.rotate((wingAngle * Math.PI) / 180);
+            // Right wing veins
+            ctx.beginPath();
+            ctx.moveTo(this.size / 4, -this.size / 6);
+            ctx.lineTo(this.size / 8, this.size / 6);
+            ctx.moveTo(this.size / 6, -this.size / 4);
+            ctx.lineTo(0, this.size / 8);
+            ctx.stroke();
+            ctx.restore();
           } else if (type === 'lanterns') {
             // Draw Asian-style lantern
             ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.85);
@@ -477,10 +541,16 @@ const WeatherEffect = ({ type, config }) => {
 
       const animate = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(particle => {
+        
+        // Update and draw all particles
+        for (let i = 0; i < particles.length; i++) {
+          const particle = particles[i];
+
+          
           particle.update();
           particle.draw();
-        });
+        }
+        
         animationRef.current = requestAnimationFrame(animate);
       };
 
@@ -515,14 +585,14 @@ const WeatherEffect = ({ type, config }) => {
       zIndex: 0,
       overflow: 'hidden'
     }}>
-      {(type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'fire' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical') && (
+      {(type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical') && (
         <canvas
           ref={canvasRef}
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
-            opacity: type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'tropical' ? 0.8 : type === 'fireflies' || type === 'lanterns' ? 0.9 : type === 'butterflies' ? 0.85 : type === 'fire' ? 0.7 : type === 'aurora' ? 0.6 : type === 'desert' ? 0.5 : 0.6
+            opacity: type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'tropical' ? 0.8 : type === 'fireflies' || type === 'lanterns' ? 0.9 : type === 'butterflies' ? 0.85 : type === 'aurora' ? 0.6 : type === 'desert' ? 0.5 : 0.6
           }}
         />
       )}
