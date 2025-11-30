@@ -12,7 +12,27 @@ export const THEMES = [
   { name: "Holiday", bg: "#422006", card: "#713f12", accent: "#eab308" }, // Brown/Gold
   { name: "Winter Holiday", bg: "#172554", card: "#1e3a8a", accent: "#60a5fa" }, // Deep Blue/Ice
   { name: "Spring", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d" }, // Light Green
-  { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706" } // Brown/Orange
+  { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706" }, // Brown/Orange
+  
+  // Cultural Themes
+  { name: "Japanese", bg: "#1a0808", card: "#2d0f0f", accent: "#dc2626", text: "#fef2f2" }, // Deep red & black
+  { name: "Sakura", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843" }, // Cherry blossom pink
+  { name: "Indian Festival", bg: "#451a03", card: "#78350f", accent: "#f59e0b", text: "#fef3c7" }, // Saffron & gold
+  { name: "Turkish", bg: "#7f1d1d", card: "#991b1b", accent: "#fef3c7", text: "#fef3c7" }, // Turkish red & gold
+  { name: "Arabian Nights", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7" }, // Deep blue & gold
+  { name: "Mediterranean", bg: "#0c4a6e", card: "#075985", accent: "#fcd34d", text: "#fef3c7" }, // Aegean blue
+  { name: "African Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa" }, // Warm earth tones
+  { name: "Nordic Ice", bg: "#0c4a6e", card: "#075985", accent: "#67e8f9", text: "#cffafe" }, // Ice blue
+  { name: "Celtic Green", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4" }, // Irish green
+  { name: "Mexican Fiesta", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7" }, // Terracotta & gold
+  { name: "Brazilian Carnival", bg: "#4d0f4d", card: "#6b216b", accent: "#fcd34d", text: "#fef3c7" }, // Purple & gold
+  { name: "Chinese Red", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7" }, // Lucky red & gold
+  { name: "Korean Hanbok", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843" }, // Pastel pink
+  { name: "Thai Temple", bg: "#451a03", card: "#78350f", accent: "#fbbf24", text: "#fef3c7" }, // Gold & brown
+  { name: "Indonesian Batik", bg: "#422006", card: "#713f12", accent: "#0891b2", text: "#cffafe" }, // Brown & teal
+  { name: "Moroccan Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa" }, // Spice colors
+  { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7" }, // Royal blue & gold
+  { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985" } // White & blue
 ];
 
 // Ambient sound configurations

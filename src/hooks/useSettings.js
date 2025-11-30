@@ -59,7 +59,17 @@ const useSettings = () => {
       rain: { color: '#4682B4', opacity: 0.6 },
       winter: { color: '#FFFFFF', opacity: 0.6 },
       cloudy: { color: '#FFFFFF', opacity: 0.8 },
-      sunny: { color: '#FFD700', opacity: 0.2 }
+      sunny: { color: '#FFD700', opacity: 0.2 },
+      spring: { color: '#FFB6C1', opacity: 0.7 },
+      autumn: { color: '#D2691E', opacity: 0.7 },
+      sakura: { color: '#FFB7C5', opacity: 0.8 },
+      fireflies: { color: '#FFD700', opacity: 0.9 },
+      butterflies: { color: '#FF69B4', opacity: 0.85 },
+      fire: { color: '#FF6347', opacity: 0.7 },
+      lanterns: { color: '#FF0000', opacity: 0.85 },
+      aurora: { color: '#00FF80', opacity: 0.6 },
+      desert: { color: '#DEB887', opacity: 0.5 },
+      tropical: { color: '#FF69B4', opacity: 0.8 }
     };
 
     try {
