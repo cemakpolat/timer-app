@@ -15,7 +15,7 @@ import IntervalPanel from './components/panels/IntervalPanel';
 import CompositePanel from './components/panels/CompositePanel';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 import { formatDate } from './utils/formatters';
-import { AMBIENT_SOUNDS } from './utils/constants';
+import { AMBIENT_SOUNDS, THEMES as IMPORTED_THEMES } from './utils/constants';
 import { useSound } from './hooks/useSound';
 import shareService from './services/shareService';
 import useSettings from './hooks/useSettings';
@@ -64,26 +64,12 @@ const getTextOpacity = (theme, opacity = 0.7) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const DEFAULT_THEMES = [
-  { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isDefault: true },
-  { name: "Ocean", bg: "#0a1929", card: "#1e3a5f", accent: "#06b6d4", text: "#ffffff", isDefault: true },
-  { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981", text: "#ffffff", isDefault: true },
-  { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", text: "#ffffff", isDefault: true },
-  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", text: "#ffffff", isDefault: true },
-  { name: "Clean", bg: "#ffffff", card: "#f3f4f6", accent: "#1f2937", text: "#000000", isDefault: true },
-  { name: "Pure Black", bg: "#000000", card: "#111111", accent: "#ffffff", text: "#ffffff", isDefault: true },
-  // Seasonal themes
-  { name: "Autumn", bg: "#4a2c2a", card: "#783525", accent: "#e67e22", text: "#ffffff", isDefault: true },
-  { name: "Spring", bg: "#2e4a3d", card: "#4a7a5d", accent: "#81c784", text: "#ffffff", isDefault: true },
-  { name: "Winter", bg: "#1e293b", card: "#334155", accent: "#93c5fd", text: "#ffffff", isDefault: true },
-  { name: "Christmas", bg: "#165b33", card: "#bb2528", accent: "#f8b229", text: "#ffffff", isDefault: true },
-  { name: "Easter", bg: "#fdf4e3", card: "#e6e6fa", accent: "#dda0dd", text: "#000000", isDefault: true },
-  // Fitness-inspired themes
-  { name: "Energy Boost", bg: "#1e40af", card: "#3b82f6", accent: "#fbbf24", text: "#ffffff", isDefault: true },
-  { name: "Sunrise Run", bg: "#ea580c", card: "#fb923c", accent: "#fef3c7", text: "#ffffff", isDefault: true },
-  { name: "Zen Garden", bg: "#166534", card: "#22c55e", accent: "#86efac", text: "#ffffff", isDefault: true },
-  { name: "Power Lift", bg: "#7c2d12", card: "#dc2626", accent: "#fca5a5", text: "#ffffff", isDefault: true }
-];
+// Use themes from constants with isDefault flag
+const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
+  ...theme,
+  text: theme.text || '#ffffff',
+  isDefault: true
+}));
 
 // Immersive scenes for different timer types
 const SCENES = {
@@ -457,6 +443,9 @@ export default function TimerApp() {
   const [showClearCacheModal, setShowClearCacheModal] = useState(false);
   const [settingsView, setSettingsView] = useState('main'); // 'main', 'themes', 'weather', 'sound', 'animations'
 
+  // Ref for settings panel to handle click outside
+  const settingsPanelRef = useRef(null);
+
   // Color picker states
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [editingTheme, setEditingTheme] = useState(null);
@@ -694,6 +683,11 @@ export default function TimerApp() {
     setAmbientVolume
   } = useSettings();
 
+  // Handle weather effect selection
+  const handleWeatherEffectChange = (effectValue) => {
+    setWeatherEffect(effectValue);
+  };
+
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
@@ -807,6 +801,23 @@ export default function TimerApp() {
   useEffect(() => { if (firstTimerDate) localStorage.setItem('firstTimerDate', firstTimerDate); }, [firstTimerDate]);
   useEffect(() => localStorage.setItem('dailyChallenge', JSON.stringify(dailyChallenge)), [dailyChallenge]);
   useEffect(() => localStorage.setItem('timeCapsules', JSON.stringify(timeCapsules)), [timeCapsules]);
+
+  // Handle clicks outside settings panel to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSettings && settingsPanelRef.current && !settingsPanelRef.current.contains(event.target)) {
+        setShowSettings(false);
+      }
+    };
+
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
 
   // Update active users count every 30 seconds with realistic variation
   // Active users now managed by usePresence hook
@@ -2316,8 +2327,7 @@ export default function TimerApp() {
           justifyContent: 'space-between', 
           alignItems: 'center',
           padding: '20px 0 16px',
-          position: 'sticky',
-          top: 0,
+          position: 'relative',
           background: 'transparent',
           zIndex: 100
         }}>
@@ -2445,7 +2455,9 @@ export default function TimerApp() {
 
               {/* Settings Dropdown */}
               {showSettings && (
-                <div style={{
+                <div 
+                  ref={settingsPanelRef}
+                  style={{
                   position: 'absolute',
                   top: 50,
                   right: 0,
@@ -2894,17 +2906,33 @@ export default function TimerApp() {
                   </button>
 
                   {/* Weather Effects Options */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 8,
+                    maxHeight: 300,
+                    overflowY: 'auto',
+                    paddingRight: 8
+                  }}>
                     {[
                       { value: 'none', label: 'None', desc: 'No weather effect' },
                       { value: 'rain', label: 'Rain', desc: 'Gentle falling rain' },
                       { value: 'cloudy', label: 'Cloudy', desc: 'Moving clouds' },
                       { value: 'winter', label: 'Winter', desc: 'Falling snow' },
-                      { value: 'sunny', label: 'Sunny', desc: 'Warm sun rays' }
+                      { value: 'sunny', label: 'Sunny', desc: 'Warm sun rays' },
+                      { value: 'spring', label: 'Spring', desc: 'Floating flowers' },
+                      { value: 'autumn', label: 'Autumn', desc: 'Falling leaves' },
+                      { value: 'sakura', label: 'Cherry Blossoms', desc: 'Pink sakura petals' },
+                      { value: 'fireflies', label: 'Fireflies', desc: 'Glowing lights' },
+                      { value: 'butterflies', label: 'Butterflies', desc: 'Flying butterflies' },
+                      { value: 'lanterns', label: 'Lanterns', desc: 'Asian floating lanterns' },
+                      { value: 'aurora', label: 'Aurora', desc: 'Northern lights' },
+                      { value: 'desert', label: 'Desert', desc: 'Blowing sand' },
+                      { value: 'tropical', label: 'Tropical', desc: 'Hibiscus flowers' }
                     ].map((effect) => (
                       <div key={effect.value} style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => setWeatherEffect(effect.value)}
+                          onClick={() => handleWeatherEffectChange(effect.value)}
                           style={{
                             flex: 1,
                             background: weatherEffect === effect.value ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
@@ -3724,6 +3752,11 @@ export default function TimerApp() {
               )}
             </Suspense>
       </div>
+
+      {/* Weather Effect Canvas */}
+      {weatherEffect !== 'none' && (
+        <WeatherEffect type={weatherEffect} config={weatherConfig} />
+      )}
 
 {/* Room Template Selector Modal */}
         {showTemplateSelector && (
