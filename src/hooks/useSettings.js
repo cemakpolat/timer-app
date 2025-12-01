@@ -25,15 +25,6 @@ const useSettings = () => {
   });
 
   // UI preferences
-  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
-    try {
-      return localStorage.getItem('animationsEnabled') !== 'false';
-    } catch (error) {
-      console.error('Failed to load animationsEnabled:', error);
-      return true;
-    }
-  });
-
   const [repeatEnabled, setRepeatEnabled] = useState(() => {
     try {
       return localStorage.getItem('repeatEnabled') === 'true';
@@ -113,10 +104,6 @@ const useSettings = () => {
   }, [alarmVolume]);
 
   useEffect(() => {
-    localStorage.setItem('animationsEnabled', animationsEnabled.toString());
-  }, [animationsEnabled]);
-
-  useEffect(() => {
     localStorage.setItem('repeatEnabled', repeatEnabled.toString());
   }, [repeatEnabled]);
 
@@ -145,7 +132,6 @@ const useSettings = () => {
       settings: {
         alarmSoundType,
         alarmVolume,
-        animationsEnabled,
         repeatEnabled,
         weatherEffect,
         ambientSoundType,
@@ -165,7 +151,7 @@ const useSettings = () => {
     window.dispatchEvent(new CustomEvent('app-toast', {
       detail: { message: '✅ Data exported successfully!', type: 'success', ttl: 3000 }
     }));
-  }, [alarmSoundType, alarmVolume, animationsEnabled, repeatEnabled, weatherEffect, ambientSoundType, ambientVolume]);
+  }, [alarmSoundType, alarmVolume, repeatEnabled, weatherEffect, ambientSoundType, ambientVolume]);
 
   // Import data and return imported settings
   const importData = useCallback((event, onImportComplete) => {
@@ -183,7 +169,6 @@ const useSettings = () => {
           if (imported.settings) {
             if (imported.settings.alarmSoundType) setAlarmSoundType(imported.settings.alarmSoundType);
             if (imported.settings.alarmVolume !== undefined) setAlarmVolume(imported.settings.alarmVolume);
-            if (imported.settings.animationsEnabled !== undefined) setAnimationsEnabled(imported.settings.animationsEnabled);
             if (imported.settings.repeatEnabled !== undefined) setRepeatEnabled(imported.settings.repeatEnabled);
             if (imported.settings.weatherEffect) setWeatherEffect(imported.settings.weatherEffect);
             if (imported.settings.ambientSoundType) setAmbientSoundType(imported.settings.ambientSoundType);
@@ -216,7 +201,6 @@ const useSettings = () => {
   const resetSettings = useCallback(() => {
     setAlarmSoundType('bell');
     setAlarmVolume(0.5);
-    setAnimationsEnabled(true);
     setRepeatEnabled(false);
   }, []);
 
@@ -228,8 +212,6 @@ const useSettings = () => {
     setAlarmVolume,
     
     // UI preferences
-    animationsEnabled,
-    setAnimationsEnabled,
     repeatEnabled,
     setRepeatEnabled,
     weatherEffect,
