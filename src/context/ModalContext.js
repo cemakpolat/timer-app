@@ -42,6 +42,7 @@ export const ModalProvider = ({ children, theme = {} }) => {
                 <input
                   autoFocus
                   defaultValue={modal.defaultValue}
+                  id="modal-prompt-input"
                   style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#fff', boxSizing: 'border-box', marginBottom: 12 }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -83,8 +84,8 @@ export const ModalProvider = ({ children, theme = {} }) => {
                       modal.resolve(true);
                       setModal(null);
                     } else if (modal.type === 'prompt') {
-                      // find the input inside and return its value
-                      const input = document.querySelector('div[style*="position: relative"] input');
+                      // find the prompt input by ID and return its value
+                      const input = document.getElementById('modal-prompt-input');
                       const value = input ? input.value : modal.defaultValue;
                       modal.resolve(value);
                       setModal(null);
