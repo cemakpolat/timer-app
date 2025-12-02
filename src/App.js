@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
+import useBackgroundImages from './hooks/useBackgroundImages';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
 import InfoModal from './components/InfoModal';
@@ -688,6 +689,38 @@ export default function TimerApp() {
     renameCustomMusic,
     getCustomMusicUrl
   } = useSettings();
+
+  // Use background images hook
+  const {
+    selectedBackgroundId,
+    setSelectedBackgroundId,
+    getAllBackgroundImages,
+    getBackgroundImageUrl,
+    uploadBackgroundImage,
+    deleteBackgroundImage
+  } = useBackgroundImages();
+
+  // State to hold the currently loaded background image URL
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
+
+  // Load background image URL when selectedBackgroundId changes
+  useEffect(() => {
+    const loadBackgroundImage = async () => {
+      if (selectedBackgroundId === 'None' || !selectedBackgroundId) {
+        setBackgroundImageUrl(null);
+      } else {
+        try {
+          const url = await getBackgroundImageUrl(selectedBackgroundId);
+          setBackgroundImageUrl(url);
+        } catch (error) {
+          console.error('Failed to load background image:', error);
+          setBackgroundImageUrl(null);
+        }
+      }
+    };
+
+    loadBackgroundImage();
+  }, [selectedBackgroundId, getBackgroundImageUrl]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1677,9 +1710,17 @@ export default function TimerApp() {
   // Determine which background to use (scene takes priority when timer is running)
   // Determine if we should show a scene background
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
-  const activeBackground = shouldShowScene
-    ? SCENES[activeScene].bg
-    : (previewTheme || theme).bg;
+  
+  // Construct background with proper layering: background image > scene > theme
+  let activeBackground;
+  if (backgroundImageUrl) {
+    // Use background image as the main background
+    activeBackground = `url(${backgroundImageUrl}) center/cover no-repeat fixed`;
+  } else if (shouldShowScene) {
+    activeBackground = SCENES[activeScene].bg;
+  } else {
+    activeBackground = (previewTheme || theme).bg;
+  }
 
   return (
     <div
@@ -2369,6 +2410,13 @@ export default function TimerApp() {
           deleteCustomMusic={deleteCustomMusic}
           getCustomMusicUrl={getCustomMusicUrl}
           renameCustomMusic={renameCustomMusic}
+          // Background images props
+          selectedBackgroundId={selectedBackgroundId}
+          setSelectedBackgroundId={setSelectedBackgroundId}
+          getAllBackgroundImages={getAllBackgroundImages}
+          getBackgroundImageUrl={getBackgroundImageUrl}
+          uploadBackgroundImage={uploadBackgroundImage}
+          deleteBackgroundImage={deleteBackgroundImage}
         />
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}

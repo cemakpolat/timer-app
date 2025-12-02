@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon } from 'lucide-react';
+import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 
 const Header = ({
   theme,
@@ -31,7 +32,15 @@ const Header = ({
   uploadCustomMusic,
   deleteCustomMusic,
   getCustomMusicUrl,
-  renameCustomMusic
+  renameCustomMusic,
+  // Background images
+  selectedBackgroundId,
+  setSelectedBackgroundId,
+  getAllBackgroundImages,
+  getBackgroundImageUrl,
+  uploadBackgroundImage,
+  deleteBackgroundImage
+
 }) => {
   const settingsPanelRef = useRef(null);
 
@@ -388,6 +397,34 @@ const Header = ({
                     title="Weather Effects"
                   >
                     <Cloud size={18} />
+                  </button>
+
+                  {/* Background Images Option */}
+                  <button
+                    onClick={() => setSettingsView('backgroundImages')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '12px 16px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '50px',
+                      minHeight: '50px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Background Images"
+                  >
+                    <ImageIcon size={18} />
                   </button>
 
                   {/* Import Settings Option */}
@@ -1002,6 +1039,21 @@ const Header = ({
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Background Images Settings */}
+              {settingsView === 'backgroundImages' && (
+                <BackgroundImagesPanel
+                  theme={theme}
+                  getTextOpacity={getTextOpacity}
+                  selectedBackgroundId={selectedBackgroundId}
+                  setSelectedBackgroundId={setSelectedBackgroundId}
+                  getAllBackgroundImages={getAllBackgroundImages}
+                  getBackgroundImageUrl={getBackgroundImageUrl}
+                  uploadBackgroundImage={uploadBackgroundImage}
+                  deleteBackgroundImage={deleteBackgroundImage}
+                  onBack={() => setSettingsView('main')}
+                />
               )}
             </div>
           )}
