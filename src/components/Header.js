@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { useModal } from '../context/ModalContext';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil } from 'lucide-react';
 
 const Header = ({
   theme,
@@ -25,7 +26,12 @@ const Header = ({
   AMBIENT_SOUNDS,
   ambientSound,
   setAmbientSound,
-  setEditingWeather
+  setEditingWeather,
+  customMusicFiles,
+  uploadCustomMusic,
+  deleteCustomMusic,
+  getCustomMusicUrl,
+  renameCustomMusic
 }) => {
   const settingsPanelRef = useRef(null);
 
@@ -45,6 +51,83 @@ const Header = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSettings, setShowSettings, setSettingsView]);
+
+  const modal = useModal();
+  const [selectedMusicId, setSelectedMusicId] = useState(null);
+
+  const truncate = (s, n = 28) => {
+    if (!s) return '';
+    return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+  };
+
+  const stripExtension = (name) => {
+    if (!name) return '';
+    const idx = name.lastIndexOf('.');
+    return idx > 0 ? name.slice(0, idx) : name;
+  };
+
+  const onGlobalDelete = async (fileId) => {
+    const id = fileId || selectedMusicId;
+    if (!id) {
+      modal.alert('Please select a custom music file first.', 'No Selection');
+      return;
+    }
+    const file = customMusicFiles.find(f => f.id === id);
+    if (!file) {
+      modal.alert('Selected file not found.', 'Error');
+      return;
+    }
+    const ok = await modal.confirm(`Delete "${file.name}"? This will remove it from your browser.`, 'Delete File');
+    if (ok) {
+      deleteCustomMusic(id);
+      if (ambientSound === `custom_${id}`) setAmbientSound('None');
+      if (selectedMusicId === id) setSelectedMusicId(null);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ File deleted', type: 'success', ttl: 2000 } }));
+    }
+  };
+
+  const onGlobalRename = async () => {
+    if (!selectedMusicId) {
+      modal.alert('Please select a custom music file first.', 'No Selection');
+      return;
+    }
+    const file = customMusicFiles.find(f => f.id === selectedMusicId);
+    if (!file) return modal.alert('Selected file not found.', 'Error');
+    const newName = await modal.prompt('Enter new name (without extension):', stripExtension(file.name), 'Rename File');
+    if (!newName) return; // cancelled
+    const clean = newName.trim();
+    if (!clean) return modal.alert('Name cannot be empty.', 'Invalid Name');
+    if (customMusicFiles.some(f => f.name.toLowerCase() === clean.toLowerCase() && f.id !== selectedMusicId)) {
+      return modal.alert('A file with this name already exists.', 'Duplicate Name');
+    }
+    // preserve extension
+    const displayWithExt = clean + (file.ext || '');
+    renameCustomMusic(selectedMusicId, displayWithExt);
+    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ File renamed', type: 'success', ttl: 2000 } }));
+  };
+
+  const onGlobalDownload = async () => {
+    if (!selectedMusicId) {
+      modal.alert('Please select a custom music file first.', 'No Selection');
+      return;
+    }
+    const file = customMusicFiles.find(f => f.id === selectedMusicId);
+    if (!file) return modal.alert('Selected file not found.', 'Error');
+    const url = (typeof getCustomMusicUrl === 'function') ? getCustomMusicUrl(selectedMusicId) : null;
+    if (!url) return modal.alert('File not available for download yet.', 'Unavailable');
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      const base = stripExtension(file.name);
+      a.download = `${base}${file.ext || ''}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.warn('Download failed', err);
+      modal.alert('Download failed.', 'Error');
+    }
+  };
 
   return (
     <div style={{
@@ -69,7 +152,7 @@ const Header = ({
       </h1>
 
       {/* Icon Buttons */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
         <button
           onClick={onShowInfo}
           style={{
@@ -809,7 +892,62 @@ const Header = ({
                   </div>
 
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Ambient Sounds</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5) }}>Ambient Sounds</label>
+                      {/* Global Action Buttons for Custom Music */}
+                      <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            try {
+                              await uploadCustomMusic(file);
+                              window.dispatchEvent(new CustomEvent('app-toast', {
+                                detail: { message: '✅ Music file uploaded successfully!', type: 'success', ttl: 3000 }
+                              }));
+                            } catch (error) {
+                              window.dispatchEvent(new CustomEvent('app-toast', {
+                                detail: { message: `❌ ${error.message}`, type: 'error', ttl: 5000 }
+                              }));
+                            }
+                            e.target.value = '';
+                          }}
+                          style={{ display: 'none' }}
+                          id="custom-music-upload"
+                        />
+                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
+                          <Upload size={14} />
+                        </label>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onGlobalDownload(); }}
+                          title="Download selected"
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          disabled={!selectedMusicId}
+                        >
+                          <Download size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onGlobalRename(); }}
+                          title="Rename selected"
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          disabled={!selectedMusicId}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onGlobalDelete(); }}
+                          title="Delete selected"
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          disabled={!selectedMusicId}
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    
                     <div style={{ 
                       display: 'grid', 
                       gridTemplateColumns: 'repeat(1, 1fr)', 
@@ -817,6 +955,7 @@ const Header = ({
                       maxHeight: 200,
                       overflowY: 'auto'
                     }}>
+                      {/* Built-in ambient sounds */}
                       {AMBIENT_SOUNDS.map(sound => (
                         <button
                           key={sound.name}
@@ -836,10 +975,31 @@ const Header = ({
                           {sound.name}
                         </button>
                       ))}
+                      {/* Custom music files merged into Ambient Sounds list */}
+                      {customMusicFiles.map(file => (
+                        <button
+                          key={`custom_${file.id}`}
+                          onClick={() => { setAmbientSound(`custom_${file.id}`); setSelectedMusicId(file.id); }}
+                          style={{
+                            background: ambientSound === `custom_${file.id}` ? theme.accent : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                            borderRadius: 8,
+                            padding: '8px 12px',
+                            color: ambientSound === `custom_${file.id}` ? '#fff' : theme.text,
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            textAlign: 'left',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                        >
+                          {selectedMusicId === file.id && <Check size={12} color={ambientSound === `custom_${file.id}` ? '#fff' : theme.accent} />}
+                          🎵 {truncate(file.name, 28)}
+                        </button>
+                      ))}
                     </div>
-                    <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
-                      Choose background music for your sessions
-                    </p>
                   </div>
                 </>
               )}

@@ -681,7 +681,12 @@ export default function TimerApp() {
     ambientSoundType,
     setAmbientSoundType,
     ambientVolume,
-    setAmbientVolume
+    setAmbientVolume,
+    customMusicFiles,
+    uploadCustomMusic,
+    deleteCustomMusic,
+    renameCustomMusic,
+    getCustomMusicUrl
   } = useSettings();
 
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -710,6 +715,21 @@ export default function TimerApp() {
     ambientType: ambientSoundType,
     ambientVolume
   });
+
+  // Helper function to get sound file from ambient sound type
+  const getSoundFile = useCallback((soundType) => {
+    if (soundType === 'None') return null;
+    
+    // Check if it's a custom music file
+    if (soundType.startsWith('custom_')) {
+      const fileId = soundType.replace('custom_', '');
+      return getCustomMusicUrl(fileId);
+    }
+    
+    // Check built-in ambient sounds
+    const soundConfig = AMBIENT_SOUNDS.find(s => s.name === soundType);
+    return soundConfig ? soundConfig.file : null;
+  }, [getCustomMusicUrl]);
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
 
@@ -1258,9 +1278,9 @@ export default function TimerApp() {
     }
     // Start ambient sound if configured
     if (ambientSoundType !== 'None') {
-      const soundConfig = AMBIENT_SOUNDS.find(s => s.name === ambientSoundType);
-      if (soundConfig) {
-        startAmbient(soundConfig.file);
+      const soundFile = getSoundFile(ambientSoundType);
+      if (soundFile) {
+        startAmbient(soundFile);
       }
     }
   };
@@ -2344,6 +2364,11 @@ export default function TimerApp() {
           ambientSound={ambientSoundType}
           setAmbientSound={setAmbientSoundType}
           setEditingWeather={setEditingWeather}
+          customMusicFiles={customMusicFiles}
+          uploadCustomMusic={uploadCustomMusic}
+          deleteCustomMusic={deleteCustomMusic}
+          getCustomMusicUrl={getCustomMusicUrl}
+          renameCustomMusic={renameCustomMusic}
         />
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
@@ -2525,7 +2550,7 @@ export default function TimerApp() {
                   setIsRunning(newRunningState); 
                   if (newRunningState && ambientSoundType !== 'None') {
                     // Start ambient sound when timer starts
-                    const soundFile = AMBIENT_SOUNDS.find(s => s.name === ambientSoundType)?.file;
+                    const soundFile = getSoundFile(ambientSoundType);
                     if (soundFile) startAmbient(soundFile);
                   } else if (!newRunningState) {
                     // Stop ambient sound when timer pauses

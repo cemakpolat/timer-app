@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Clock, Zap, Gift, Award, Repeat } from 'lucide-react';
+import { X, Users, Clock, Zap, Gift, Award, Repeat, Music } from 'lucide-react';
 
 // Utility function to get contrasting text color
 const getContrastColor = (bgColor) => {
@@ -65,6 +65,11 @@ export default function InfoModal({ theme, onClose }) {
 			icon: Repeat,
 			title: 'Interval Timer',
 			description: 'Alternate between work and rest cycles. Set work duration, rest time, and number of rounds. Ideal for HIIT workouts or pomodoro productivity sessions.'
+		},
+		{
+			icon: Music,
+			title: 'Custom Music',
+			description: 'Upload your own background music (MP3/WAV/OGG/AAC/FLAC). Files are stored locally in your browser (IndexedDB) and can be deleted or downloaded. Max file size 10MB.'
 		}
 	];
 
@@ -244,6 +249,9 @@ export default function InfoModal({ theme, onClose }) {
 				>
 					<p style={{ margin: 0 }}>
 						💡 <strong>Tip:</strong> Start with Focus Rooms to collaborate, or dive into Timer Blocks to build your perfect session. Use Achievements to track your progress!
+					</p>
+					<p style={{ margin: '8px 0 0 0', fontSize: 12, color: getTextOpacity(theme, 0.55) }}>
+						<strong>Note on exports:</strong> World clocks, custom themes, and uploaded music files are currently stored locally and are not included in the app export/import feature. Uploaded music is saved in your browser (IndexedDB) and is device-specific.
 					</p>
 				</div>
 				</div>
