@@ -89,14 +89,30 @@ const DigitalClock = ({ time }) => {
 };
 
 const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
-  const [clocks, setClocks] = useState([
-    { city: 'New York', tz: 'America/New_York' },
-    { city: 'London', tz: 'Europe/London' },
-    { city: 'Tokyo', tz: 'Asia/Tokyo' }
-  ]);
-  const [clockType, setClockType] = useState('analog'); // 'analog' or 'digital'
+  const [clocks, setClocks] = useState(() => {
+    const saved = localStorage.getItem('worldClocks');
+    return saved ? JSON.parse(saved) : [
+      { city: 'New York', tz: 'America/New_York' },
+      { city: 'London', tz: 'Europe/London' },
+      { city: 'Tokyo', tz: 'Asia/Tokyo' }
+    ];
+  });
+  const [clockType, setClockType] = useState(() => {
+    const saved = localStorage.getItem('worldClockType');
+    return saved || 'analog';
+  });
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentTimes, setCurrentTimes] = useState({});
+
+  // Save clocks to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('worldClocks', JSON.stringify(clocks));
+  }, [clocks]);
+
+  // Save clock type to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('worldClockType', clockType);
+  }, [clockType]);
 
   useEffect(() => {
     const updateTimes = () => {
