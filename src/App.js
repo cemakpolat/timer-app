@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
+import useBackgroundImages from './hooks/useBackgroundImages';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
 import InfoModal from './components/InfoModal';
@@ -320,6 +321,22 @@ export default function TimerApp() {
       return themes[0];
     }
   });
+  
+  // Load theme opacity from localStorage
+  const [themeOpacity, setThemeOpacity] = useState(() => {
+    try {
+      return parseFloat(localStorage.getItem('themeOpacity')) || 1;
+    } catch (error) {
+      console.error('Failed to load themeOpacity:', error);
+      return 1;
+    }
+  });
+
+  // Persist theme opacity to localStorage
+  useEffect(() => {
+    localStorage.setItem('themeOpacity', themeOpacity.toString());
+  }, [themeOpacity]);
+
   const [, setShowThemes] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [previewTheme, setPreviewTheme] = useState(null);
@@ -688,6 +705,38 @@ export default function TimerApp() {
     renameCustomMusic,
     getCustomMusicUrl
   } = useSettings();
+
+  // Use background images hook
+  const {
+    selectedBackgroundId,
+    setSelectedBackgroundId,
+    getAllBackgroundImages,
+    getBackgroundImageUrl,
+    uploadBackgroundImage,
+    deleteBackgroundImage
+  } = useBackgroundImages();
+
+  // State to hold the currently loaded background image URL
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
+
+  // Load background image URL when selectedBackgroundId changes
+  useEffect(() => {
+    const loadBackgroundImage = async () => {
+      if (selectedBackgroundId === 'None' || !selectedBackgroundId) {
+        setBackgroundImageUrl(null);
+      } else {
+        try {
+          const url = await getBackgroundImageUrl(selectedBackgroundId);
+          setBackgroundImageUrl(url);
+        } catch (error) {
+          console.error('Failed to load background image:', error);
+          setBackgroundImageUrl(null);
+        }
+      }
+    };
+
+    loadBackgroundImage();
+  }, [selectedBackgroundId, getBackgroundImageUrl]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1677,9 +1726,17 @@ export default function TimerApp() {
   // Determine which background to use (scene takes priority when timer is running)
   // Determine if we should show a scene background
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
-  const activeBackground = shouldShowScene
-    ? SCENES[activeScene].bg
-    : (previewTheme || theme).bg;
+  
+  // Construct background with proper layering: background image > scene > theme
+  let activeBackground;
+  if (backgroundImageUrl) {
+    // Use background image as the main background
+    activeBackground = `url(${backgroundImageUrl}) center/cover no-repeat fixed`;
+  } else if (shouldShowScene) {
+    activeBackground = SCENES[activeScene].bg;
+  } else {
+    activeBackground = (previewTheme || theme).bg;
+  }
 
   return (
     <div
@@ -1692,7 +1749,8 @@ export default function TimerApp() {
         fontFamily: 'system-ui',
         transition: 'background     1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        '--theme-opacity': themeOpacity
       }}
     >
       <WeatherEffect type={weatherEffect} config={weatherConfig?.[weatherEffect]} />
@@ -1717,6 +1775,13 @@ export default function TimerApp() {
         }
         .app-container { padding: 20px; }
         @media (max-width: 600px) { .app-container { padding: 10px; } }
+        
+        /* Apply opacity to cards and elements */
+        .app-container > div {
+          opacity: var(--theme-opacity, 1);
+          transition: opacity 0.3s ease-in-out;
+        }
+        
         .confetti {
           position: fixed;
           width: 10px;
@@ -2338,6 +2403,8 @@ export default function TimerApp() {
         
         <Header
           theme={theme}
+          themeOpacity={themeOpacity}
+          setThemeOpacity={setThemeOpacity}
           onShowInfo={() => setShowInfoModal(true)}
           onShowAchievements={() => {
             setActiveMainTab('rooms');
@@ -2369,6 +2436,13 @@ export default function TimerApp() {
           deleteCustomMusic={deleteCustomMusic}
           getCustomMusicUrl={getCustomMusicUrl}
           renameCustomMusic={renameCustomMusic}
+          // Background images props
+          selectedBackgroundId={selectedBackgroundId}
+          setSelectedBackgroundId={setSelectedBackgroundId}
+          getAllBackgroundImages={getAllBackgroundImages}
+          getBackgroundImageUrl={getBackgroundImageUrl}
+          uploadBackgroundImage={uploadBackgroundImage}
+          deleteBackgroundImage={deleteBackgroundImage}
         />
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
