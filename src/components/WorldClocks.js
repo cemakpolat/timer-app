@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Maximize, Minimize } from 'lucide-react';
+import { X, Plus, Minus, Maximize, Minimize, Clock, Zap } from 'lucide-react';
 import WeatherEffect from './WeatherEffect';
 
 const COMMON_TIMEZONES = [
@@ -206,6 +206,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
               <button
                 onClick={() => setClockType('analog')}
+                title="Analog Clock"
                 style={{
                   background: clockType === 'analog' ? theme.accent : 'transparent',
                   border: 'none',
@@ -215,13 +216,17 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: 500,
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                Analog
+                <Clock size={16} />
               </button>
               <button
                 onClick={() => setClockType('digital')}
+                title="Digital Clock"
                 style={{
                   background: clockType === 'digital' ? theme.accent : 'transparent',
                   border: 'none',
@@ -231,10 +236,13 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: 500,
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                Digital
+                <Zap size={16} />
               </button>
             </div>
             <button

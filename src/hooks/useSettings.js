@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { saveFileBlob, getFileBlob, deleteFileBlob, clearAllFileBlobs } from '../services/indexeddb';
 
 /**
  * Custom hook to manage application settings
@@ -95,6 +96,43 @@ const useSettings = () => {
       return 0.3;
     }
   });
+
+  // Custom music files - store file references in memory for this session
+  const [customMusicFiles, setCustomMusicFiles] = useState(() => {
+    try {
+      const stored = localStorage.getItem('customMusicFiles');
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error('Failed to load customMusicFiles:', error);
+      return [];
+    }
+  });
+
+  // In-memory storage for file data during session
+  const fileStorageRef = useRef(new Map());
+
+  // On mount: restore persisted file blobs from IndexedDB for known metadata
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        for (const f of customMusicFiles) {
+          try {
+            const blob = await getFileBlob(f.id);
+            if (blob && mounted) {
+              const url = URL.createObjectURL(blob);
+              fileStorageRef.current.set(f.id, { blob, url });
+            }
+          } catch (err) {
+            console.warn('Failed to restore blob for', f.id, err);
+          }
+        }
+      } catch (err) {
+        console.error('Error restoring custom music files from IndexedDB', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [customMusicFiles]); // restore whenever metadata changes
   useEffect(() => {
     localStorage.setItem('alarmSoundType', alarmSoundType);
   }, [alarmSoundType]);
@@ -122,6 +160,10 @@ const useSettings = () => {
   useEffect(() => {
     localStorage.setItem('ambientVolume', ambientVolume.toString());
   }, [ambientVolume]);
+
+  useEffect(() => {
+    localStorage.setItem('customMusicFiles', JSON.stringify(customMusicFiles));
+  }, [customMusicFiles]);
 
   // Export all data
   const exportData = useCallback((data) => {
@@ -197,11 +239,87 @@ const useSettings = () => {
     event.target.value = ''; // Reset input
   }, []);
 
-  // Reset all settings to defaults
+  // Custom music file management
+  const uploadCustomMusic = useCallback(async (file) => {
+    // Validate file type
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/aac', 'audio/flac'];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Unsupported file format. Please upload MP3, WAV, OGG, AAC, or FLAC files.');
+    }
+
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      throw new Error('File size exceeds 10MB limit.');
+    }
+
+    // Check for duplicate names
+    const existingNames = customMusicFiles.map(f => f.name.toLowerCase());
+    if (existingNames.includes(file.name.toLowerCase())) {
+      throw new Error('A file with this name already exists.');
+    }
+
+    const fileId = Date.now().toString();
+
+    // Persist blob to IndexedDB
+    await saveFileBlob(fileId, file);
+
+    // Create object URL for session playback and store in memory map
+    const url = URL.createObjectURL(file);
+    fileStorageRef.current.set(fileId, { blob: file, url });
+
+    // Store only metadata in localStorage
+    const extIndex = file.name.lastIndexOf('.');
+    const ext = extIndex > 0 ? file.name.slice(extIndex) : '';
+    const musicFile = {
+      id: fileId,
+      name: file.name,
+      originalName: file.name,
+      ext,
+      size: file.size,
+      type: file.type,
+      uploadedAt: new Date().toISOString()
+    };
+
+    setCustomMusicFiles(prev => [...prev, musicFile]);
+    return musicFile;
+  }, [customMusicFiles]);
+
+  const getCustomMusicUrl = useCallback((fileId) => {
+    const entry = fileStorageRef.current.get(fileId);
+    return entry ? entry.url : null;
+  }, []);
+
+  const deleteCustomMusic = useCallback((fileId) => {
+    setCustomMusicFiles(prev => prev.filter(file => file.id !== fileId));
+    const entry = fileStorageRef.current.get(fileId);
+    if (entry && entry.url) {
+      try { URL.revokeObjectURL(entry.url); } catch (e) { /* ignore */ }
+    }
+    fileStorageRef.current.delete(fileId);
+    // Remove blob from IndexedDB
+    deleteFileBlob(fileId).catch(err => console.warn('Failed to delete blob from IDB', err));
+  }, []);
+
+  const renameCustomMusic = useCallback((fileId, newName) => {
+    if (!newName || typeof newName !== 'string') return;
+    setCustomMusicFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: newName } : f));
+  }, []);
+
   const resetSettings = useCallback(() => {
     setAlarmSoundType('bell');
     setAlarmVolume(0.5);
     setRepeatEnabled(false);
+    setCustomMusicFiles([]);
+    // Revoke object URLs and clear in-memory map
+    for (const entry of fileStorageRef.current.values()) {
+      if (entry && entry.url) {
+        try { URL.revokeObjectURL(entry.url); } catch (e) { /* ignore */ }
+      }
+    }
+    fileStorageRef.current.clear();
+    // Clear IndexedDB store
+    clearAllFileBlobs().catch(err => console.warn('Failed to clear IDB store', err));
   }, []);
 
   return {
@@ -224,6 +342,13 @@ const useSettings = () => {
     setAmbientSoundType,
     ambientVolume,
     setAmbientVolume,
+    
+    // Custom music files
+    customMusicFiles,
+    uploadCustomMusic,
+    deleteCustomMusic,
+    renameCustomMusic,
+    getCustomMusicUrl,
     
     // Data management
     exportData,
