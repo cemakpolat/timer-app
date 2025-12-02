@@ -1,10 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 
 const Header = ({
   theme,
+  themeOpacity,
+  setThemeOpacity,
   onShowInfo,
   onShowAchievements,
   onShowFeedback,
@@ -63,6 +65,7 @@ const Header = ({
 
   const modal = useModal();
   const [selectedMusicId, setSelectedMusicId] = useState(null);
+  const [showOpacityModal, setShowOpacityModal] = useState(false);
 
   const truncate = (s, n = 28) => {
     if (!s) return '';
@@ -273,7 +276,7 @@ const Header = ({
               border: 'none',
               borderRadius: 10,
               padding: 10,
-              color: theme.text,
+              color: theme.accent,
               cursor: 'pointer',
               transition: 'all 0.2s',
               display: 'flex',
@@ -651,6 +654,32 @@ const Header = ({
                       title={(theme.isDefault && theme.name === 'Midnight') ? 'Midnight theme cannot be deleted' : 'Delete Current Theme'}
                     >
                       <Trash2 size={18} />
+                    </button>
+
+                    {/* Opacity Control Button */}
+                    <button
+                      onClick={() => setShowOpacityModal(true)}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Adjust Theme Opacity"
+                    >
+                      <Eye size={18} />
                     </button>
 
                     <div style={{ flex: 1 }} />
@@ -1059,6 +1088,126 @@ const Header = ({
           )}
         </div>
       </div>
+
+      {/* Opacity Modal */}
+      {showOpacityModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000
+          }}
+          onClick={() => setShowOpacityModal(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 300,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              border: `1px solid rgba(255,255,255,0.1)`
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>
+              Theme Opacity
+            </h2>
+
+            <p style={{ fontSize: 13, color: getTextOpacity(theme, 0.6), marginBottom: 16 }}>
+              Adjust the opacity of theme elements. Current: {Math.round(themeOpacity * 100)}%
+            </p>
+
+            {/* Opacity Slider */}
+            <div style={{ marginBottom: 24 }}>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={themeOpacity * 100}
+                onChange={(e) => setThemeOpacity(e.target.value / 100)}
+                style={{
+                  width: '100%',
+                  height: 6,
+                  borderRadius: 3,
+                  background: getTextOpacity(theme, 0.2),
+                  outline: 'none',
+                  cursor: 'pointer',
+                  accentColor: theme.accent
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: getTextOpacity(theme, 0.5) }}>
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            {/* Preset Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Low', value: 0.5 },
+                { label: 'Medium', value: 0.75 },
+                { label: 'Full', value: 1 }
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => setThemeOpacity(preset.value)}
+                  style={{
+                    background: Math.abs(themeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    color: Math.abs(themeOpacity - preset.value) < 0.01 ? getTextOpacity(theme, 1) : theme.text,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (Math.abs(themeOpacity - preset.value) >= 0.01) {
+                      e.target.style.background = 'rgba(255,255,255,0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (Math.abs(themeOpacity - preset.value) >= 0.01) {
+                      e.target.style.background = 'rgba(255,255,255,0.05)';
+                    }
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowOpacityModal(false)}
+              style={{
+                width: '100%',
+                background: theme.accent,
+                border: 'none',
+                borderRadius: 8,
+                padding: '12px 16px',
+                color: getTextOpacity(theme, 1),
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

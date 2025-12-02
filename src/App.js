@@ -321,6 +321,22 @@ export default function TimerApp() {
       return themes[0];
     }
   });
+  
+  // Load theme opacity from localStorage
+  const [themeOpacity, setThemeOpacity] = useState(() => {
+    try {
+      return parseFloat(localStorage.getItem('themeOpacity')) || 1;
+    } catch (error) {
+      console.error('Failed to load themeOpacity:', error);
+      return 1;
+    }
+  });
+
+  // Persist theme opacity to localStorage
+  useEffect(() => {
+    localStorage.setItem('themeOpacity', themeOpacity.toString());
+  }, [themeOpacity]);
+
   const [, setShowThemes] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [previewTheme, setPreviewTheme] = useState(null);
@@ -1733,7 +1749,8 @@ export default function TimerApp() {
         fontFamily: 'system-ui',
         transition: 'background     1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        '--theme-opacity': themeOpacity
       }}
     >
       <WeatherEffect type={weatherEffect} config={weatherConfig?.[weatherEffect]} />
@@ -1758,6 +1775,13 @@ export default function TimerApp() {
         }
         .app-container { padding: 20px; }
         @media (max-width: 600px) { .app-container { padding: 10px; } }
+        
+        /* Apply opacity to cards and elements */
+        .app-container > div {
+          opacity: var(--theme-opacity, 1);
+          transition: opacity 0.3s ease-in-out;
+        }
+        
         .confetti {
           position: fixed;
           width: 10px;
@@ -2379,6 +2403,8 @@ export default function TimerApp() {
         
         <Header
           theme={theme}
+          themeOpacity={themeOpacity}
+          setThemeOpacity={setThemeOpacity}
           onShowInfo={() => setShowInfoModal(true)}
           onShowAchievements={() => {
             setActiveMainTab('rooms');
