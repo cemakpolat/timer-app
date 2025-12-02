@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { Play, Pause, RotateCcw, Clock, Zap, Palette, Plus, X, Save, ChevronRight, ChevronLeft, Trash2, Share, Repeat, Volume2, VolumeX, ChevronUp, ChevronDown, Award, Users, Lightbulb, Settings, Download, Trash, Upload, Info, Edit, Cloud } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, Zap, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, ChevronUp, ChevronDown, Users, Dumbbell } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
@@ -9,6 +9,8 @@ import useFocusRoom from './hooks/useFocusRoom';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
 import InfoModal from './components/InfoModal';
+import WorldClocks from './components/WorldClocks';
+import Header from './components/Header';
 import LazyLoadingFallback from './components/LazyLoadingFallback';
 import TimerPanel from './components/panels/TimerPanel';
 import IntervalPanel from './components/panels/IntervalPanel';
@@ -437,6 +439,7 @@ export default function TimerApp() {
   };
 
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showWorldClocks, setShowWorldClocks] = useState(false);
 
   // Settings states
   const [showSettings, setShowSettings] = useState(false);
@@ -671,8 +674,6 @@ export default function TimerApp() {
     setAlarmSoundType,
     alarmVolume,
     setAlarmVolume,
-    animationsEnabled,
-    setAnimationsEnabled,
     weatherEffect,
     setWeatherEffect,
     weatherConfig,
@@ -682,11 +683,6 @@ export default function TimerApp() {
     ambientVolume,
     setAmbientVolume
   } = useSettings();
-
-  // Handle weather effect selection
-  const handleWeatherEffectChange = (effectValue) => {
-    setWeatherEffect(effectValue);
-  };
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1394,7 +1390,6 @@ export default function TimerApp() {
       settings: {
         alarmSoundType,
         alarmVolume,
-        animationsEnabled,
         repeatEnabled,
         weatherEffect,
         ambientSoundType,
@@ -1443,7 +1438,6 @@ export default function TimerApp() {
           if (imported.settings) {
             if (imported.settings.alarmSoundType) setAlarmSoundType(imported.settings.alarmSoundType);
             if (imported.settings.alarmVolume !== undefined) setAlarmVolume(imported.settings.alarmVolume);
-            if (imported.settings.animationsEnabled !== undefined) setAnimationsEnabled(imported.settings.animationsEnabled);
             if (imported.settings.repeatEnabled !== undefined) setRepeatEnabled(imported.settings.repeatEnabled);
             if (imported.settings.weatherEffect) setWeatherEffect(imported.settings.weatherEffect);
             if (imported.settings.ambientSoundType) setAmbientSoundType(imported.settings.ambientSoundType);
@@ -1868,6 +1862,7 @@ export default function TimerApp() {
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
       {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
+      {showWorldClocks && <WorldClocks theme={theme} onClose={() => setShowWorldClocks(false)} weatherEffect={weatherEffect} weatherConfig={weatherConfig} />}
 
       {/* Color Picker Modal */}
       {showColorPicker && (
@@ -1938,8 +1933,8 @@ export default function TimerApp() {
                       value={newThemeBg}
                       onChange={(e) => setNewThemeBg(e.target.value)}
                       style={{
-                        width: 50,
-                        height: 32,
+                        width: 100,
+                        height: 40,
                         border: 'none',
                         borderRadius: 6,
                         cursor: 'pointer'
@@ -1973,8 +1968,8 @@ export default function TimerApp() {
                       value={newThemeCard}
                       onChange={(e) => setNewThemeCard(e.target.value)}
                       style={{
-                        width: 50,
-                        height: 32,
+                        width: 100,
+                        height: 40,
                         border: 'none',
                         borderRadius: 6,
                         cursor: 'pointer'
@@ -2043,8 +2038,8 @@ export default function TimerApp() {
                       value={newThemeText}
                       onChange={(e) => setNewThemeText(e.target.value)}
                       style={{
-                        width: 50,
-                        height: 32,
+                        width: 100,
+                        height: 40,
                         border: 'none',
                         borderRadius: 6,
                         cursor: 'pointer'
@@ -2321,848 +2316,44 @@ export default function TimerApp() {
       {/* Main Container with Header and Content */}
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px' }}>
         
-        {/* Top Header Bar with App Name and Icons */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: '20px 0 16px',
-          position: 'relative',
-          background: 'transparent',
-          zIndex: 100
-        }}>
-          {/* App Name */}
-          <h1 style={{
-            margin: 0,
-            fontSize: 24,
-            fontWeight: 600,
-            color: theme.text,
-            fontFamily: "'Courier New', 'Courier', monospace",
-            letterSpacing: '0.05em'
-          }}>
-            Focus & Fit
-          </h1>
+        <Header
+          theme={theme}
+          onShowInfo={() => setShowInfoModal(true)}
+          onShowAchievements={() => {
+            setActiveMainTab('rooms');
+            setActiveFeatureTab('achievements');
+          }}
+          onShowFeedback={() => setShowFeedbackModal(true)}
+          onShowWorldClocks={() => setShowWorldClocks(true)}
+          onShowSettings={() => setShowSettings(!showSettings)}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          settingsView={settingsView}
+          setSettingsView={setSettingsView}
+          themes={themes}
+          setTheme={setTheme}
+          setEditingTheme={setEditingTheme}
+          setShowColorPicker={setShowColorPicker}
+          alarmVolume={alarmVolume}
+          setAlarmVolume={setAlarmVolume}
+          getTextOpacity={getTextOpacity}
+          weatherEffect={weatherEffect}
+          setWeatherEffect={setWeatherEffect}
+          SCENES={SCENES}
+          AMBIENT_SOUNDS={AMBIENT_SOUNDS}
+          ambientSound={ambientSoundType}
+          setAmbientSound={setAmbientSoundType}
+          setEditingWeather={setEditingWeather}
+        />
 
-          {/* Icon Buttons */}
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button
-              onClick={() => setShowInfoModal(true)}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                padding: 10,
-                color: theme.accent,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = `${theme.accent}20`;
-                e.target.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.transform = 'scale(1)';
-              }}
-              title="App Features"
-            >
-              <Info size={18} />
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveMainTab('rooms');
-                setActiveFeatureTab('achievements');
-              }}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                padding: 10,
-                color: theme.accent,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = `${theme.accent}20`;
-                e.target.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.transform = 'scale(1)';
-              }}
-              title="Achievements"
-            >
-              <Award size={18} />
-            </button>
-
-            <button
-              onClick={() => setShowFeedbackModal(true)}
-              style={{
-                border: 'none',
-                borderRadius: 10,
-                padding: 10,
-                color: theme.accent,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = `${theme.accent}20`;
-                e.target.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.transform = 'scale(1)';
-              }}
-              title="Send Feedback"
-            >
-              <Lightbulb size={18} />
-            </button>
-
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                style={{
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: 10,
-                  color: theme.text,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = `${theme.accent}20`;
-                  e.target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'transparent';
-                  e.target.style.transform = 'scale(1)';
-                }}
-                title="Settings"
-              >
-                <Settings size={18} />
-              </button>
-
-              {/* Settings Dropdown */}
-              {showSettings && (
-                <div 
-                  ref={settingsPanelRef}
-                  style={{
-                  position: 'absolute',
-                  top: 50,
-                  right: 0,
-              background: theme.card,
-              border: `1px solid rgba(255,255,255,0.1)`,
-              borderRadius: 12,
-              padding: settingsView === 'main' ? 4 : 8,
-              minWidth: settingsView === 'main' ? 'auto' : 200,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-              zIndex: 1000,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: settingsView === 'main' ? 2 : 4
-            }} className={animationsEnabled ? 'animate-fade-in' : ''}>
-              {settingsView === 'main' && (
-                <>
-                  {/* Theme Option */}
-                  <button
-                    onClick={() => setSettingsView('themes')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Themes"
-                  >
-                    <Palette size={18} />
-                  </button>
-
-                  {/* Weather Effects Option */}
-                  <button
-                    onClick={() => setSettingsView('weather')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Weather Effects"
-                  >
-                    <Cloud size={18} />
-                  </button>
-
-                  {/* Sound Settings Option */}
-                  <button
-                    onClick={() => setSettingsView('sound')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Sound Settings"
-                  >
-                    {alarmVolume > 0 ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                  </button>
-
-                  {/* Animation Settings Option */}
-                  <button
-                    onClick={() => setSettingsView('animations')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Animation Settings"
-                  >
-                    <Zap size={18} />
-                  </button>
-
-                  {/* Divider */}
-                  <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
-
-                  {/* Export Data Option */}
-                  <button
-                    onClick={() => {
-                      exportData();
-                      setShowSettings(false);
-                    }}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Export Data"
-                  >
-                    <Download size={18} />
-                  </button>
-
-                  {/* Import Data Option */}
-                  <label style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                    color: theme.text,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    transition: 'all 0.2s',
-                    margin: 0,
-                    minWidth: '40px',
-                    minHeight: '40px'
-                  }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Import Data"
-                  >
-                    <Upload size={18} />
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={importData}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-
-                  {/* Divider */}
-                  <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
-
-                  {/* Clear Cache Option */}
-                  <button
-                    onClick={() => {
-                      setShowClearCacheModal(true);
-                      setShowSettings(false);
-                      setSettingsView('main');
-                    }}
-                    style={{
-                      background: 'rgba(255, 0, 0, 0.1)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: '#ff4444',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '40px',
-                      minHeight: '40px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.15)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.1)'}
-                    title="Clear Cache"
-                  >
-                    <Trash size={18} />
-                  </button>
-                </>
-              )}
-
-              {settingsView === 'themes' && (
-                <>
-                  {/* Header with Back, Edit, Delete, Add icons */}
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
-                    <button
-                      onClick={() => setSettingsView('main')}
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                        color: theme.text,
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        minWidth: '40px',
-                        minHeight: '40px'
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                      title="Back"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-
-                    {/* Edit Icon */}
-                    <button
-                      onClick={() => {
-                        if (!theme.isDefault || theme.name !== 'Midnight') {
-                          setEditingTheme(theme);
-                          setNewThemeName(theme.name);
-                          setNewThemeBg(theme.bg);
-                          setNewThemeCard(theme.card);
-                          setNewThemeAccent(theme.accent);
-                          setNewThemeText(theme.text);
-                          setShowColorPicker(true);
-                          setShowSettings(false);
-                        }
-                      }}
-                      disabled={theme.isDefault && theme.name === 'Midnight'}
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                        color: theme.isDefault && theme.name === 'Midnight' ? 'rgba(255,255,255,0.3)' : theme.text,
-                        cursor: theme.isDefault && theme.name === 'Midnight' ? 'not-allowed' : 'pointer',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        minWidth: '40px',
-                        minHeight: '40px',
-                        opacity: theme.isDefault && theme.name === 'Midnight' ? 0.5 : 1
-                      }}
-                      onMouseEnter={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255,255,255,0.1)' }}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                      title={theme.isDefault && theme.name === 'Midnight' ? 'Midnight theme cannot be edited' : 'Edit Current Theme'}
-                    >
-                      <Edit size={18} />
-                    </button>
-
-                    {/* Delete Icon */}
-                    <button
-                      onClick={() => {
-                        if (!(theme.isDefault && theme.name === 'Midnight')) {
-                          setThemeToDelete(theme);
-                          setShowDeleteThemeModal(true);
-                        }
-                      }}
-                      disabled={theme.isDefault && theme.name === 'Midnight'}
-                      style={{
-                        background: (theme.isDefault && theme.name === 'Midnight') ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                        color: (theme.isDefault && theme.name === 'Midnight') ? getTextOpacity(theme, 0.3) : '#ff4444',
-                        cursor: (theme.isDefault && theme.name === 'Midnight') ? 'not-allowed' : 'pointer',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        minWidth: '40px',
-                        minHeight: '40px',
-                        opacity: (theme.isDefault && theme.name === 'Midnight') ? 0.5 : 1
-                      }}
-                      onMouseEnter={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.2)' }}
-                      onMouseLeave={(e) => { if (!(theme.isDefault && theme.name === 'Midnight')) e.target.style.background = 'rgba(255, 0, 0, 0.1)' }}
-                      title={(theme.isDefault && theme.name === 'Midnight') ? 'Midnight theme cannot be deleted' : 'Delete Current Theme'}
-                    >
-                      <Trash2 size={18} />
-                    </button>
-
-                    <div style={{ flex: 1 }} />
-
-                    {/* Add New Theme Icon */}
-                    <button
-                      onClick={() => {
-                        setEditingTheme(null);
-                        setNewThemeName('');
-                        setNewThemeBg('#000000');
-                        setNewThemeCard('#1a1a1a');
-                        setNewThemeAccent('#3b82f6');
-                        setNewThemeText('#ffffff');
-                        setShowColorPicker(true);
-                        setShowSettings(false);
-                      }}
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                        color: theme.text,
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        minWidth: '40px',
-                        minHeight: '40px'
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                      title="Create New Theme"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
-
-                  {/* Theme Grid */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
-                    gap: 6,
-                    maxHeight: 300,
-                    overflowY: 'auto',
-                    padding: 4
-                  }}>
-                    {themes.map(t => (
-                      <button
-                        key={t.name}
-                        onClick={() => {
-                          setTheme(t);
-                          setShowSettings(false);
-                          setSettingsView('main');
-                        }}
-                        style={{
-                          background: t.bg,
-                          border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
-                          borderRadius: 8,
-                          padding: 12,
-                          cursor: 'pointer',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: t.text,
-                          textAlign: 'center',
-                          transition: 'all 0.2s',
-                          position: 'relative',
-                          minHeight: 48
-                        }}
-                      >
-                        {t.name}
-                        {theme.name === t.name && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            color: t.accent,
-                            fontSize: 14
-                          }}>✓</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {settingsView === 'weather' && (
-                <>
-                  {/* Back Button */}
-                  <button
-                    onClick={() => setSettingsView('main')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      marginBottom: 8
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Back"
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Back</span>
-                  </button>
-
-                  {/* Weather Effects Options */}
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 8,
-                    maxHeight: 300,
-                    overflowY: 'auto',
-                    paddingRight: 8
-                  }}>
-                    {[
-                      { value: 'none', label: 'None', desc: 'No weather effect' },
-                      { value: 'rain', label: 'Rain', desc: 'Gentle falling rain' },
-                      { value: 'cloudy', label: 'Cloudy', desc: 'Moving clouds' },
-                      { value: 'winter', label: 'Winter', desc: 'Falling snow' },
-                      { value: 'sunny', label: 'Sunny', desc: 'Warm sun rays' },
-                      { value: 'spring', label: 'Spring', desc: 'Floating flowers' },
-                      { value: 'autumn', label: 'Autumn', desc: 'Falling leaves' },
-                      { value: 'sakura', label: 'Cherry Blossoms', desc: 'Pink sakura petals' },
-                      { value: 'fireflies', label: 'Fireflies', desc: 'Glowing lights' },
-                      { value: 'butterflies', label: 'Butterflies', desc: 'Flying butterflies' },
-                      { value: 'lanterns', label: 'Lanterns', desc: 'Asian floating lanterns' },
-                      { value: 'aurora', label: 'Aurora', desc: 'Northern lights' },
-                      { value: 'desert', label: 'Desert', desc: 'Blowing sand' },
-                      { value: 'tropical', label: 'Tropical', desc: 'Hibiscus flowers' }
-                    ].map((effect) => (
-                      <div key={effect.value} style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={() => handleWeatherEffectChange(effect.value)}
-                          style={{
-                            flex: 1,
-                            background: weatherEffect === effect.value ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
-                            border: weatherEffect === effect.value ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: 8,
-                            padding: '12px',
-                            color: theme.text,
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            fontWeight: 500,
-                            textAlign: 'left',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <div style={{ fontWeight: 600 }}>{effect.label}</div>
-                          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{effect.desc}</div>
-                        </button>
-                        {effect.value !== 'none' && (
-                          <button
-                            onClick={() => setEditingWeather(effect.value)}
-                            style={{
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              borderRadius: 8,
-                              width: 40,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: theme.text,
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                            title="Customize effect"
-                          >
-                            <Edit size={16} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {settingsView === 'sound' && (
-                <>
-                  {/* Back Button */}
-                  <button
-                    onClick={() => setSettingsView('main')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '10px 12px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      marginBottom: 8
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Back</span>
-                  </button>
-
-                  {/* Sound Type */}
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Sound Type</label>
-                    <select
-                      value={alarmSoundType}
-                      onChange={(e) => setAlarmSoundType(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        background: 'rgba(255,255,255,0.05)', 
-                        border: `1px solid ${getTextOpacity(theme, 0.1)}`, 
-                        borderRadius: 8, 
-                        padding: 8, 
-                        color: theme.text, 
-                        fontSize: 13, 
-                        cursor: 'pointer' 
-                      }}
-                    >
-                      <option value="bell" style={{ background: theme.card }}>🔔 Bell</option>
-                      <option value="chime" style={{ background: theme.card }}>🎵 Chime</option>
-                      <option value="silent" style={{ background: theme.card }}>🔇 Silent</option>
-                    </select>
-                  </div>
-
-                  {/* Volume Control */}
-                  <div>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>
-                      Volume: {Math.round(alarmVolume * 100)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={alarmVolume}
-                      onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
-                      style={{ width: '100%', cursor: 'pointer' }}
-                    />
-                  </div>
-
-                  {/* Ambient Sound Type */}
-                  <div style={{ marginTop: 16 }}>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Ambient Sound</label>
-                    <select
-                      value={ambientSoundType}
-                      onChange={(e) => setAmbientSoundType(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        background: 'rgba(255,255,255,0.05)', 
-                        border: `1px solid ${getTextOpacity(theme, 0.1)}`, 
-                        borderRadius: 8, 
-                        padding: 8, 
-                        color: theme.text, 
-                        fontSize: 13, 
-                        cursor: 'pointer' 
-                      }}
-                    >
-                      {AMBIENT_SOUNDS.map(sound => (
-                        <option key={sound.name} value={sound.name} style={{ background: theme.card }}>
-                          {sound.name === 'AI Jazz' ? '🎷 AI Jazz' : sound.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Ambient Volume Control */}
-                  {ambientSoundType !== 'None' && (
-                    <div style={{ marginTop: 12 }}>
-                      <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>
-                        Ambient Volume: {Math.round(ambientVolume * 100)}%
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={ambientVolume}
-                        onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
-                        style={{ width: '100%', cursor: 'pointer' }}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Animations Settings */}
-              {settingsView === 'animations' && (
-                <>
-                  {/* Back Button */}
-                  <button
-                    onClick={() => setSettingsView('main')}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '10px 12px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      marginBottom: 4
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                  >
-                    <ChevronLeft size={16} />
-                    <span>Back</span>
-                  </button>
-
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Animations</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button
-                        onClick={() => setAnimationsEnabled(!animationsEnabled)}
-                        style={{
-                          background: animationsEnabled ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          color: theme.text,
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6
-                        }}
-                      >
-                        <Zap size={14} color={animationsEnabled ? '#fff' : 'rgba(255,255,255,0.5)'} />
-                        {animationsEnabled ? 'Enabled' : 'Disabled'}
-                      </button>
-                    </div>
-                    <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
-                      Enable smooth animations for timer progress and transitions
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      </div>
-
+        {/* Primary Navigation Tabs - RESTRUCTURED */}
         {/* Primary Navigation Tabs - RESTRUCTURED */}
         {!isRunning && time === 0 && !isTransitioning && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: theme.card, borderRadius: 12, padding: 6 }}>
             {[
               { label: 'Focus Rooms', value: 'rooms', icon: Users },
-              { label: 'Timer', value: 'timer', icon: Clock }
+              { label: 'Timer', value: 'timer', icon: Clock },
+              { label: 'Workouts', value: 'workouts', icon: Dumbbell }
             ].map(tab => (
               <button
                 key={tab.value}
@@ -3340,16 +2531,16 @@ export default function TimerApp() {
                     // Stop ambient sound when timer pauses
                     stopAmbient();
                   }
-                }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
                 <button onClick={() => { 
                   setIsRunning(false); 
                   setTime(0); 
                   setCurrentStep(0);
                   // Stop ambient sound when timer resets
                   stopAmbient();
-                }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
+                }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
                 {mode !== 'stopwatch' && (
-                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: animationsEnabled ? 'all 0.1s ease' : 'none' }} className={animationsEnabled ? 'animate-button-press' : ''}><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
                 )}
               </div>
             </div>
@@ -3704,6 +2895,32 @@ export default function TimerApp() {
                   setActiveScene={setActiveScene}
                   SCENES={SCENES}
                 />
+              )}
+
+              {/* Workouts Main Tab */}
+              {activeMainTab === 'workouts' && !activeFeatureTab && (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <Dumbbell size={48} color={theme.accent} style={{ marginBottom: 16 }} />
+                  <h2 style={{ color: theme.text, marginBottom: 8 }}>Workout Sessions</h2>
+                  <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 24 }}>
+                    Coming soon! Track your workout intervals and rest periods.
+                  </p>
+                  <button
+                    style={{
+                      background: theme.accent,
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '12px 24px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      fontWeight: 500
+                    }}
+                    onClick={() => alert('Workout sessions feature is under development!')}
+                  >
+                    Get Started
+                  </button>
+                </div>
               )}
 
               {/* Feature Tabs for Rooms */}

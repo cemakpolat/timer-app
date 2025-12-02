@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-const WeatherEffect = ({ type, config }) => {
+const WeatherEffect = ({ type, config, width, height }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
@@ -10,8 +10,8 @@ const WeatherEffect = ({ type, config }) => {
       if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width = width || window.innerWidth;
+      canvas.height = height || window.innerHeight;
 
       let particles = [];
 
@@ -570,7 +570,7 @@ const WeatherEffect = ({ type, config }) => {
         }
       };
     }
-  }, [type, config]);
+  }, [type, config, width, height]);
 
   if (type === 'none') return null;
 
@@ -592,6 +592,8 @@ const WeatherEffect = ({ type, config }) => {
             position: 'absolute',
             top: 0,
             left: 0,
+            width: '100%',
+            height: '100%',
             opacity: type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'tropical' ? 0.8 : type === 'fireflies' || type === 'lanterns' ? 0.9 : type === 'butterflies' ? 0.85 : type === 'aurora' ? 0.6 : type === 'desert' ? 0.5 : 0.6
           }}
         />
