@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
+import DataBackupPanel from './panels/DataBackupPanel';
 
 const Header = ({
   theme,
@@ -66,6 +67,7 @@ const Header = ({
   const modal = useModal();
   const [selectedMusicId, setSelectedMusicId] = useState(null);
   const [showOpacityModal, setShowOpacityModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   const truncate = (s, n = 28) => {
     if (!s) return '';
@@ -138,6 +140,25 @@ const Header = ({
     } catch (err) {
       console.warn('Download failed', err);
       modal.alert('Download failed.', 'Error');
+    }
+  };
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+      setIsFullscreen(!!document.fullscreenElement);
+    } catch (err) {
+      console.warn('Fullscreen toggle failed', err);
     }
   };
 
@@ -430,34 +451,9 @@ const Header = ({
                     <ImageIcon size={18} />
                   </button>
 
-                  {/* Import Settings Option */}
+                  {/* Fullscreen Option */}
                   <button
-                    onClick={() => {
-                      // Import settings logic
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = '.json';
-                      input.onchange = (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            try {
-                              const settings = JSON.parse(e.target.result);
-                              // Apply imported settings
-                              Object.keys(settings).forEach(key => {
-                                localStorage.setItem(key, JSON.stringify(settings[key]));
-                              });
-                              window.location.reload();
-                            } catch (error) {
-                              alert('Invalid settings file');
-                            }
-                          };
-                          reader.readAsText(file);
-                        }
-                      };
-                      input.click();
-                    }}
+                    onClick={() => toggleFullscreen()}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
@@ -478,32 +474,14 @@ const Header = ({
                     }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Import Settings"
+                    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
                   >
-                    <Upload size={18} />
+                    {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                   </button>
 
-                  {/* Export Settings Option */}
+                  {/* Data & Backup Option */}
                   <button
-                    onClick={() => {
-                      // Export settings logic
-                      const settings = {};
-                      for (let i = 0; i < localStorage.length; i++) {
-                        const key = localStorage.key(i);
-                        try {
-                          settings[key] = JSON.parse(localStorage.getItem(key));
-                        } catch {
-                          settings[key] = localStorage.getItem(key);
-                        }
-                      }
-                      const dataStr = JSON.stringify(settings, null, 2);
-                      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                      const exportFileDefaultName = 'timer-app-settings.json';
-                      const linkElement = document.createElement('a');
-                      linkElement.setAttribute('href', dataUri);
-                      linkElement.setAttribute('download', exportFileDefaultName);
-                      linkElement.click();
-                    }}
+                    onClick={() => setSettingsView('data')}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
@@ -524,41 +502,47 @@ const Header = ({
                     }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Export Settings"
+                    title="Data & Backup"
                   >
-                    <Download size={18} />
+                    <Settings size={18} />
                   </button>
 
-                  {/* Clear Cache Option */}
-                  <button
-                    onClick={() => {
-                      localStorage.clear();
-                      window.location.reload();
-                    }}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '12px 16px',
-                      color: theme.text,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.2s',
-                      minWidth: '50px',
-                      minHeight: '50px'
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.15)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255, 0, 0, 0.1)'}
-                    title="Clear Cache"
-                  >
-                    <Trash size={18} />
-                  </button>
+                  {/* (Import/Export/Clear moved to Data & Backup panel) */}
+                </>
+              )}
+
+              {settingsView === 'data' && (
+                <>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setSettingsView('main')}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Back"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                  </div>
+
+                  <div style={{ padding: 4 }}>
+                    <DataBackupPanel modal={modal} theme={theme} getTextOpacity={getTextOpacity} />
+                  </div>
                 </>
               )}
 
