@@ -95,7 +95,7 @@ const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
 const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefillTemplateId = null }) => {
   // Get unified timer list from timerService via useTimers hook
   // This includes both built-in templates and custom timers
-  const { templates, customTimers, allTimers } = useTimers('workout');
+  const { allTimers } = useTimers('workout');
 
   // Merge templates and custom timers for display, with saved timers as fallback for backward compat
   const combinedTimers = allTimers.length > 0 ? allTimers : savedTimers;

@@ -17,7 +17,7 @@
  * }
  */
 
-import { saveCustomTimer } from './timerService';
+
 
 /**
  * Migrate a single legacy sequence to new format
@@ -152,9 +152,11 @@ export const performMigration = (savedSequences = []) => {
   }
 };
 
-export default {
+const migrationUtils = {
   migrateSequence,
   migrateAllSequences,
   isMigrationNeeded,
   performMigration
 };
+
+export default migrationUtils;

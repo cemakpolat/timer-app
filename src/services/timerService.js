@@ -169,7 +169,7 @@ export const migrateOldSequences = () => {
   return { migrated };
 };
 
-export default {
+const timerService = {
   getAllTimers,
   getTimerById,
   saveCustomTimer,
@@ -178,3 +178,5 @@ export default {
   getCustomTimers,
   setCustomTimers
 };
+
+export default timerService;

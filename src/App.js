@@ -548,9 +548,10 @@ export default function TimerApp() {
   const [editingWeather, setEditingWeather] = useState(null);
 
   // Perform migration of legacy savedSequences to new customTimers format on app load
+  const savedRef = useRef(saved);
   useEffect(() => {
     try {
-      const legacySavedSequences = saved.filter(t => t.isSequence) || [];
+      const legacySavedSequences = savedRef.current.filter(t => t.isSequence) || [];
       if (legacySavedSequences.length > 0) {
         const result = performMigration(legacySavedSequences);
         if (result.success) {
