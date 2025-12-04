@@ -28,10 +28,10 @@ const getTextOpacity = (theme, opacity = 0.7) => {
 /**
  * Modal for creating a new focus room
  */
-const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => {
+const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefillTemplateId = null }) => {
   const [roomName, setRoomName] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(10);
-  const [timerTab, setTimerTab] = useState('new'); // 'new' or 'available'
+  const [timerTab, setTimerTab] = useState(prefillTemplateId ? 'available' : 'new'); // 'new' or 'available'
   const [duration, setDuration] = useState(25);
   const [selectedTimer, setSelectedTimer] = useState(null);
   const [displayName, setDisplayName] = useState('');
@@ -40,6 +40,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
   const [scheduledDate, setScheduledDate] = useState(''); // Date in YYYY-MM-DD format
   const [scheduledTime, setScheduledTime] = useState(''); // Time in HH:mm format
   const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
+  const [prefillTemplate, setPrefillTemplate] = useState(null);
 
   // Get all available timers (including composite timers)
   const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
@@ -56,6 +57,19 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
   ];
 
   const { alert } = useModal();
+
+  // Load prefill template on mount or when prefillTemplateId changes
+  React.useEffect(() => {
+    if (prefillTemplateId && availableTimers.length > 0) {
+      const template = availableTimers.find(t => t.id === prefillTemplateId);
+      if (template) {
+        setPrefillTemplate(template);
+        setSelectedTimer(template);
+        setTimerTab('available');
+        setRoomName(`${template.emoji || ''} ${template.name} session`.trim());
+      }
+    }
+  }, [prefillTemplateId, availableTimers]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -215,6 +229,35 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [] }) => 
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+          {/* Template Preview (if prefilled) */}
+          {prefillTemplate && (
+            <div style={{
+              background: `rgba(${parseInt(theme.accent.slice(1,3),16)},${parseInt(theme.accent.slice(3,5),16)},${parseInt(theme.accent.slice(5,7),16)},0.1)`,
+              border: `1px solid ${theme.accent}`,
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 16,
+              display: 'flex',
+              gap: 12,
+              alignItems: 'flex-start'
+            }}>
+              <div style={{ fontSize: 24 }}>{prefillTemplate.emoji || '⏱️'}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 4 }}>
+                  {prefillTemplate.name}
+                </div>
+                <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.7), marginBottom: 6 }}>
+                  {prefillTemplate.description}
+                </div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11, color: getTextOpacity(theme, 0.6) }}>
+                  {prefillTemplate.duration && <span>⏱️ {Math.floor(prefillTemplate.duration / 60)}m</span>}
+                  {prefillTemplate.difficulty && <span>📊 {prefillTemplate.difficulty}</span>}
+                  {prefillTemplate.category && <span>🏷️ {prefillTemplate.category}</span>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Scrollable content area */}
           <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
           {/* Room Name */}

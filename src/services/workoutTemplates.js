@@ -81,6 +81,7 @@ export const WORKOUT_TEMPLATES = [
     category: 'cardio',
     duration: 1200,
     difficulty: 'beginner',
+    templateType: 'workout',
     exercises: [
       { name: 'Warm-up Jog', duration: 180, unit: 'sec', type: 'warmup', color: '#10b981' },
       { name: 'Jumping Jacks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
@@ -101,7 +102,16 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Cool Down Stretch', duration: 180, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '🔥',
-    tags: ['beginner-friendly', 'no-equipment', 'fat-burning']
+    tags: ['beginner-friendly', 'no-equipment', 'fat-burning'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 1200,
+      exerciseCount: 17,
+      isRoomCompatible: true,
+      recommendedParticipants: 4
+    }
   },
 
   {
@@ -111,6 +121,7 @@ export const WORKOUT_TEMPLATES = [
     category: 'strength',
     duration: 1800,
     difficulty: 'intermediate',
+    templateType: 'workout',
     exercises: [
       { name: 'Dynamic Warm-up', duration: 300, unit: 'sec', type: 'warmup', color: '#10b981' },
       { name: 'Push-ups', duration: 45, unit: 'sec', type: 'work', color: '#f59e0b' },
@@ -135,7 +146,16 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Cool Down & Stretch', duration: 240, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '💪',
-    tags: ['no-equipment', 'muscle-building', 'full-body']
+    tags: ['no-equipment', 'muscle-building', 'full-body'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 1800,
+      exerciseCount: 21,
+      isRoomCompatible: true,
+      recommendedParticipants: 4
+    }
   },
 
   {
@@ -145,6 +165,7 @@ export const WORKOUT_TEMPLATES = [
     category: 'flexibility',
     duration: 1500,
     difficulty: 'beginner',
+    templateType: 'workout',
     exercises: [
       { name: 'Breathing Exercise', duration: 120, unit: 'sec', type: 'warmup', color: '#8b5cf6' },
       { name: 'Cat-Cow Stretch', duration: 90, unit: 'sec', type: 'work', color: '#8b5cf6' },
@@ -161,7 +182,16 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Savasana (Rest)', duration: 300, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '🧘',
-    tags: ['flexibility', 'mindfulness', 'morning-routine']
+    tags: ['flexibility', 'mindfulness', 'morning-routine'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 1500,
+      exerciseCount: 13,
+      isRoomCompatible: true,
+      recommendedParticipants: 3
+    }
   },
 
   {
@@ -171,9 +201,19 @@ export const WORKOUT_TEMPLATES = [
     category: 'cardio',
     duration: 240,
     difficulty: 'advanced',
+    templateType: 'workout',
     exercises: generateTabata('Burpees', 8),
     emoji: '⚡',
-    tags: ['quick-workout', 'high-intensity', 'fat-burning']
+    tags: ['quick-workout', 'high-intensity', 'fat-burning'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 240,
+      exerciseCount: 10,
+      isRoomCompatible: true,
+      recommendedParticipants: 2
+    }
   },
 
   {
@@ -207,7 +247,17 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Cool Down Stretch', duration: 90, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '🎯',
-    tags: ['core', 'abs', 'no-equipment']
+    tags: ['core', 'abs', 'no-equipment'],
+    templateType: 'workout',
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 900,
+      exerciseCount: 21,
+      isRoomCompatible: true,
+      recommendedParticipants: 3
+    }
   },
 
   {
@@ -237,7 +287,17 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Final Relaxation', duration: 180, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '🤸',
-    tags: ['recovery', 'flexibility', 'relaxation']
+    tags: ['recovery', 'flexibility', 'relaxation'],
+    templateType: 'workout',
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 1200,
+      exerciseCount: 17,
+      isRoomCompatible: true,
+      recommendedParticipants: 2
+    }
   },
 
   {
@@ -271,7 +331,17 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Cool Down Shadow Boxing', duration: 180, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '🥊',
-    tags: ['boxing', 'cardio', 'coordination']
+    tags: ['boxing', 'cardio', 'coordination'],
+    templateType: 'workout',
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 1500,
+      exerciseCount: 21,
+      isRoomCompatible: true,
+      recommendedParticipants: 4
+    }
   },
 
   {
@@ -298,7 +368,17 @@ export const WORKOUT_TEMPLATES = [
       { name: 'Cool Down', duration: 30, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
     ],
     emoji: '☀️',
-    tags: ['quick-workout', 'morning', 'no-equipment']
+    tags: ['quick-workout', 'morning', 'no-equipment'],
+    templateType: 'workout',
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 420,
+      exerciseCount: 14,
+      isRoomCompatible: true,
+      recommendedParticipants: 2
+    }
   }
 ];
 

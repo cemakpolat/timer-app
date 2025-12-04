@@ -7,6 +7,7 @@ import {
   formatDuration,
   getExerciseStats
 } from '../../services/workoutTemplates';
+import { useTimers } from '../../hooks/useTimers';
 
 // Get semi-transparent text color based on theme
 const getTextOpacity = (theme, opacity = 0.7) => {
@@ -21,16 +22,37 @@ const getTextOpacity = (theme, opacity = 0.7) => {
 /**
  * WorkoutBrowser Component
  * Displays workout templates in a browsable grid with filters
+ * Uses unified timerService via useTimers hook
  */
-const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, onDeleteWorkout }) => {
+const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, onCreateRoomWithTemplate, onDeleteWorkout }) => {
+  // Use unified timer hook to get templates + custom timers
+  const { templates, customTimers, isLoading } = useTimers('workout');
+
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showSource, setShowSource] = useState('all'); // all, templates, custom
 
-  // Convert saved sequences to workout format
-  const customWorkouts = (savedSequences || []).map(seq => ({
+  // Convert custom timers to workout format (from timerService)
+  const customWorkoutsFromService = customTimers.map(timer => ({
+    id: timer.id,
+    name: timer.name,
+    description: timer.description || `Custom workout with ${timer.exercises?.length || 0} exercises`,
+    category: timer.category || 'mixed',
+    difficulty: timer.difficulty || 'intermediate',
+    duration: timer.duration || (timer.exercises?.reduce((sum, ex) => sum + ex.duration, 0) || 0),
+    exercises: timer.exercises || [],
+    emoji: timer.emoji || '⭐',
+    tags: timer.tags || ['custom'],
+    metadata: {
+      source: 'custom',
+      isCustom: true
+    }
+  }));
+
+  // Also convert legacy savedSequences for backward compatibility
+  const legacyCustomWorkouts = (savedSequences || []).map(seq => ({
     id: `custom-${seq.name}`,
     name: seq.name,
     description: seq.description || `Custom workout with ${seq.exerciseCount || seq.steps?.length || 0} exercises`,
@@ -42,17 +64,31 @@ const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, o
     tags: seq.tags || ['custom'],
     metadata: {
       source: 'custom',
-      isCustom: true
+      isCustom: true,
+      isLegacy: true
     }
   }));
 
-  // Merge templates and custom workouts
+  // Combine all custom workouts
+  const allCustomWorkouts = [...customWorkoutsFromService];
+  
+  // Merge templates and custom workouts with filters
   const allWorkouts = [
-    ...filterWorkouts(selectedCategory, selectedDifficulty, searchTerm).map(w => ({
+    ...templates.filter(w => {
+      if (selectedCategory !== 'all' && w.category !== selectedCategory) return false;
+      if (selectedDifficulty !== 'all' && w.difficulty !== selectedDifficulty) return false;
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        return w.name.toLowerCase().includes(search) ||
+               w.description.toLowerCase().includes(search) ||
+               w.tags.some(t => t.toLowerCase().includes(search));
+      }
+      return true;
+    }).map(w => ({
       ...w,
       metadata: { ...w.metadata, source: 'template', isCustom: false }
     })),
-    ...customWorkouts.filter(w => {
+    ...allCustomWorkouts.filter(w => {
       if (selectedCategory !== 'all' && w.category !== selectedCategory) return false;
       if (selectedDifficulty !== 'all' && w.difficulty !== selectedDifficulty) return false;
       if (searchTerm) {
@@ -427,7 +463,13 @@ const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, o
                     <Play size={14} /> Start Solo
                   </button>
                   <button
-                    onClick={() => onCreateRoom(workout)}
+                    onClick={() => {
+                      if (onCreateRoomWithTemplate) {
+                        onCreateRoomWithTemplate(workout);
+                      } else if (onCreateRoom) {
+                        onCreateRoom(workout);
+                      }
+                    }}
                     style={{
                       background: 'rgba(255,255,255,0.1)',
                       border: 'none',

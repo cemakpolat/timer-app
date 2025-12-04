@@ -531,6 +531,7 @@ export default function TimerApp() {
 
   const [showCreateTimer, setShowCreateTimer] = useState(false);
   const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
+  const [prefillTemplateId, setPrefillTemplateId] = useState(null);
   const [newTimerName, setNewTimerName] = useState('');
   const [newTimerMin, setNewTimerMin] = useState('');
   const [newTimerUnit, setNewTimerUnit] = useState('min');
@@ -1980,7 +1981,7 @@ export default function TimerApp() {
 
       {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: getContrastColor(theme.accent), cursor: 'pointer' }}>Close</button></div></div>}
       {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
-      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => setShowCreateRoomModal(false)} onCreateRoom={handleCreateRoom} savedTimers={saved} />}
+      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => { setShowCreateRoomModal(false); setPrefillTemplateId(null); }} onCreateRoom={handleCreateRoom} savedTimers={saved} prefillTemplateId={prefillTemplateId} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
       {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
       {showWorldClocks && <WorldClocks theme={theme} onClose={() => setShowWorldClocks(false)} weatherEffect={weatherEffect} weatherConfig={weatherConfig} />}
@@ -3094,6 +3095,11 @@ export default function TimerApp() {
                           ttl: 5000
                         }
                       }));
+                    }}
+                    onCreateRoomWithTemplate={(workout) => {
+                      // Open the Create Room Modal with the workout template prefilled
+                      setPrefillTemplateId(workout.id);
+                      setShowCreateRoomModal(true);
                     }}
                     onDeleteWorkout={(id) => {
                       setSaved(prev => prev.filter(t => t.name !== id));

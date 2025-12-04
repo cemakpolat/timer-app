@@ -10,6 +10,7 @@ const WorkoutsPanel = ({
   savedSequences,
   onStartWorkout,
   onCreateWorkoutRoom,
+  onCreateRoomWithTemplate,
   onDeleteWorkout
 }) => {
   return (
@@ -19,6 +20,7 @@ const WorkoutsPanel = ({
         savedSequences={savedSequences || []}
         onStartWorkout={onStartWorkout}
         onCreateRoom={onCreateWorkoutRoom}
+        onCreateRoomWithTemplate={onCreateRoomWithTemplate}
         onDeleteWorkout={onDeleteWorkout}
       />
     </div>
