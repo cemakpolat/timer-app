@@ -7,6 +7,7 @@ import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
 import useBackgroundImages from './hooks/useBackgroundImages';
+import { performMigration } from './services/migrationService';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
 import InfoModal from './components/InfoModal';
@@ -545,6 +546,21 @@ export default function TimerApp() {
   const [timerToDelete, setTimerToDelete] = useState(null);
   const [calendarExportRoom, setCalendarExportRoom] = useState(null); // Task 5: Calendar export modal state
   const [editingWeather, setEditingWeather] = useState(null);
+
+  // Perform migration of legacy savedSequences to new customTimers format on app load
+  useEffect(() => {
+    try {
+      const legacySavedSequences = saved.filter(t => t.isSequence) || [];
+      if (legacySavedSequences.length > 0) {
+        const result = performMigration(legacySavedSequences);
+        if (result.success) {
+          console.log(`✓ Migration successful: ${result.migratedCount} sequences migrated to customTimers`);
+        }
+      }
+    } catch (err) {
+      console.error('Error during migration:', err);
+    }
+  }, []); // Only run once on mount
 
   // Helper to show friendly toasts for realtime permission/init errors
   const showRealtimeErrorToast = (err, action = 'Operation') => {
