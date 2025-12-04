@@ -28,6 +28,7 @@ import WeatherEffect from './components/WeatherEffect';
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
 const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
+const WorkoutsPanel = lazy(() => import('./components/panels/WorkoutsPanel'));
 
 // Utility function to calculate relative luminance of a color
 const getLuminance = (hexColor) => {
@@ -1255,6 +1256,14 @@ export default function TimerApp() {
             setCompletedSession(completionData);
             setShowCelebration(true);
             setIsTransitioning(false);
+            // If we came from workouts, return to workouts tab after celebration
+            if (window.localStorage.getItem('lastWorkoutSource') === 'workouts') {
+              setTimeout(() => {
+                setActiveMainTab('workouts');
+                setActiveFeatureTab(null);
+                window.localStorage.removeItem('lastWorkoutSource');
+              }, 3000); // Wait for celebration to show
+            }
           }
         }
       } else if (localMode === 'timer') {
@@ -1370,6 +1379,13 @@ export default function TimerApp() {
       setActiveScene(sequence[0].scene);
       setCurrentTimerScene(sequence[0].scene);
     }
+    // Start ambient sound if configured
+    if (ambientSoundType !== 'None') {
+      const soundFile = getSoundFile(ambientSoundType);
+      if (soundFile) {
+        startAmbient(soundFile);
+      }
+    }
   };
 
     const moveSequenceStep = (index, direction) => {
@@ -1381,11 +1397,15 @@ export default function TimerApp() {
         setSequence(newSequence);
     };
 
-  const saveSequence = () => {
+  const saveSequence = (metadata = {}) => {
     if (sequence.length > 0 && seqName) {
       const totalMinutes = sequence.reduce((sum, t) => {
         const mins = t.unit === 'sec' ? t.duration / 60 : t.duration;
         return sum + mins;
+      }, 0);
+
+      const totalSeconds = sequence.reduce((sum, t) => {
+        return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
       }, 0);
 
       setSaved(prev => [{
@@ -1394,13 +1414,29 @@ export default function TimerApp() {
         unit: 'min',
         min: Math.ceil(totalMinutes),
         color: sequence[0].color,
-        group: 'Sequences',
+        group: metadata.group || 'Sequences',
         isSequence: true,
-        steps: sequence
+        steps: sequence,
+        // Workout metadata
+        category: metadata.category || 'mixed',
+        difficulty: metadata.difficulty || 'intermediate',
+        emoji: metadata.emoji || '⭐',
+        description: metadata.description || '',
+        tags: metadata.tags || [],
+        totalSeconds: totalSeconds,
+        exerciseCount: sequence.filter(s => s.type === 'work').length,
+        createdAt: Date.now()
       }, ...prev]);
       setSequence([]);
       setSeqName('');
       setShowBuilder(false);
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `✅ "${seqName}" saved successfully!`,
+          type: 'success',
+          ttl: 3000
+        }
+      }));
     }
   };
 
@@ -2595,18 +2631,45 @@ export default function TimerApp() {
               </div>
             )}
             {(isRunning || time > 0 || isTransitioning) && (
-            <div style={{ background: theme.card, borderRadius: 10, padding: '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'center', flexDirection: 'column' }}>
+            <div style={{ background: theme.card, borderRadius: 10, padding: '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: 32, alignItems: 'stretch', flexDirection: 'row', minHeight: '200px' }}>
               {mode === 'sequence' && sequence.length > 0 && (
-                <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  {sequence.map((step, idx) => (
-                    <React.Fragment key={idx}>
-                    <div style={{ width: idx === currentStep ? 16 : 12, height: idx === currentStep ? 16 : 12, borderRadius: '50%', background: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', border: idx === currentStep ? `3px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === currentStep ? `0 0 20px ${step.color}60` : 'none', margin: '0 auto' }} />
-                    {idx < sequence.length - 1 && <div style={{ width: 2, height: 16, background: idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', margin: '0 auto' }} />}
-                  </React.Fragment>
-                ))}
-              </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, paddingRight: '8px', paddingTop: '40px', paddingBottom: '40px', minWidth: '24px' }}>
+                  {sequence.map((step, idx) => {
+                    // Dynamic sizing based on sequence length
+                    const isLongSequence = sequence.length > 15;
+                    const activeDotSize = isLongSequence ? 10 : 14;
+                    const inactiveDotSize = isLongSequence ? 8 : 10;
+                    const connectorHeight = isLongSequence ? 12 : 16;
+                    const connectorWidth = 2;
+
+                    return (
+                      <React.Fragment key={idx}>
+                        <div style={{
+                          width: idx === currentStep ? activeDotSize : inactiveDotSize,
+                          height: idx === currentStep ? activeDotSize : inactiveDotSize,
+                          borderRadius: '50%',
+                          background: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+                          border: idx === currentStep ? `2px solid ${step.color}40` : 'none',
+                          transition: 'all 0.3s',
+                          boxShadow: idx === currentStep ? `0 0 15px ${step.color}60` : 'none',
+                          margin: '0 auto',
+                          flexShrink: 0
+                        }} />
+                        {idx < sequence.length - 1 && (
+                          <div style={{
+                            width: connectorWidth,
+                            height: connectorHeight,
+                            background: idx < currentStep ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+                            margin: '0 auto',
+                            flexShrink: 0
+                          }} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
             )}
-            <div style={{ flex: 1, marginLeft: mode === 'sequence' ? 40 : 0, marginRight: mode === 'sequence' ? 40 : 0, width: '100%' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
               {mode === 'sequence' && sequence[currentStep] && <div style={{ fontSize: 16, color: sequence[currentStep].color, marginBottom: 12, fontWeight: 600 }}>{sequence[currentStep].name}</div>}
               <div style={{ fontSize: 72, fontWeight: 700, marginBottom: (mode === 'interval' || mode === 'sequence') ? 0 : 24, color: showWarning ? '#ef4444' : 'white', animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
               
@@ -2631,12 +2694,17 @@ export default function TimerApp() {
                     stopAmbient();
                   }
                 }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
-                <button onClick={() => { 
-                  setIsRunning(false); 
-                  setTime(0); 
+                <button onClick={() => {
+                  setIsRunning(false);
+                  setTime(0);
                   setCurrentStep(0);
                   // Stop ambient sound when timer resets
                   stopAmbient();
+                  // If we came from workouts, return to workouts tab
+                  if (seqName && window.localStorage.getItem('lastWorkoutSource') === 'workouts') {
+                    setActiveMainTab('workouts');
+                    setActiveFeatureTab(null);
+                  }
                 }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
                 {mode !== 'stopwatch' && (
                   <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
@@ -2644,7 +2712,7 @@ export default function TimerApp() {
               </div>
             </div>
             {mode === 'sequence' && sequence.length > 0 && (
-              <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 120 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 120, paddingLeft: '8px' }}>
                 {sequence.map((step, idx) => <div key={idx} style={{ fontSize: 11, color: idx === currentStep ? step.color : idx < currentStep ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === currentStep ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>)}
               </div>
             )}
@@ -2998,28 +3066,47 @@ export default function TimerApp() {
 
               {/* Workouts Main Tab */}
               {activeMainTab === 'workouts' && !activeFeatureTab && (
-                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                  <Dumbbell size={48} color={theme.accent} style={{ marginBottom: 16 }} />
-                  <h2 style={{ color: theme.text, marginBottom: 8 }}>Workout Sessions</h2>
-                  <p style={{ color: getTextOpacity(theme, 0.7), marginBottom: 24 }}>
-                    Coming soon! Track your workout intervals and rest periods.
-                  </p>
-                  <button
-                    style={{
-                      background: theme.accent,
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '12px 24px',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      fontSize: 16,
-                      fontWeight: 500
+                <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+                  <WorkoutsPanel
+                    theme={theme}
+                    savedSequences={saved.filter(t => t.isSequence)}
+                    onStartWorkout={(workout) => {
+                      // Mark that we came from workouts tab
+                      window.localStorage.setItem('lastWorkoutSource', 'workouts');
+                      // Convert workout exercises to sequence format and start
+                      setSequence(workout.exercises || workout.steps);
+                      setSeqName(workout.name);
+                      setActiveMainTab('timer');
+                      setActiveFeatureTab('composite');
+                      // Auto-start the workout sequence
+                      setTimeout(() => {
+                        startSequence();
+                      }, 100);
                     }}
-                    onClick={() => alert('Workout sessions feature is under development!')}
-                  >
-                    Get Started
-                  </button>
-                </div>
+                    onCreateWorkoutRoom={(workout) => {
+                      // Set up room creation with workout template
+                      setShowTemplateSelector(true);
+                      // You can add logic here to pre-populate with fitness template
+                      window.dispatchEvent(new CustomEvent('app-toast', {
+                        detail: {
+                          message: 'Create a Focus Room and select "Fitness Class" template!',
+                          type: 'info',
+                          ttl: 5000
+                        }
+                      }));
+                    }}
+                    onDeleteWorkout={(id) => {
+                      setSaved(prev => prev.filter(t => t.name !== id));
+                      window.dispatchEvent(new CustomEvent('app-toast', {
+                        detail: {
+                          message: 'Workout deleted',
+                          type: 'success',
+                          ttl: 2000
+                        }
+                      }));
+                    }}
+                  />
+                </Suspense>
               )}
 
               {/* Feature Tabs for Rooms */}

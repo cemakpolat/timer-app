@@ -60,7 +60,7 @@ const CompositePanel = ({
           />
           
           {sequence.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
               {sequence.map((timer, idx) => (
                 <div 
                   key={idx} 
