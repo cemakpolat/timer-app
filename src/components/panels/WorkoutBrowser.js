@@ -3,7 +3,6 @@ import { Play, Users, Clock, TrendingUp, Filter, Search, X, Trash2 } from 'lucid
 import {
   WORKOUT_CATEGORIES,
   WORKOUT_DIFFICULTIES,
-  filterWorkouts,
   formatDuration,
   getExerciseStats
 } from '../../services/workoutTemplates';
@@ -26,7 +25,7 @@ const getTextOpacity = (theme, opacity = 0.7) => {
  */
 const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, onCreateRoomWithTemplate, onDeleteWorkout }) => {
   // Use unified timer hook to get templates + custom timers
-  const { templates, customTimers, isLoading } = useTimers('workout');
+  const { templates, customTimers } = useTimers('workout');
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
@@ -51,30 +50,12 @@ const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, o
     }
   }));
 
-  // Also convert legacy savedSequences for backward compatibility
-  const legacyCustomWorkouts = (savedSequences || []).map(seq => ({
-    id: `custom-${seq.name}`,
-    name: seq.name,
-    description: seq.description || `Custom workout with ${seq.exerciseCount || seq.steps?.length || 0} exercises`,
-    category: seq.category || 'mixed',
-    difficulty: seq.difficulty || 'intermediate',
-    duration: seq.totalSeconds || (seq.duration * 60),
-    exercises: seq.steps || [],
-    emoji: seq.emoji || '⭐',
-    tags: seq.tags || ['custom'],
-    metadata: {
-      source: 'custom',
-      isCustom: true,
-      isLegacy: true
-    }
-  }));
-
-  // Combine all custom workouts
+  // Combine all custom workouts from timerService
   const allCustomWorkouts = [...customWorkoutsFromService];
   
-  // Merge templates and custom workouts with filters
-  const allWorkouts = [
-    ...templates.filter(w => {
+  // Helper to filter workouts by category, difficulty, and search term
+  const filterWorkoutsList = (workouts) => {
+    return workouts.filter(w => {
       if (selectedCategory !== 'all' && w.category !== selectedCategory) return false;
       if (selectedDifficulty !== 'all' && w.difficulty !== selectedDifficulty) return false;
       if (searchTerm) {
@@ -84,21 +65,16 @@ const WorkoutBrowser = ({ theme, savedSequences, onStartWorkout, onCreateRoom, o
                w.tags.some(t => t.toLowerCase().includes(search));
       }
       return true;
-    }).map(w => ({
+    });
+  };
+
+  // Merge templates and custom workouts with filters
+  const allWorkouts = [
+    ...filterWorkoutsList(templates).map(w => ({
       ...w,
       metadata: { ...w.metadata, source: 'template', isCustom: false }
     })),
-    ...allCustomWorkouts.filter(w => {
-      if (selectedCategory !== 'all' && w.category !== selectedCategory) return false;
-      if (selectedDifficulty !== 'all' && w.difficulty !== selectedDifficulty) return false;
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        return w.name.toLowerCase().includes(search) ||
-               w.description.toLowerCase().includes(search) ||
-               w.tags.some(t => t.toLowerCase().includes(search));
-      }
-      return true;
-    })
+    ...filterWorkoutsList(allCustomWorkouts)
   ];
 
   // Apply source filter

@@ -60,9 +60,12 @@ export const useTimers = (filterType = null) => {
     // This is especially useful for same-tab updates
     const interval = setInterval(() => {
       const timers = getAllTimers();
-      if (JSON.stringify(timers) !== JSON.stringify(allTimers)) {
-        setAllTimers(timers);
-      }
+      setAllTimers(prevTimers => {
+        if (JSON.stringify(timers) !== JSON.stringify(prevTimers)) {
+          return timers;
+        }
+        return prevTimers;
+      });
     }, 2000);
 
     return () => {
@@ -74,7 +77,7 @@ export const useTimers = (filterType = null) => {
   // Memoized filtered timers based on type
   const templates = useMemo(() => {
     return getTemplatesByType('workout');
-  }, [allTimers]);
+  }, []);
 
   const customTimers = useMemo(() => {
     return allTimers.filter(t => t.metadata?.source === 'custom');
