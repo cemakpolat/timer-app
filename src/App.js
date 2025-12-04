@@ -2711,21 +2711,37 @@ export default function TimerApp() {
                     // Stop ambient sound when timer pauses
                     stopAmbient();
                   }
-                }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}{isRunning ? 'Pause' : 'Start'}</span></button>
+                }} style={{ background: theme.accent, border: 'none', borderRadius: 16, padding: '16px 32px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={20} /> : <Play size={20} />}</span></button>
+                <button onClick={() => {
+                  // Restart timer instead of resetting to 0
+                  setIsRunning(false);
+                  setTimeout(() => {
+                    setIsRunning(true);
+                    if (ambientSoundType !== 'None') {
+                      const soundFile = getSoundFile(ambientSoundType);
+                      if (soundFile) startAmbient(soundFile);
+                    }
+                  }, 100);
+                  // If we came from workouts, return to workouts tab
+                  if (seqName && window.localStorage.getItem('lastWorkoutSource') === 'workouts') {
+                    setActiveMainTab('workouts');
+                    setActiveFeatureTab(null);
+                  }
+                }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} /></span></button>
                 <button onClick={() => {
                   setIsRunning(false);
                   setTime(0);
                   setCurrentStep(0);
-                  // Stop ambient sound when timer resets
+                  // Stop ambient sound when timer is canceled
                   stopAmbient();
                   // If we came from workouts, return to workouts tab
                   if (seqName && window.localStorage.getItem('lastWorkoutSource') === 'workouts') {
                     setActiveMainTab('workouts');
                     setActiveFeatureTab(null);
                   }
-                }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={20} />Reset</span></button>
+                }} style={{ background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: 16, padding: '16px', color: '#ffffff', cursor: 'pointer', fontSize: 16, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><X size={20} /></span></button>
                 {mode !== 'stopwatch' && (
-                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} />{repeatEnabled ? 'ON' : 'OFF'}</span></button>
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: repeatEnabled ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '16px 24px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 8, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={18} /></span></button>
                 )}
               </div>
             </div>
