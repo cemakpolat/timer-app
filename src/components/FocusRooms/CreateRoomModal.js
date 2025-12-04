@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, Clock } from 'lucide-react';
 import { useModal } from '../../context/ModalContext';
+import { useTimers } from '../../hooks/useTimers';
 
 // Utility function to get contrasting text color
 const getContrastColor = (bgColor) => {
@@ -26,9 +27,84 @@ const getTextOpacity = (theme, opacity = 0.7) => {
 };
 
 /**
+ * Helper component to render a timer button
+ */
+const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
+  const isComposite = timer.isSequence || timer.group === 'Sequences';
+  let displayDuration = `${timer.duration} ${timer.unit || 'min'}`;
+
+  if (isComposite && timer.steps) {
+    const totalSec = timer.steps.reduce((sum, step) => {
+      return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+    }, 0);
+    displayDuration = `${Math.floor(totalSec / 60)}m`;
+  } else if (timer.exercises && !isComposite) {
+    // Handle template with exercises
+    const totalSec = timer.exercises.reduce((sum, ex) => sum + (ex.duration || 0), 0);
+    displayDuration = `${Math.floor(totalSec / 60)}m`;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      style={{
+        background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
+        border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
+        borderRadius: 8,
+        padding: '8px 10px',
+        color: isSelected ? getContrastColor(theme.accent) : theme.text,
+        cursor: 'pointer',
+        fontSize: 12,
+        transition: 'all 0.2s',
+        textAlign: 'left',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 600, marginBottom: 2 }}>
+          {timer.emoji && <span>{timer.emoji} </span>}
+          {timer.name}
+        </div>
+        <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.6) }}>
+          {timer.group || timer.category || 'Other'}
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {isComposite && (
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+            Composite
+          </span>
+        )}
+        {timer.exercises && (
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+            Template
+          </span>
+        )}
+        <span style={{ fontSize: 11, fontWeight: 600 }}>{displayDuration}</span>
+      </div>
+    </button>
+  );
+};
+
+/**
  * Modal for creating a new focus room
  */
 const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefillTemplateId = null }) => {
+  // Get unified timer list from timerService via useTimers hook
+  // This includes both built-in templates and custom timers
+  const { templates, customTimers, allTimers } = useTimers('workout');
+
+  // Merge templates and custom timers for display, with saved timers as fallback for backward compat
+  const combinedTimers = allTimers.length > 0 ? allTimers : savedTimers;
+  const availableTimers = combinedTimers.filter(t => t !== null && t !== undefined);
+
+  // Separate templates and custom timers for optgroup display
+  const templateTimers = availableTimers.filter(t => t.metadata?.source === 'template');
+  const customTimersList = availableTimers.filter(t => t.metadata?.source === 'custom');
+
   const [roomName, setRoomName] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [timerTab, setTimerTab] = useState(prefillTemplateId ? 'available' : 'new'); // 'new' or 'available'
@@ -43,7 +119,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   const [prefillTemplate, setPrefillTemplate] = useState(null);
 
   // Get all available timers (including composite timers)
-  const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
+  // const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
 
   // Available tags for rooms (with colors matching FocusRoomsPanel)
   const availableTags = [
@@ -451,54 +527,89 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                     No timers available yet. Create timers in the Timer tab first.
                   </div>
                 ) : (
-                  availableTimers.map((timer, idx) => {
-                    const isSelected = selectedTimer?.name === timer.name;
-                    const isComposite = timer.isSequence || timer.group === 'Sequences';
-                    let displayDuration = `${timer.duration} ${timer.unit || 'min'}`;
-                    if (isComposite && timer.steps) {
-                      const totalSec = timer.steps.reduce((sum, step) => {
-                        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-                      }, 0);
-                      displayDuration = `${Math.floor(totalSec / 60)}m`;
-                    }
+                  <>
+                    {/* Templates Group */}
+                    {templateTimers.length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: getTextOpacity(theme, 0.5),
+                          textTransform: 'uppercase',
+                          padding: '8px 10px 4px 10px',
+                          letterSpacing: 0.5
+                        }}>
+                          📋 Templates
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {templateTimers.map((timer, idx) => (
+                            <TimerButton
+                              key={idx}
+                              timer={timer}
+                              isSelected={selectedTimer?.id === timer.id}
+                              onSelect={() => setSelectedTimer(timer)}
+                              theme={theme}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedTimer(timer)}
-                        style={{
-                          background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
-                          border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                          borderRadius: 8,
-                          padding: '8px 10px',
-                          color: isSelected ? getContrastColor(theme.accent) : theme.text,
-                          cursor: 'pointer',
-                          fontSize: 12,
-                          transition: 'all 0.2s',
-                          textAlign: 'left',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600, marginBottom: 2 }}>{timer.name}</div>
-                          <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.6) }}>
-                            {timer.group || 'Other'}
-                          </div>
+                    {/* Custom Timers Group */}
+                    {customTimersList.length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: getTextOpacity(theme, 0.5),
+                          textTransform: 'uppercase',
+                          padding: '8px 10px 4px 10px',
+                          letterSpacing: 0.5,
+                          marginTop: templateTimers.length > 0 ? 4 : 0
+                        }}>
+                          ⭐ My Timers
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {isComposite && (
-                            <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                              Composite
-                            </span>
-                          )}
-                          <span style={{ fontSize: 11, fontWeight: 600 }}>{displayDuration}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {customTimersList.map((timer, idx) => (
+                            <TimerButton
+                              key={idx}
+                              timer={timer}
+                              isSelected={selectedTimer?.id === timer.id}
+                              onSelect={() => setSelectedTimer(timer)}
+                              theme={theme}
+                            />
+                          ))}
                         </div>
-                      </button>
-                    );
-                  })
+                      </div>
+                    )}
+
+                    {/* Legacy Saved Timers (for backward compatibility) */}
+                    {savedTimers.length > 0 && availableTimers.filter(t => !t.metadata?.source).length > 0 && (
+                      <div>
+                        <div style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: getTextOpacity(theme, 0.5),
+                          textTransform: 'uppercase',
+                          padding: '8px 10px 4px 10px',
+                          letterSpacing: 0.5
+                        }}>
+                          📌 Other
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {availableTimers.filter(t => !t.metadata?.source).map((timer, idx) => (
+                            <TimerButton
+                              key={idx}
+                              timer={timer}
+                              isSelected={selectedTimer?.name === timer.name}
+                              onSelect={() => setSelectedTimer(timer)}
+                              theme={theme}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
