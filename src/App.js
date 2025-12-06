@@ -3655,7 +3655,7 @@ export default function TimerApp() {
 
       {/* Weather Effect Canvas */}
       {weatherEffect !== 'none' && (
-        <WeatherEffect type={weatherEffect} config={weatherConfig} />
+        <WeatherEffect type={weatherEffect} config={weatherConfig[weatherEffect]} />
       )}
 
       {/* Edit cloned timer modal */}
@@ -3842,6 +3842,30 @@ export default function TimerApp() {
                     accentColor: theme.accent
                   }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500, color: theme.text, opacity: 0.8 }}>
+                  Velocity ({Math.round((weatherConfig[editingWeather]?.velocity ?? 1) * 100)}%)
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={weatherConfig[editingWeather]?.velocity ?? 1}
+                  onChange={(e) => setWeatherConfig(prev => ({
+                    ...prev,
+                    [editingWeather]: { ...prev[editingWeather], velocity: parseFloat(e.target.value) }
+                  }))}
+                  style={{
+                    width: '100%',
+                    accentColor: theme.accent
+                  }}
+                />
+                <div style={{ fontSize: 12, color: theme.text, opacity: 0.6, marginTop: 4 }}>
+                  Slow ← | → Fast
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
