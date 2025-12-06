@@ -12,15 +12,22 @@ import {
  * useTimers Hook
  *
  * Provides reactive access to unified timer/template library.
+ *
+ * - "Timers": Single countdowns for focused work, exercise, or any single activity.
+ * - "Routines": Multi-step sequences (composite timers) for workouts, study blocks, etc.
+ *
  * Merges built-in templates with custom timers from localStorage.
  * Automatically handles localStorage changes and re-renders.
  *
  * Features:
  * - Memoized timer lists (all, templates, custom)
- * - Filter by type (workout, focus, block)
+ * - Filter by type ("timer" for single, "routine" for multi-step, etc.)
  * - CRUD operations for custom timers
  * - Room payload generation from templates
  * - Reactive to localStorage changes
+ */
+/**
+ * @param {string|null} filterType - 'timer' for single timers, 'routine' for multi-step routines, or null for all
  */
 export const useTimers = (filterType = null) => {
   const [allTimers, setAllTimers] = useState([]);
@@ -53,36 +60,33 @@ export const useTimers = (filterType = null) => {
       }
     };
 
+    // Listen for same-tab updates
+    const handleTimersUpdated = () => {
+      loadTimers();
+    };
+
     // Listen for localStorage changes from other tabs
     window.addEventListener('storage', handleStorageChange);
-
-    // Optional: periodically check for changes in case storage event doesn't fire
-    // This is especially useful for same-tab updates
-    const interval = setInterval(() => {
-      const timers = getAllTimers();
-      setAllTimers(prevTimers => {
-        if (JSON.stringify(timers) !== JSON.stringify(prevTimers)) {
-          return timers;
-        }
-        return prevTimers;
-      });
-    }, 2000);
+    window.addEventListener('timers-updated', handleTimersUpdated);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener('timers-updated', handleTimersUpdated);
     };
   }, []);
 
   // Memoized filtered timers based on type
-  const templates = useMemo(() => {
-    return getTemplatesByType('workout');
+  // All built-in routine templates (multi-step)
+  const routineTemplates = useMemo(() => {
+    return getTemplatesByType('routine');
   }, []);
 
+  // All custom single timers (not routines)
   const customTimers = useMemo(() => {
     return allTimers.filter(t => t.metadata?.source === 'custom');
   }, [allTimers]);
 
+  // Filtered by type: 'timer' (single), 'routine' (multi-step), etc.
   const filteredTimers = useMemo(() => {
     if (!filterType) return allTimers;
     return getTemplatesByType(filterType);
@@ -140,7 +144,7 @@ export const useTimers = (filterType = null) => {
   return {
     // State
     allTimers,
-    templates,
+    routineTemplates,
     customTimers,
     filteredTimers,
     isLoading,
@@ -156,7 +160,7 @@ export const useTimers = (filterType = null) => {
     createRoomFromTemplate,
 
     // Computed
-    templateCount: templates.length,
+    routineTemplateCount: routineTemplates.length,
     customCount: customTimers.length,
     totalCount: allTimers.length
   };

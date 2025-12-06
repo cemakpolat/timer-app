@@ -50,7 +50,7 @@ export const migrateSequence = (legacySequence) => {
     category: legacySequence.category || 'mixed',
     difficulty: legacySequence.difficulty || 'intermediate',
     tags: legacySequence.tags || ['migrated'],
-    templateType: 'workout',
+    templateType: 'routine',
     metadata: {
       source: 'custom',
       isTemplate: false,
@@ -150,6 +150,55 @@ export const performMigration = (savedSequences = []) => {
       error: err
     };
   }
+};
+
+/**
+ * Migrate legacy saved timers (non-sequence timers) into customTimers
+ * This is idempotent and will not duplicate existing custom timers by name
+ */
+export const migrateLegacySavedTimers = (savedItems = []) => {
+  if (!Array.isArray(savedItems) || savedItems.length === 0) return { migrated: 0 };
+
+  const customTimersStr = localStorage.getItem('customTimers') || '[]';
+  const existingCustom = JSON.parse(customTimersStr);
+
+  let migrated = 0;
+  savedItems.forEach(item => {
+    // Skip sequences which are handled elsewhere
+    if (item.isSequence || item.exercises || item.steps) return;
+
+    // Avoid duplicates by name
+    const exists = existingCustom.find(ct => ct.name === item.name || ct.id === item.id);
+    if (exists) return;
+
+    const now = Date.now();
+    const newTimer = {
+      id: item.id || `migrated-${now}-${Math.floor(Math.random()*10000)}`,
+      name: item.name || 'Imported Timer',
+      description: item.description || '',
+      duration: item.duration || (item.min || 0),
+      unit: item.unit || (item.min ? 'min' : 'sec'),
+      emoji: item.emoji || '⏱️',
+      category: item.group || item.category || 'other',
+      templateType: 'timer',
+      tags: item.tags || ['imported'],
+      metadata: {
+        source: 'custom',
+        isTemplate: false,
+        isCustom: true,
+        isEditable: true,
+        templateType: 'timer',
+        createdAt: now,
+        migratedFromLegacy: true
+      }
+    };
+
+    existingCustom.push(newTimer);
+    migrated += 1;
+  });
+
+  if (migrated > 0) localStorage.setItem('customTimers', JSON.stringify(existingCustom));
+  return { migrated };
 };
 
 const migrationUtils = {

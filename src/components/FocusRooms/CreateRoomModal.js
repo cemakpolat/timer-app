@@ -97,13 +97,32 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   // This includes both built-in templates and custom timers
   const { allTimers } = useTimers('workout');
 
-  // Merge templates and custom timers for display, with saved timers as fallback for backward compat
-  const combinedTimers = allTimers.length > 0 ? allTimers : savedTimers;
+  // Merge templates and custom timers for display, and include legacy `savedTimers` (backward-compat)
+  const legacyTimers = Array.isArray(savedTimers)
+    ? savedTimers.map((t) => ({
+        ...t,
+        id: t.id || `legacy-${(t.name || '').replace(/\s+/g, '-').toLowerCase()}`,
+        metadata: {
+          ...(t.metadata || {}),
+          source: t.metadata?.source || 'legacy',
+          isEditable: !!t.id && !!t.metadata?.isEditable,
+          isTemplate: !!t.metadata?.isTemplate
+        }
+      }))
+    : [];
+
+  // Merge avoiding duplicates by id or name
+  const merged = [
+    ...allTimers,
+    ...legacyTimers.filter((lt) => !allTimers.find(at => at.id === lt.id || (at.name && at.name === lt.name)))
+  ];
+
+  const combinedTimers = merged.length > 0 ? merged : (Array.isArray(savedTimers) ? savedTimers : []);
   const availableTimers = combinedTimers.filter(t => t !== null && t !== undefined);
 
-  // Separate templates and custom timers for optgroup display
+  // Separate templates and custom timers for optgroup display (include legacy as custom)
   const templateTimers = availableTimers.filter(t => t.metadata?.source === 'template');
-  const customTimersList = availableTimers.filter(t => t.metadata?.source === 'custom');
+  const customTimersList = availableTimers.filter(t => t.metadata?.source === 'custom' || t.metadata?.source === 'legacy');
 
   const [roomName, setRoomName] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(10);

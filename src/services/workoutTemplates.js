@@ -64,7 +64,12 @@ export const WORKOUT_CATEGORIES = {
   strength: { name: 'Strength', color: '#f59e0b', icon: '💪', description: 'Build muscle and power' },
   flexibility: { name: 'Flexibility', color: '#8b5cf6', icon: '🧘', description: 'Stretch and mobility' },
   sports: { name: 'Sports', color: '#10b981', icon: '⚽', description: 'Sport-specific training' },
-  mixed: { name: 'Mixed', color: '#6366f1', icon: '🔥', description: 'Combination workouts' }
+  mixed: { name: 'Mixed', color: '#6366f1', icon: '🔥', description: 'Combination workouts' },
+  workout: { name: 'Workout', color: '#ef4444', icon: '💪', description: 'General workouts' },
+  study: { name: 'Study', color: '#8b5cf6', icon: '📚', description: 'Study sessions' },
+  fitness: { name: 'Fitness', color: '#10b981', icon: '🏋️', description: 'Fitness routines' },
+  meeting: { name: 'Meeting', color: '#3b82f6', icon: '👥', description: 'Meeting timers' },
+  productivity: { name: 'Productivity', color: '#6366f1', icon: '🍅', description: 'Focus and productivity sessions' }
 };
 
 export const WORKOUT_DIFFICULTIES = {
@@ -83,23 +88,23 @@ export const WORKOUT_TEMPLATES = [
     difficulty: 'beginner',
     templateType: 'workout',
     exercises: [
-      { name: 'Warm-up Jog', duration: 180, unit: 'sec', type: 'warmup', color: '#10b981' },
-      { name: 'Jumping Jacks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'High Knees', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'Butt Kicks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'Mountain Climbers', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'Jumping Jacks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'High Knees', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'Butt Kicks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6' },
-      { name: 'Mountain Climbers', duration: 30, unit: 'sec', type: 'work', color: '#ef4444' },
-      { name: 'Cool Down Stretch', duration: 180, unit: 'sec', type: 'cooldown', color: '#8b5cf6' }
+      { name: 'Warm-up Jog', duration: 180, unit: 'sec', type: 'warmup', color: '#10b981', accent: '#10b981' },
+      { name: 'Jumping Jacks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'High Knees', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Butt Kicks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Mountain Climbers', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Jumping Jacks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'High Knees', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Butt Kicks', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Rest', duration: 30, unit: 'sec', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Mountain Climbers', duration: 30, unit: 'sec', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Cool Down Stretch', duration: 180, unit: 'sec', type: 'cooldown', color: '#8b5cf6', accent: '#8b5cf6' }
     ],
     emoji: '🔥',
     tags: ['beginner-friendly', 'no-equipment', 'fat-burning'],
@@ -379,6 +384,87 @@ export const WORKOUT_TEMPLATES = [
       isRoomCompatible: true,
       recommendedParticipants: 2
     }
+  },
+
+  {
+    id: 'pomodoro-session',
+    name: 'Pomodoro Session',
+    description: 'Classic Pomodoro technique: 25 minutes focused work followed by 5-minute breaks, with a longer break after 4 cycles',
+    category: 'productivity',
+    duration: 7800, // 4*25*60 + 3*5*60 + 15*60 = 6000 + 900 + 900 = 7800 wait, recalculate: 4*(25+5)*60 -5*60 +15*60 = 4*30*60 -300 +900 = 7200 -300 +900 = 7800? Wait, standard is 4 work + 3 short breaks + 1 long break
+    difficulty: 'beginner',
+    templateType: 'routine',
+    exercises: [
+      { name: 'Work Session 1', duration: 25, unit: 'min', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Short Break', duration: 5, unit: 'min', type: 'rest', color: '#10b981', accent: '#10b981' },
+      { name: 'Work Session 2', duration: 25, unit: 'min', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Short Break', duration: 5, unit: 'min', type: 'rest', color: '#10b981', accent: '#10b981' },
+      { name: 'Work Session 3', duration: 25, unit: 'min', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Short Break', duration: 5, unit: 'min', type: 'rest', color: '#10b981', accent: '#10b981' },
+      { name: 'Work Session 4', duration: 25, unit: 'min', type: 'work', color: '#ef4444', accent: '#ef4444' },
+      { name: 'Long Break', duration: 15, unit: 'min', type: 'rest', color: '#8b5cf6', accent: '#8b5cf6' }
+    ],
+    emoji: '🍅',
+    tags: ['productivity', 'focus', 'pomodoro', 'work'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 7800, // 4*1500 + 3*300 + 900 = 6000 + 900 + 900 = 7800 seconds
+      exerciseCount: 8,
+      isRoomCompatible: true,
+      recommendedParticipants: 1
+    }
+  },
+
+  {
+    id: 'short-break-sequence',
+    name: 'Short Break Sequence',
+    description: 'A series of short breaks to help you recharge throughout the day',
+    category: 'productivity',
+    duration: 900, // 3*5*60 = 900 seconds
+    difficulty: 'beginner',
+    templateType: 'routine',
+    exercises: [
+      { name: 'Quick Stretch', duration: 5, unit: 'min', type: 'rest', color: '#10b981', accent: '#10b981' },
+      { name: 'Deep Breathing', duration: 5, unit: 'min', type: 'rest', color: '#3b82f6', accent: '#3b82f6' },
+      { name: 'Walk Around', duration: 5, unit: 'min', type: 'rest', color: '#f59e0b', accent: '#f59e0b' }
+    ],
+    emoji: '☕',
+    tags: ['break', 'relaxation', 'productivity'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 900,
+      exerciseCount: 3,
+      isRoomCompatible: false,
+      recommendedParticipants: 1
+    }
+  },
+
+  {
+    id: 'deep-work-session',
+    name: 'Deep Work Session',
+    description: 'Extended focused work period for deep concentration and productivity',
+    category: 'productivity',
+    duration: 3000, // 50*60 = 3000 seconds
+    difficulty: 'intermediate',
+    templateType: 'routine',
+    exercises: [
+      { name: 'Deep Work Block', duration: 50, unit: 'min', type: 'work', color: '#8b5cf6', accent: '#8b5cf6' }
+    ],
+    emoji: '🧠',
+    tags: ['focus', 'deep-work', 'productivity', 'concentration'],
+    metadata: {
+      source: 'template',
+      isTemplate: true,
+      isEditable: false,
+      totalDuration: 3000,
+      exerciseCount: 1,
+      isRoomCompatible: true,
+      recommendedParticipants: 1
+    }
   }
 ];
 
@@ -461,6 +547,37 @@ export const getExerciseStats = (exercises) => {
   };
   return stats;
 };
+
+export const COMMON_TAGS = [
+  'beginner-friendly',
+  'no-equipment',
+  'fat-burning',
+  'muscle-building',
+  'full-body',
+  'flexibility',
+  'mindfulness',
+  'morning-routine',
+  'quick-workout',
+  'high-intensity',
+  'core',
+  'abs',
+  'recovery',
+  'relaxation',
+  'boxing',
+  'cardio',
+  'coordination',
+  'morning',
+  'strength',
+  'endurance',
+  'mobility',
+  'yoga',
+  'hiit',
+  'tabata',
+  'sports',
+  'mixed',
+  'productivity',
+  'custom'
+];
 
 /**
  * Create custom workout template

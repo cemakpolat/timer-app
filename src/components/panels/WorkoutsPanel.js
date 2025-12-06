@@ -1,30 +1,39 @@
 import React from 'react';
-import WorkoutBrowser from './WorkoutBrowser';
+import RoutineBrowser from './RoutineBrowser';
+
 
 /**
- * WorkoutsPanel Component
- * Main interface for browsing and starting workout templates
+ * RoutinesPanel Component
+ * Main interface for browsing and starting routine templates
  */
-const WorkoutsPanel = ({
+const RoutinesPanel = ({
   theme,
   savedSequences,
-  onStartWorkout,
-  onCreateWorkoutRoom,
+  savedTimers = [],
+  onStartRoutine,
+  onCreateRoutineRoom,
   onCreateRoomWithTemplate,
-  onDeleteWorkout
+  onDeleteRoutine,
+  onCloneTemplate,
+  onEditRoutine,
+  onCreateNewRoutine
 }) => {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <WorkoutBrowser
+      <RoutineBrowser
         theme={theme}
         savedSequences={savedSequences || []}
-        onStartWorkout={onStartWorkout}
-        onCreateRoom={onCreateWorkoutRoom}
+        savedTimers={savedTimers || []}
+        onStartRoutine={onStartRoutine}
+        onCreateRoom={onCreateRoutineRoom}
         onCreateRoomWithTemplate={onCreateRoomWithTemplate}
-        onDeleteWorkout={onDeleteWorkout}
+        onDeleteRoutine={onDeleteRoutine}
+        onCloneTemplate={onCloneTemplate}
+        onEditRoutine={onEditRoutine}
+        onCreateNewRoutine={onCreateNewRoutine}
       />
     </div>
   );
 };
 
-export default WorkoutsPanel;
+export default RoutinesPanel;

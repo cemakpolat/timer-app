@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Clock, Zap, Gift, Award, Repeat, Music } from 'lucide-react';
+import { X, Users, Clock, Zap, Gift, Award, Music, Palette, Eye } from 'lucide-react';
 
 // Utility function to get contrasting text color
 const getContrastColor = (bgColor) => {
@@ -26,50 +26,55 @@ const getTextOpacity = (theme, opacity = 0.7) => {
 
 /**
  * InfoModal Component
- * Explains the main features of Focus & Fit
- * - Focus Rooms
- * - Timer Blocks
- * - Composite Timers
- * - Time Capsule
- * - Achievements
- * - Interval Timer
+ * Explains the main features of the Timer App
+ * - Multiple Timer Visualizations
+ * - Focus Rooms & Collaboration
+ * - Advanced Timer Modes
+ * - Themes & Visual Effects
+ * - Achievements & Gamification
+ * - Custom Music & Scenes
  */
 export default function InfoModal({ theme, onClose }) {
 	const features = [
 		{
-			icon: Users,
-			title: 'Focus Rooms',
-			description: 'Create or join collaborative focus spaces with others. Set goals, track time together, and stay accountable as a group for workouts, work sessions, or study.'
+			icon: Clock,
+			title: 'Multiple Timer Visualizations',
+			description: 'Choose from 5 different timer displays: Default (classic), Compact (minimal), Minimal (immersive), Card Stack (modern), and Timeline (split-screen). Each visualization adapts to your current timer mode.'
 		},
 		{
-			icon: Clock,
-			title: 'Timer Blocks',
-			description: 'Build a collection of custom timers (5 min, 15 min, 25 min, etc.) and organize them by category. Perfect for workouts, work sprints, or creative sessions.'
+			icon: Users,
+			title: 'Focus Rooms & Collaboration',
+			description: 'Create or join collaborative focus spaces. Set shared goals, track time together, and stay accountable as a group for workouts, work sessions, or study. Real-time presence indicators show who\'s active.'
 		},
 		{
 			icon: Zap,
-			title: 'Composite Timers',
-			description: 'Combine multiple timers into sequences. Perfect for complex sessions: warm-up → workout → cool-down, or work → break → review → repeat.'
+			title: 'Advanced Timer Modes',
+			description: 'Simple timers, interval training (work/rest cycles), sequences (multi-step routines), and stopwatch mode. Perfect for HIIT workouts, Pomodoro sessions, or complex training programs.'
+		},
+		{
+			icon: Award,
+			title: 'Achievements & Gamification',
+			description: 'Unlock badges for milestones: first timer completion, 7-day streaks, 100 sessions, and more. Track your progress in fitness, focus, and productivity with detailed statistics.'
 		},
 		{
 			icon: Gift,
 			title: 'Time Capsule',
-			description: 'Write messages to your future self. Set them to open after days or weeks. Receive encouragement and reminders from your past.'
-		},
-		{
-			icon: Award,
-			title: 'Achievements',
-			description: 'Unlock badges as you hit milestones: first completion, 7-day streak, 100 sessions, and more. Celebrate your progress in fitness or focus!'
-		},
-		{
-			icon: Repeat,
-			title: 'Interval Timer',
-			description: 'Alternate between work and rest cycles. Set work duration, rest time, and number of rounds. Ideal for HIIT workouts or pomodoro productivity sessions.'
+			description: 'Write messages to your future self. Set them to open after days or weeks. Receive encouragement, motivation, and reminders from your past self at the perfect moment.'
 		},
 		{
 			icon: Music,
-			title: 'Custom Music',
-			description: 'Upload your own background music (MP3/WAV/OGG/AAC/FLAC). Files are stored locally in your browser (IndexedDB) and can be deleted or downloaded. Max file size 10MB.'
+			title: 'Custom Music & Scenes',
+			description: 'Upload your own background music (MP3/WAV/OGG/AAC/FLAC) and choose from immersive scenes like coffee shop, fireplace, or nature. Files are stored locally in your browser.'
+		},
+		{
+			icon: Palette,
+			title: 'Themes & Customization',
+			description: 'Choose from multiple themes including Minimal Light, Clean Mode, and custom color schemes. Themes adapt automatically to light/dark modes and can be customized per timer type.'
+		},
+		{
+			icon: Eye,
+			title: 'Visual Effects & Scenes',
+			description: 'Immerse yourself with particle effects like realistic coffee steam, crackling fireplaces, and weather animations. Choose from various scenes to enhance your focus environment.'
 		}
 	];
 
@@ -147,7 +152,7 @@ export default function InfoModal({ theme, onClose }) {
 						backgroundClip: 'text'
 					}}
 				>
-					Welcome to Focus & Fit
+					Welcome to Timer App
 				</h2>
 
 				<p
@@ -158,7 +163,7 @@ export default function InfoModal({ theme, onClose }) {
 						lineHeight: 1.6
 					}}
 				>
-					A social timer app to help you focus, track time, collaborate with others, and stay accountable for workouts, work sessions, or any timed activity. Here's what you can do:
+					A comprehensive timer application with multiple visualization modes, collaborative focus rooms, advanced timer features, and immersive scenes. Perfect for workouts, work sessions, study, or any timed activity. Here's what you can do:
 				</p>
 
 				{/* Features Grid */}
@@ -248,10 +253,10 @@ export default function InfoModal({ theme, onClose }) {
 					}}
 				>
 					<p style={{ margin: 0 }}>
-						💡 <strong>Tip:</strong> Start with Focus Rooms to collaborate, or dive into Timer Blocks to build your perfect session. Use Achievements to track your progress!
+						💡 <strong>Tip:</strong> Try different timer visualizations in Settings! The Minimal mode is perfect for immersive focus, while Card Stack works great for sequences. Join Focus Rooms to collaborate with others!
 					</p>
 					<p style={{ margin: '8px 0 0 0', fontSize: 12, color: getTextOpacity(theme, 0.55) }}>
-						<strong>Note on exports:</strong> World clocks, custom themes, and uploaded music files are currently stored locally and are not included in the app export/import feature. Uploaded music is saved in your browser (IndexedDB) and is device-specific.
+						<strong>Note on exports:</strong> World clocks, custom themes, uploaded music, and timer visualizations are currently stored locally and are not included in the app export/import feature. Uploaded music is saved in your browser (IndexedDB) and is device-specific.
 					</p>
 				</div>
 				</div>

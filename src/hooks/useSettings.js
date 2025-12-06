@@ -35,7 +35,7 @@ const useSettings = () => {
     }
   });
 
-  // Weather effect settings
+  // Scene settings
   const [weatherEffect, setWeatherEffect] = useState(() => {
     try {
       return localStorage.getItem('weatherEffect') || 'none';
@@ -45,7 +45,7 @@ const useSettings = () => {
     }
   });
 
-  // Weather effect configuration (color, opacity)
+  // Scene configuration (color, opacity)
   const [weatherConfig, setWeatherConfig] = useState(() => {
     const defaults = {
       rain: { color: '#4682B4', opacity: 0.6 },
@@ -61,7 +61,9 @@ const useSettings = () => {
       lanterns: { color: '#FF0000', opacity: 0.85 },
       aurora: { color: '#00FF80', opacity: 0.6 },
       desert: { color: '#DEB887', opacity: 0.5 },
-      tropical: { color: '#FF69B4', opacity: 0.8 }
+      tropical: { color: '#FF69B4', opacity: 0.8 },
+      coffee: { color: '#8B4513', opacity: 0.6 },
+      fireplace: { color: '#FF4500', opacity: 0.8 }
     };
 
     try {

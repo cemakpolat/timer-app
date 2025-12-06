@@ -27,7 +27,7 @@ const TimerPanel = ({
   return (
     <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, margin: 0 }}>Quick Start</h2>
+        <h2 style={{ fontSize: 18, margin: 0 }}>Timer</h2>
         {(inputHours || inputMinutes || inputSeconds) && (
           <button 
             onClick={shareCurrentTimer} 
@@ -47,6 +47,11 @@ const TimerPanel = ({
             <Share size={14} /> Share
           </button>
         )}
+      </div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10 }}>
+        <span>
+          <b>Timer</b>: A simple countdown for focused work, exercise, or any single activity. For multi-step routines, use the <b>Routines</b> tab.
+        </span>
       </div>
 
       {/* HH:MM:SS Input Fields and Run Button */}

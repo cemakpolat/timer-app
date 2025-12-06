@@ -1,7 +1,8 @@
-// Lightweight timer service - merges template timers with custom timers stored in localStorage
-// Provides simple CRUD operations for custom timers and helpers to migrate old sequences.
+// Timer service: manages both single countdowns (Timers) and multi-step sequences (Routines)
+// Provides CRUD for custom timers, merging with built-in templates, and migration helpers.
 
-import { WORKOUT_TEMPLATES } from './workoutTemplates';
+import { ROUTINE_TEMPLATES } from './routineTemplates';
+import templatesJson from '../templates/templates.json';
 
 const CUSTOM_KEY = 'customTimers';
 
@@ -22,25 +23,35 @@ export const setCustomTimers = (arr) => {
   localStorage.setItem(CUSTOM_KEY, JSON.stringify(arr));
 };
 
+/**
+ * Returns all timers (single countdowns) and routines (multi-step sequences),
+ * merging built-in templates and custom user items.
+ */
 export const getAllTimers = () => {
-  // Map templates to ensure they have metadata fields
-  const templates = (Array.isArray(WORKOUT_TEMPLATES) ? WORKOUT_TEMPLATES : []).map(t => ({
+  // Prefer templates from src/templates/templates.json if available
+  const fileTemplates = Array.isArray(templatesJson) ? templatesJson : [];
+  const templatesSource = fileTemplates.length > 0 ? fileTemplates : ROUTINE_TEMPLATES;
+  const templates = templatesSource.map(t => ({
     ...t,
+    templateType: t.templateType || 'routine',
     metadata: {
       ...(t.metadata || {}),
       source: 'template',
       isEditable: false,
-      isTemplate: true
+      isTemplate: true,
+      templateType: t.templateType || 'routine'
     }
   }));
 
   const custom = getCustomTimers().map(t => ({
     ...t,
+    templateType: t.templateType || (t.exercises ? 'routine' : 'timer'),
     metadata: {
       ...(t.metadata || {}),
       source: 'custom',
       isEditable: true,
-      isTemplate: false
+      isTemplate: false,
+      templateType: t.templateType || (t.exercises ? 'routine' : 'timer')
     }
   }));
 
@@ -58,15 +69,19 @@ export const saveCustomTimer = (timer) => {
   const custom = getCustomTimers();
 
   const now = Date.now();
+  // Deep clone to ensure clean serialization
+  const cleanTimer = JSON.parse(JSON.stringify(timer));
   const newTimer = {
-    ...timer,
-    id: timer.id || `custom-${now}`,
+    ...cleanTimer,
+    id: cleanTimer.id || `custom-${now}`,
+    templateType: cleanTimer.templateType || (cleanTimer.exercises ? 'routine' : 'timer'),
     metadata: {
-      ...(timer.metadata || {}),
       source: 'custom',
+      isCustom: true,
       isEditable: true,
       isTemplate: false,
-      createdAt: timer.metadata?.createdAt || now
+      templateType: cleanTimer.templateType || (cleanTimer.exercises ? 'routine' : 'timer'),
+      createdAt: cleanTimer.metadata?.createdAt || now
     }
   };
 
@@ -85,10 +100,13 @@ export const deleteCustomTimer = (id) => {
   return true;
 };
 
+/**
+ * Returns all items of a given type: 'timer' (single countdown), 'routine' (multi-step), etc.
+ */
 export const getTemplatesByType = (type) => {
   const all = getAllTimers();
   if (!type || type === 'all') return all;
-  return all.filter(t => t.templateType === type || (t.metadata && t.metadata.templateType === type));
+  return all.filter(t => (t.templateType === type || t.metadata?.templateType === type));
 };
 
 export const createRoomPayloadFromTemplate = (templateId, { roomName, privacy, ownerName, ownerDisplayName }) => {
@@ -148,7 +166,7 @@ export const migrateOldSequences = () => {
 
     const newTimer = {
       id: `migrated-${Date.now()}-${Math.floor(Math.random()*10000)}`,
-      name: item.name || item.title || 'Migrated Workout',
+      name: item.name || item.title || 'Migrated Routine',
       description: item.description || '',
       exercises: seq,
       metadata: {
