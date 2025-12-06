@@ -4,13 +4,17 @@ const DB_NAME = 'timer-app-db';
 const DB_VERSION = 1;
 const FILE_STORE = 'files';
 
-const dbPromise = openDB(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(FILE_STORE)) {
-      db.createObjectStore(FILE_STORE);
+// Only initialize IndexedDB in browser environment
+let dbPromise = null;
+if (typeof window !== 'undefined') {
+  dbPromise = openDB(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(FILE_STORE)) {
+        db.createObjectStore(FILE_STORE);
+      }
     }
-  }
-});
+  });
+}
 
 export async function saveFileBlob(id, blob) {
   const db = await dbPromise;

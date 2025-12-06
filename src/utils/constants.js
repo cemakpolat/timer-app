@@ -32,7 +32,11 @@ export const THEMES = [
   { name: "Indonesian Batik", bg: "#422006", card: "#713f12", accent: "#0891b2", text: "#cffafe" }, // Brown & teal
   { name: "Moroccan Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa" }, // Spice colors
   { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7" }, // Royal blue & gold
-  { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985" } // White & blue
+  { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985" }, // White & blue
+  
+  // Special Themes
+  { name: "Minimal Light", bg: "#ffffff", card: null, accent: "#000000", text: "#000000", isMinimal: true, isLight: true }, // Transparent mode - no background, no cards
+  { name: "Clean Mode", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isCleanMode: true }  // Clean mode - only header and focus
 ];
 
 // Ambient sound configurations
@@ -68,7 +72,7 @@ export const AMBIENT_SOUNDS = [
 // Sound file paths
 export const COUNTDOWN_NOISE_SOUND = "/sounds/beep.mp3";
 
-// Default saved timers
+// Default saved timers (single countdowns only; for multi-step routines, see routineTemplates.js)
 export const DEFAULT_SAVED_TIMERS = [
   // Work/Pomodoro timers
   { name: "Pomodoro", duration: 25, unit: "min", min: 25, color: "#ef4444", group: "Work" },

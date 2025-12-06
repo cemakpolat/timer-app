@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
+import TimerVisualizationSelector from './TimerVisualizationSelector';
 
 const Header = ({
   theme,
@@ -42,7 +43,10 @@ const Header = ({
   getAllBackgroundImages,
   getBackgroundImageUrl,
   uploadBackgroundImage,
-  deleteBackgroundImage
+  deleteBackgroundImage,
+  // Timer visualization
+  timerVisualization,
+  setTimerVisualization
 
 }) => {
   const settingsPanelRef = useRef(null);
@@ -418,7 +422,7 @@ const Header = ({
                     }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Weather Effects"
+                    title="Scenes"
                   >
                     <Cloud size={18} />
                   </button>
@@ -426,6 +430,34 @@ const Header = ({
                   {/* Background Images Option */}
                   <button
                     onClick={() => setSettingsView('backgroundImages')}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '12px 16px',
+                      color: theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+              justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '50px',
+                      minHeight: '50px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    title="Background Images"
+                  >
+                    <ImageIcon size={18} />
+                  </button>
+
+                  {/* Timer Visualization Option */}
+                  <button
+                    onClick={() => setSettingsView('timerVisualization')}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
@@ -446,9 +478,9 @@ const Header = ({
                     }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                    title="Background Images"
+                    title="Timer Visualization"
                   >
-                    <ImageIcon size={18} />
+                    <Clock size={18} />
                   </button>
 
                   {/* Fullscreen Option */}
@@ -812,7 +844,7 @@ const Header = ({
                   </div>
 
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Weather Effects</label>
+                    <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Scenes</label>
                     <div style={{ 
                       display: 'grid', 
                       gridTemplateColumns: 'repeat(2, 1fr)', 
@@ -835,7 +867,9 @@ const Header = ({
                         { id: 'lanterns', name: 'Lanterns', icon: '🏮' },
                         { id: 'aurora', name: 'Aurora', icon: '🌌' },
                         { id: 'desert', name: 'Desert', icon: '🏜️' },
-                        { id: 'tropical', name: 'Tropical', icon: '🌴' }
+                        { id: 'tropical', name: 'Tropical', icon: '🌴' },
+                        { id: 'coffee', name: 'Coffee Shop', icon: '☕' },
+                        { id: 'fireplace', name: 'Fireplace', icon: '🔥' }
                       ].map(effect => (
                         <button
                           key={effect.id}
@@ -883,7 +917,7 @@ const Header = ({
                       ))}
                     </div>
                     <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
-                      Choose a weather effect for your timer sessions
+                      Choose a scene for your timer sessions
                     </p>
                   </div>
                 </>
@@ -1066,6 +1100,16 @@ const Header = ({
                   uploadBackgroundImage={uploadBackgroundImage}
                   deleteBackgroundImage={deleteBackgroundImage}
                   onBack={() => setSettingsView('main')}
+                />
+              )}
+
+              {/* Timer Visualization Settings */}
+              {settingsView === 'timerVisualization' && (
+                <TimerVisualizationSelector
+                  currentVisualization={timerVisualization}
+                  onVisualizationChange={setTimerVisualization}
+                  theme={theme}
+                  getTextOpacity={getTextOpacity}
                 />
               )}
             </div>

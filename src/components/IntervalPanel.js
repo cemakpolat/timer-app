@@ -30,6 +30,12 @@ const IntervalPanel = ({
 
   return (
     <div style={{ textAlign: 'center', padding: 40 }}>
+      {/* Taxonomy Help */}
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10 }}>
+        <span>
+          <b>Interval Timer</b>: Alternate between work and rest cycles for a set number of rounds. Ideal for HIIT, pomodoro, or interval training. For single timers or multi-step routines, use the <b>Timers</b> or <b>Routines</b> tabs.
+        </span>
+      </div>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: theme.text }}>

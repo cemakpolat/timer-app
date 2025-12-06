@@ -4,7 +4,7 @@ const defaultSavedTimers = [
   { name: "Pomodoro", duration: 25, unit: "min", min: 25, color: "#ef4444", group: "Work", scene: "deepWork" },
   { name: "Short Break", duration: 5, unit: "min", min: 5, color: "#10b981", group: "Work", scene: "coffee" },
   { name: "Deep Work", duration: 50, unit: "min", min: 50, color: "#8b5cf6", group: "Work", scene: "deepWork" },
-  { name: "Workout", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
+  { name: "Routine", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
 ];
 
 /**
