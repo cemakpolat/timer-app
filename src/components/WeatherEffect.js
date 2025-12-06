@@ -22,52 +22,154 @@ const WeatherEffect = ({ type, config, width, height }) => {
           this.x = Math.random() * canvas.width;
           this.y = Math.random() * canvas.height - canvas.height;
           
+          // Initialize common properties with defaults
+          this.rotation = Math.random() * 360;
+          this.rotationSpeed = (Math.random() - 0.5) * 2;
+          this.swayOffset = Math.random() * Math.PI * 2;
+          this.windDirection = Math.random() > 0.5 ? 1 : -1;
+          this.horizontalDrift = Math.random() * 0.5;
+          
+          // Rain
+          if (type === 'rain') {
+            this.speed = Math.random() * 5 + 8;
+            this.length = Math.random() * 20 + 10;
+          }
+          // Winter (Snow)
+          else if (type === 'winter') {
+            this.speed = Math.random() * 0.8 + 0.3;
+            this.size = Math.random() * 4 + 2;
+            this.opacity = Math.random() * 0.6 + 0.4;
+          }
+          // Autumn (Leaves)
+          else if (type === 'autumn') {
+            const autumnColors = ['#8B4513', '#A0522D', '#CD853F', '#D2691E', '#FF6347', '#FF8C00', '#DC143C', '#B22222', '#DAA520', '#FF4500'];
+            this.color = autumnColors[Math.floor(Math.random() * autumnColors.length)];
+            this.speed = Math.random() * 1.5 + 0.5;
+            this.size = Math.random() * 12 + 10;
+            this.opacity = Math.random() * 0.7 + 0.3;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swayAmplitude = Math.random() * 2 + 1;
+            this.rotationSpeed = (Math.random() - 0.5) * 3;
+          }
+          // Spring (Flowers)
+          else if (type === 'spring') {
+            const springColors = ['#98FB98', '#90EE90', '#00FF7F', '#32CD32', '#228B22', '#FFB6C1', '#FF69B4', '#FFD700', '#FFA500', '#87CEEB'];
+            this.color = springColors[Math.floor(Math.random() * springColors.length)];
+            this.speed = Math.random() * 1 + 0.5;
+            this.size = Math.random() * 10 + 8;
+            this.opacity = Math.random() * 0.6 + 0.4;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swayAmplitude = Math.random() * 1.5 + 0.5;
+            this.rotationSpeed = (Math.random() - 0.5) * 2;
+          }
+          // Sakura (Cherry Blossoms)
+          else if (type === 'sakura') {
+            const sakuraColors = ['#FFB7C5', '#FFB6C1', '#FF69B4', '#FF1493', '#DB7093', '#FFC0CB'];
+            this.color = sakuraColors[Math.floor(Math.random() * sakuraColors.length)];
+            this.speed = Math.random() * 0.8 + 0.3;
+            this.size = Math.random() * 10 + 8;
+            this.opacity = Math.random() * 0.7 + 0.3;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swayAmplitude = Math.random() * 2 + 0.5;
+            this.rotationSpeed = (Math.random() - 0.5) * 2.5;
+          }
+          // Fireflies
+          else if (type === 'fireflies') {
+            this.color = '#FFD700';
+            this.size = Math.random() * 3 + 2;
+            this.brightness = Math.random() * 0.8 + 0.2;
+            this.pulseSpeed = Math.random() * 0.02 + 0.01;
+            this.floatAmplitude = Math.random() * 2 + 1;
+            this.opacity = 0.8;
+          }
+          // Butterflies
+          else if (type === 'butterflies') {
+            const butterflyColors = ['#FF69B4', '#FFB6C1', '#FFA500', '#FF6347', '#FF1493', '#FFD700', '#FF8C00', '#DC143C'];
+            this.color = butterflyColors[Math.floor(Math.random() * butterflyColors.length)];
+            this.size = Math.random() * 15 + 12;
+            this.opacity = Math.random() * 0.7 + 0.3;
+            this.wingBeat = Math.random() * Math.PI * 2;
+            this.wingBeatSpeed = Math.random() * 0.1 + 0.05;
+            this.speed = Math.random() * 1 + 0.5;
+          }
+          // Lanterns
+          else if (type === 'lanterns') {
+            const lanternColors = ['#FF4500', '#FF6347', '#DC143C', '#FF8C00', '#FFD700', '#FF1493'];
+            this.color = lanternColors[Math.floor(Math.random() * lanternColors.length)];
+            this.size = Math.random() * 12 + 10;
+            this.glowIntensity = Math.random() * 0.5 + 0.5;
+            this.opacity = Math.random() * 0.6 + 0.4;
+            this.swaySpeed = Math.random() * 0.015 + 0.005;
+            this.swayAmplitude = Math.random() * 1 + 0.5;
+            this.speed = Math.random() * 0.5 + 0.2;
+          }
+          // Aurora
+          else if (type === 'aurora') {
+            const auroraColors = ['#00FF00', '#00FFFF', '#0000FF', '#FF00FF'];
+            this.color = auroraColors[Math.floor(Math.random() * auroraColors.length)];
+            this.size = Math.random() * 50 + 30;
+            this.speed = Math.random() * 2 + 1;
+            this.opacity = Math.random() * 0.4 + 0.2;
+            this.pulseSpeed = Math.random() * 0.015 + 0.005;
+            this.waveSpeed = Math.random() * 0.02 + 0.01;
+            this.waveAmplitude = Math.random() * 20 + 10;
+          }
+          // Desert (Sand)
+          else if (type === 'desert') {
+            const desertColors = ['#D2B48C', '#DEB887', '#F4A460', '#CD853F'];
+            this.color = desertColors[Math.floor(Math.random() * desertColors.length)];
+            this.size = Math.random() * 2 + 1;
+            this.opacity = Math.random() * 0.4 + 0.2;
+            this.speed = Math.random() * 2 + 1;
+          }
+          // Tropical (Flowers)
+          else if (type === 'tropical') {
+            const tropicalColors = ['#FF1493', '#FFB6C1', '#FFA500', '#FF69B4', '#FF6347', '#FFD700', '#00CED1', '#FF4500'];
+            this.color = tropicalColors[Math.floor(Math.random() * tropicalColors.length)];
+            this.size = Math.random() * 12 + 10;
+            this.opacity = Math.random() * 0.7 + 0.3;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swayAmplitude = Math.random() * 1.5 + 0.5;
+            this.speed = Math.random() * 1.2 + 0.5;
+            this.rotationSpeed = (Math.random() - 0.5) * 2;
+          }
           // Coffee Smoke
-          if (type === 'coffee') {
-            // More realistic coffee smoke colors - lighter greys and whites
+          else if (type === 'coffee') {
             const colors = ['#F5F5F5', '#E8E8E8', '#D3D3D3', '#B8B8B8', '#A0A0A0', '#888888'];
             this.color = colors[Math.floor(Math.random() * colors.length)];
-            this.speed = Math.random() * 0.8 + 0.3; // Slightly faster rise
-            this.size = Math.random() * 40 + 25; // Bigger initial size
-            this.maxSize = Math.random() * 120 + 100; // Allow bigger expansion
-            this.opacity = Math.random() * 0.8 + 0.4; // Higher initial opacity
-            this.swayAmplitude = Math.random() * 4 + 2; // More sway
-            this.swaySpeed = Math.random() * 0.02 + 0.01; // Slower, more natural sway
-            this.swayOffset = Math.random() * Math.PI * 2;
-            this.turbulence = Math.random() * 0.8 + 0.4; // More turbulence
+            this.speed = Math.random() * 0.8 + 0.3;
+            this.size = Math.random() * 40 + 25;
+            this.maxSize = Math.random() * 120 + 100;
+            this.opacity = Math.random() * 0.8 + 0.4;
+            this.swayAmplitude = Math.random() * 4 + 2;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.turbulence = Math.random() * 0.8 + 0.4;
             this.turbulenceOffset = Math.random() * Math.PI * 2;
-            this.expansion = Math.random() * 0.02 + 0.015; // Faster expansion
+            this.expansion = Math.random() * 0.02 + 0.015;
             this.lifetime = 0;
-            this.maxLifetime = Math.random() * 500 + 400; // Longer lifetime
-            this.y = canvas.height + Math.random() * 30; // Start closer to bottom
-            // Spread smoke across more area, not just center
+            this.maxLifetime = Math.random() * 500 + 400;
+            this.y = canvas.height + Math.random() * 30;
             this.x = (canvas.width / 2) + (Math.random() - 0.5) * (canvas.width * 0.4);
             this.rotation = Math.random() * 360;
             this.rotationSpeed = (Math.random() - 0.5) * 2;
           }
-
           // Fireplace Flames
-          if (type === 'fireplace') {
+          else if (type === 'fireplace') {
             const rand = Math.random();
-            // Core flames (hot - yellow/white)
             if (rand < 0.3) {
               const coreColors = ['#FFFF00', '#FFD700', '#FFA500', '#FFFF88'];
               this.color = coreColors[Math.floor(Math.random() * coreColors.length)];
-              this.size = Math.random() * 20 + 12; // Bigger core flames
+              this.size = Math.random() * 20 + 12;
               this.opacity = Math.random() * 0.7 + 0.4;
-            }
-            // Mid flames (orange/red)
-            else if (rand < 0.7) {
+            } else if (rand < 0.7) {
               const midColors = ['#FF6347', '#FF4500', '#FF8C00', '#FF7F50'];
               this.color = midColors[Math.floor(Math.random() * midColors.length)];
-              this.size = Math.random() * 25 + 15; // Bigger mid flames
+              this.size = Math.random() * 25 + 15;
               this.opacity = Math.random() * 0.6 + 0.3;
-            }
-            // Outer flames (darker red/ember)
-            else {
+            } else {
               const outerColors = ['#DC143C', '#B22222', '#8B0000', '#CD5C5C'];
               this.color = outerColors[Math.floor(Math.random() * outerColors.length)];
-              this.size = Math.random() * 30 + 18; // Bigger outer flames
+              this.size = Math.random() * 30 + 18;
               this.opacity = Math.random() * 0.5 + 0.2;
             }
             this.speed = Math.random() * 2 + 0.8;
@@ -79,21 +181,29 @@ const WeatherEffect = ({ type, config, width, height }) => {
             this.lifetime = 0;
             this.maxLifetime = Math.random() * 150 + 100;
             this.y = canvas.height + Math.random() * 30;
-            // Distribute flames across bottom width, not just center
             this.x = Math.random() * canvas.width;
             this.baseX = this.x;
             this.rotation = Math.random() * 360;
             this.rotationSpeed = (Math.random() - 0.5) * 3;
           }
+          
+          // Set final defaults for any undefined critical properties
+          if (this.opacity === undefined) this.opacity = Math.random() * 0.6 + 0.4;
+          if (this.size === undefined) this.size = Math.random() * 3 + 1;
+          if (this.speed === undefined) this.speed = Math.random() * 1 + 0.5;
+          if (this.color === undefined) this.color = '#FFFFFF';
+          if (this.brightness === undefined) this.brightness = Math.random() * 0.6 + 0.4;
+          if (this.glowIntensity === undefined) this.glowIntensity = Math.random() * 0.5 + 0.5;
 
         }
 
         update() {
-          this.y += this.speed;
+          const velocityMultiplier = config?.velocity ?? 1;
+          this.y += this.speed * velocityMultiplier;
           // Defensive clamp: ensure vertical speed for autumn doesn't exceed expected bounds
           if (type === 'autumn') {
             const maxVy = 2.0; // pixels per frame
-            if (this.speed > maxVy) this.speed = maxVy;
+            if (this.speed * velocityMultiplier > maxVy) this.speed = maxVy / velocityMultiplier;
             if (this.speed < 0.2) this.speed = 0.2; // prevent near-zero stalls
             }
           
@@ -123,7 +233,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             // No horizontal movement for realistic straight rain
           } else if (type === 'winter') {
             // Snow drifts gently
-            this.x += Math.sin(this.y * 0.01) * 1;
+            this.x += Math.sin(this.y * 0.01) * 1 * velocityMultiplier;
             this.rotation += this.rotationSpeed * 0.3;
           } else if (type === 'autumn') {
             // Leaves tumble with varied wind
@@ -137,38 +247,38 @@ const WeatherEffect = ({ type, config, width, height }) => {
             } else if (Math.random() > 0.98) {
               gust = (Math.random() - 0.5) * 0.6; // occasional smaller gust
             }
-            let dx = sway + this.horizontalDrift + gust;
+            let dx = (sway + this.horizontalDrift + gust) * velocityMultiplier;
             const maxDx = 1.5; // limit horizontal movement per frame
             dx = Math.max(-maxDx, Math.min(maxDx, dx));
             this.x += dx;
           } else if (type === 'spring') {
             // Flowers float gracefully with gentle spiral
             this.rotation += this.rotationSpeed;
-            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * this.windDirection;
-            this.x += Math.cos(this.y * 0.015) * 0.8;
-            this.x += this.horizontalDrift;
+            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * this.windDirection * velocityMultiplier;
+            this.x += Math.cos(this.y * 0.015) * 0.8 * velocityMultiplier;
+            this.x += this.horizontalDrift * velocityMultiplier;
           } else if (type === 'sakura') {
             // Cherry blossoms spiral down
             this.rotation += this.rotationSpeed;
-            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude;
-            this.x += Math.cos(this.y * 0.02) * 1.5;
+            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * velocityMultiplier;
+            this.x += Math.cos(this.y * 0.02) * 1.5 * velocityMultiplier;
           } else if (type === 'fireflies') {
             // Fireflies float randomly
             this.brightness = (Math.sin(this.y * this.pulseSpeed) + 1) / 2;
-            this.x += Math.sin(this.y * 0.03) * this.floatAmplitude;
-            this.y += Math.sin(this.x * 0.02) * 0.5;
+            this.x += Math.sin(this.y * 0.03) * this.floatAmplitude * velocityMultiplier;
+            this.y += Math.sin(this.x * 0.02) * 0.5 * velocityMultiplier;
           } else if (type === 'butterflies') {
             // Butterflies flutter with more natural movement
             this.wingBeat += this.wingBeatSpeed;
             // Gentle forward movement with occasional direction changes
-            this.x += Math.sin(this.wingBeat * 0.3) * 0.8 + Math.sin(this.y * 0.01) * 0.3;
+            this.x += (Math.sin(this.wingBeat * 0.3) * 0.8 + Math.sin(this.y * 0.01) * 0.3) * velocityMultiplier;
             // Subtle up/down floating motion
-            this.y += Math.cos(this.wingBeat * 0.2) * 0.4 + Math.sin(this.x * 0.008) * 0.2;
+            this.y += (Math.cos(this.wingBeat * 0.2) * 0.4 + Math.sin(this.x * 0.008) * 0.2) * velocityMultiplier;
             // Gentle body rotation for realism
             this.rotation = Math.sin(this.wingBeat * 0.8) * 8;
           } else if (type === 'lanterns') {
             // Lanterns float upward gently
-            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude;
+            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * velocityMultiplier;
             if (this.y < -50) {
               this.y = canvas.height + 50;
               this.x = Math.random() * canvas.width;
@@ -182,7 +292,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             this.opacity = (Math.sin(this.y * this.pulseSpeed) * 0.2 + 0.4);
           } else if (type === 'desert') {
             // Sand blows horizontally
-            this.x += this.horizontalDrift * this.windDirection;
+            this.x += this.horizontalDrift * this.windDirection * velocityMultiplier;
             if (this.x > canvas.width + 50) {
               this.x = -50;
               this.y = Math.random() * canvas.height;
@@ -194,17 +304,17 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'tropical') {
             // Tropical flowers drift down
             this.rotation += this.rotationSpeed;
-            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude;
+            this.x += Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude * velocityMultiplier;
           } else if (type === 'coffee') {
             // Coffee smoke rises and swirls with turbulence
             this.lifetime++;
-            this.y -= this.speed;
+            this.y -= this.speed * velocityMultiplier;
             
             // Multi-layered swaying motion
             const sway1 = Math.sin(this.y * this.swaySpeed + this.swayOffset) * this.swayAmplitude;
             const sway2 = Math.cos(this.y * this.swaySpeed * 0.7 + this.swayOffset + 1) * (this.swayAmplitude * 0.6);
             const turbulence = Math.sin(this.lifetime * 0.05 + this.turbulenceOffset) * this.turbulence * 2;
-            this.x += sway1 + sway2 + turbulence;
+            this.x += (sway1 + sway2 + turbulence) * velocityMultiplier;
             
             // Smoke expands as it rises (limited expansion)
             this.size = Math.min(this.size + this.expansion, this.maxSize);
@@ -229,16 +339,16 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'fireplace') {
             // Fireplace flames rise and flicker dynamically
             this.lifetime++;
-            this.y -= this.speed;
+            this.y -= this.speed * velocityMultiplier;
             
             // Heat wave distortion effect
             const heatWaveX = Math.sin(this.y * 0.03 + this.lifetime * this.heatWaveSpeed) * this.heatWave;
             const heatWaveY = Math.cos(this.y * 0.05 + this.lifetime * this.heatWaveSpeed * 0.8) * (this.heatWave * 0.5);
-            this.x += heatWaveX;
+            this.x += heatWaveX * velocityMultiplier;
             
             // Gentle sway, reduced center pull for wider distribution
             const centerPull = (canvas.width / 2 - this.x) * 0.0004;
-            this.x += centerPull;
+            this.x += centerPull * velocityMultiplier;
             
             // Dynamic flickering
             const flicker1 = Math.sin(this.lifetime * this.flickerSpeed + this.flickerOffset) * this.flickerIntensity;
@@ -343,9 +453,11 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
           } else if (type === 'fireflies') {
             // Draw glowing firefly with radial gradient
-            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 2);
-            gradient.addColorStop(0, `rgba(255, 215, 0, ${this.brightness * 0.8})`);
-            gradient.addColorStop(0.5, `rgba(255, 215, 0, ${this.brightness * 0.3})`);
+            let safeSize = Number.isFinite(this.size) ? this.size : 5;
+            let safeBrightness = Number.isFinite(this.brightness) ? this.brightness : 0.5;
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize * 2);
+            gradient.addColorStop(0, `rgba(255, 215, 0, ${safeBrightness * 0.8})`);
+            gradient.addColorStop(0.5, `rgba(255, 215, 0, ${safeBrightness * 0.3})`);
             gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
             ctx.fillStyle = gradient;
             ctx.beginPath();
@@ -354,7 +466,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             
             // Draw core
             ctx.fillStyle = config?.color || '#FFD700';
-            ctx.globalAlpha = this.brightness * (config?.opacity ?? 0.8);
+            ctx.globalAlpha = safeBrightness * (config?.opacity ?? 0.8);
             ctx.beginPath();
             ctx.arc(0, 0, this.size, 0, 2 * Math.PI);
             ctx.fill();
@@ -490,7 +602,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
             
             // Lantern body
             ctx.fillStyle = this.color;
-            ctx.globalAlpha = this.glowIntensity * (config?.opacity ?? 0.85);
+            let safeGlowIntensity = Number.isFinite(this.glowIntensity) ? this.glowIntensity : 0.8;
+            ctx.globalAlpha = safeGlowIntensity * (config?.opacity ?? 0.85);
             ctx.beginPath();
             ctx.ellipse(0, 0, this.size * 0.6, this.size, 0, 0, 2 * Math.PI);
             ctx.fill();
@@ -505,7 +618,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'aurora') {
             // Draw aurora waves
             ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.6);
-            const gradient = ctx.createLinearGradient(0, -this.size, 0, this.size);
+            let safeSize = Number.isFinite(this.size) ? this.size : 20;
+            const gradient = ctx.createLinearGradient(0, -safeSize, 0, safeSize);
             gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
             gradient.addColorStop(0.5, this.color);
             gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -554,7 +668,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
           } else if (type === 'coffee') {
             // Draw layered coffee smoke cloud with soft gradient
-            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+            let safeSize = Number.isFinite(this.size) ? this.size : 30;
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize);
             
             // Add color with proper transparency
             const baseOpacity = this.opacity * (config?.opacity ?? 0.6);
@@ -582,9 +697,9 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'fireplace') {
             // Draw fireplace flame with glow and gradient
             const baseOpacity = this.opacity * (config?.opacity ?? 0.8);
-            
+            let safeSize = Number.isFinite(this.size) ? this.size : 30;
             // Outer glow
-            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 1.5);
+            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize * 1.5);
             outerGlow.addColorStop(0, `${this.color}${Math.floor(baseOpacity * 0.3 * 255).toString(16).padStart(2, '0')}`);
             outerGlow.addColorStop(0.5, `${this.color}${Math.floor(baseOpacity * 0.15 * 255).toString(16).padStart(2, '0')}`);
             outerGlow.addColorStop(1, `${this.color}00`);
@@ -595,7 +710,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
             
             // Main flame body with gradient
-            const flameGradient = ctx.createRadialGradient(0, this.size * 0.3, 0, 0, -this.size * 0.2, this.size * 1.2);
+            const flameGradient = ctx.createRadialGradient(0, safeSize * 0.3, 0, 0, -safeSize * 0.2, safeSize * 1.2);
             flameGradient.addColorStop(0, this.color.includes('FFF') || this.color.includes('FFD') ? '#FFFFFF' : '#FFD700');
             flameGradient.addColorStop(0.4, this.color);
             flameGradient.addColorStop(1, this.color.includes('DC1') || this.color.includes('B22') ? '#8B0000' : this.color);
@@ -623,7 +738,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             
             // Add bright core
             if (this.color.includes('FFF') || this.color.includes('FFD')) {
-              const coreGradient = ctx.createRadialGradient(0, this.size * 0.1, 0, 0, 0, this.size * 0.4);
+              const coreGradient = ctx.createRadialGradient(0, safeSize * 0.1, 0, 0, 0, safeSize * 0.4);
               coreGradient.addColorStop(0, `rgba(255, 255, 255, ${baseOpacity * 0.9})`);
               coreGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
               ctx.fillStyle = coreGradient;
