@@ -343,7 +343,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
           } else if (type === 'fireflies') {
             // Draw glowing firefly with radial gradient
-            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 2);
+            let safeSize = Number.isFinite(this.size) ? this.size : 5;
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize * 2);
             gradient.addColorStop(0, `rgba(255, 215, 0, ${this.brightness * 0.8})`);
             gradient.addColorStop(0.5, `rgba(255, 215, 0, ${this.brightness * 0.3})`);
             gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
@@ -505,7 +506,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'aurora') {
             // Draw aurora waves
             ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.6);
-            const gradient = ctx.createLinearGradient(0, -this.size, 0, this.size);
+            let safeSize = Number.isFinite(this.size) ? this.size : 20;
+            const gradient = ctx.createLinearGradient(0, -safeSize, 0, safeSize);
             gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
             gradient.addColorStop(0.5, this.color);
             gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -554,7 +556,8 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
           } else if (type === 'coffee') {
             // Draw layered coffee smoke cloud with soft gradient
-            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+            let safeSize = Number.isFinite(this.size) ? this.size : 30;
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize);
             
             // Add color with proper transparency
             const baseOpacity = this.opacity * (config?.opacity ?? 0.6);
@@ -582,9 +585,9 @@ const WeatherEffect = ({ type, config, width, height }) => {
           } else if (type === 'fireplace') {
             // Draw fireplace flame with glow and gradient
             const baseOpacity = this.opacity * (config?.opacity ?? 0.8);
-            
+            let safeSize = Number.isFinite(this.size) ? this.size : 30;
             // Outer glow
-            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 1.5);
+            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize * 1.5);
             outerGlow.addColorStop(0, `${this.color}${Math.floor(baseOpacity * 0.3 * 255).toString(16).padStart(2, '0')}`);
             outerGlow.addColorStop(0.5, `${this.color}${Math.floor(baseOpacity * 0.15 * 255).toString(16).padStart(2, '0')}`);
             outerGlow.addColorStop(1, `${this.color}00`);
@@ -595,7 +598,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.fill();
             
             // Main flame body with gradient
-            const flameGradient = ctx.createRadialGradient(0, this.size * 0.3, 0, 0, -this.size * 0.2, this.size * 1.2);
+            const flameGradient = ctx.createRadialGradient(0, safeSize * 0.3, 0, 0, -safeSize * 0.2, safeSize * 1.2);
             flameGradient.addColorStop(0, this.color.includes('FFF') || this.color.includes('FFD') ? '#FFFFFF' : '#FFD700');
             flameGradient.addColorStop(0.4, this.color);
             flameGradient.addColorStop(1, this.color.includes('DC1') || this.color.includes('B22') ? '#8B0000' : this.color);
@@ -623,7 +626,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
             
             // Add bright core
             if (this.color.includes('FFF') || this.color.includes('FFD')) {
-              const coreGradient = ctx.createRadialGradient(0, this.size * 0.1, 0, 0, 0, this.size * 0.4);
+              const coreGradient = ctx.createRadialGradient(0, safeSize * 0.1, 0, 0, 0, safeSize * 0.4);
               coreGradient.addColorStop(0, `rgba(255, 255, 255, ${baseOpacity * 0.9})`);
               coreGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
               ctx.fillStyle = coreGradient;
