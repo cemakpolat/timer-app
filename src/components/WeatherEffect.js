@@ -475,15 +475,17 @@ const WeatherEffect = ({ type, config, width, height }) => {
             ctx.restore();
           } else if (type === 'lanterns') {
             // Draw Asian-style lantern
+
             ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.85);
-            
+            // Ensure this.size is a finite number
+            let safeSize = Number.isFinite(this.size) ? this.size : 20;
             // Outer glow
-            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 1.5);
+            const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, safeSize * 1.5);
             outerGlow.addColorStop(0, `${this.color}80`);
             outerGlow.addColorStop(1, 'rgba(255, 0, 0, 0)');
             ctx.fillStyle = outerGlow;
             ctx.beginPath();
-            ctx.arc(0, 0, this.size * 1.5, 0, 2 * Math.PI);
+            ctx.arc(0, 0, safeSize * 1.5, 0, 2 * Math.PI);
             ctx.fill();
             
             // Lantern body
