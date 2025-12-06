@@ -1,0 +1,200 @@
+// Timer service: manages both single countdowns (Timers) and multi-step sequences (Routines)
+// Provides CRUD for custom timers, merging with built-in templates, and migration helpers.
+
+import { ROUTINE_TEMPLATES } from './routineTemplates';
+import templatesJson from '../templates/templates.json';
+
+const CUSTOM_KEY = 'customTimers';
+
+const safeParse = (s, fallback) => {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return fallback;
+  }
+};
+
+export const getCustomTimers = () => {
+  const raw = localStorage.getItem(CUSTOM_KEY) || '[]';
+  return safeParse(raw, []);
+};
+
+export const setCustomTimers = (arr) => {
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(arr));
+};
+
+/**
+ * Returns all timers (single countdowns) and routines (multi-step sequences),
+ * merging built-in templates and custom user items.
+ */
+export const getAllTimers = () => {
+  // Prefer templates from src/templates/templates.json if available
+  const fileTemplates = Array.isArray(templatesJson) ? templatesJson : [];
+  const templatesSource = fileTemplates.length > 0 ? fileTemplates : ROUTINE_TEMPLATES;
+  const templates = templatesSource.map(t => ({
+    ...t,
+    templateType: t.templateType || 'routine',
+    metadata: {
+      ...(t.metadata || {}),
+      source: 'template',
+      isEditable: false,
+      isTemplate: true,
+      templateType: t.templateType || 'routine'
+    }
+  }));
+
+  const custom = getCustomTimers().map(t => ({
+    ...t,
+    templateType: t.templateType || (t.exercises ? 'routine' : 'timer'),
+    metadata: {
+      ...(t.metadata || {}),
+      source: 'custom',
+      isEditable: true,
+      isTemplate: false,
+      templateType: t.templateType || (t.exercises ? 'routine' : 'timer')
+    }
+  }));
+
+  return [...templates, ...custom];
+};
+
+export const getTimerById = (id) => {
+  if (!id) return null;
+  const all = getAllTimers();
+  return all.find(t => t.id === id) || null;
+};
+
+export const saveCustomTimer = (timer) => {
+  if (!timer || typeof timer !== 'object') throw new Error('Invalid timer');
+  const custom = getCustomTimers();
+
+  const now = Date.now();
+  // Deep clone to ensure clean serialization
+  const cleanTimer = JSON.parse(JSON.stringify(timer));
+  const newTimer = {
+    ...cleanTimer,
+    id: cleanTimer.id || `custom-${now}`,
+    templateType: cleanTimer.templateType || (cleanTimer.exercises ? 'routine' : 'timer'),
+    metadata: {
+      source: 'custom',
+      isCustom: true,
+      isEditable: true,
+      isTemplate: false,
+      templateType: cleanTimer.templateType || (cleanTimer.exercises ? 'routine' : 'timer'),
+      createdAt: cleanTimer.metadata?.createdAt || now
+    }
+  };
+
+  const idx = custom.findIndex(t => t.id === newTimer.id);
+  if (idx >= 0) custom[idx] = newTimer; else custom.push(newTimer);
+  setCustomTimers(custom);
+  return newTimer;
+};
+
+export const deleteCustomTimer = (id) => {
+  if (!id) return false;
+  const custom = getCustomTimers();
+  const filtered = custom.filter(t => t.id !== id);
+  if (filtered.length === custom.length) return false;
+  setCustomTimers(filtered);
+  return true;
+};
+
+/**
+ * Returns all items of a given type: 'timer' (single countdown), 'routine' (multi-step), etc.
+ */
+export const getTemplatesByType = (type) => {
+  const all = getAllTimers();
+  if (!type || type === 'all') return all;
+  return all.filter(t => (t.templateType === type || t.metadata?.templateType === type));
+};
+
+export const createRoomPayloadFromTemplate = (templateId, { roomName, privacy, ownerName, ownerDisplayName }) => {
+  const template = getTimerById(templateId);
+  if (!template) throw new Error('Template not found');
+  if (!template.metadata || !template.metadata.isRoomCompatible) {
+    throw new Error('Template is not compatible with focus rooms');
+  }
+
+  const totalDuration = template.metadata.totalDuration || template.duration || 0;
+  const payload = {
+    name: roomName || `${ownerDisplayName || 'User'}'s ${template.name} session`,
+    privacy: privacy || 'public',
+    attachedTemplate: {
+      id: template.id,
+      name: template.name,
+      emoji: template.emoji,
+      category: template.category,
+      difficulty: template.difficulty,
+      metadata: template.metadata
+    },
+    timerState: {
+      templateId: template.id,
+      currentIndex: 0,
+      exerciseCount: template.exercises ? template.exercises.length : 0,
+      totalDuration,
+      running: false,
+      remaining: template.exercises && template.exercises[0] ? (template.exercises[0].duration || 0) * (template.exercises[0].unit === 'min' ? 60 : 1) : 0
+    }
+  };
+
+  return payload;
+};
+
+export const migrateOldSequences = () => {
+  // Attempt to migrate legacy saved sequences (varies by app versions)
+  // This implementation is conservative: it only migrates if `savedSequences` key exists
+  const legacyKey = 'saved';
+  const raw = localStorage.getItem(legacyKey);
+  if (!raw) return { migrated: 0 };
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { migrated: 0 };
+  }
+
+  if (!Array.isArray(parsed)) return { migrated: 0 };
+
+  const existingCustom = getCustomTimers();
+  let migrated = 0;
+  parsed.forEach(item => {
+    // Heuristic: items with `sequence` or `exercises` are sequences
+    const seq = item.sequence || item.exercises;
+    if (!seq || !Array.isArray(seq)) return;
+
+    const newTimer = {
+      id: `migrated-${Date.now()}-${Math.floor(Math.random()*10000)}`,
+      name: item.name || item.title || 'Migrated Routine',
+      description: item.description || '',
+      exercises: seq,
+      metadata: {
+        source: 'custom',
+        isEditable: true,
+        isTemplate: false,
+        createdAt: Date.now(),
+        totalDuration: seq.reduce((acc, ex) => acc + (ex.duration || 0) * (ex.unit === 'min' ? 60 : 1), 0),
+        exerciseCount: seq.length
+      }
+    };
+
+    existingCustom.push(newTimer);
+    migrated += 1;
+  });
+
+  if (migrated > 0) setCustomTimers(existingCustom);
+  return { migrated };
+};
+
+const timerService = {
+  getAllTimers,
+  getTimerById,
+  saveCustomTimer,
+  deleteCustomTimer,
+  migrateOldSequences,
+  getCustomTimers,
+  setCustomTimers
+};
+
+export default timerService;

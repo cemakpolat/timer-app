@@ -1,0 +1,252 @@
+[
+  {
+    "id": "template-001",
+    "name": "HIIT Workout",
+    "description": "High-intensity interval training routine.",
+    "category": "cardio",
+    "duration": 135,
+    "difficulty": "medium",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Jumping Jacks", "duration": 30, "unit": "seconds", "type": "cardio", "color": "#ef4444" },
+      { "name": "Rest", "duration": 15, "unit": "seconds", "type": "rest", "color": "#3b82f6" },
+      { "name": "Push-Ups", "duration": 30, "unit": "seconds", "type": "strength", "color": "#f59e0b" },
+      { "name": "Rest", "duration": 15, "unit": "seconds", "type": "rest", "color": "#3b82f6" },
+      { "name": "Squats", "duration": 30, "unit": "seconds", "type": "strength", "color": "#f59e0b" },
+      { "name": "Rest", "duration": 15, "unit": "seconds", "type": "rest", "color": "#3b82f6" }
+    ],
+    "emoji": "🔥",
+    "tags": ["hiit", "cardio", "strength"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 135,
+      "exerciseCount": 6,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 4
+    }
+  },
+  {
+    "id": "template-002",
+    "name": "Pomodoro Focus",
+    "description": "Classic Pomodoro timer for deep work.",
+    "category": "productivity",
+    "duration": 1800,
+    "difficulty": "easy",
+    "templateType": "routine",
+    "exercises": [
+      { "name": "Focus", "duration": 25, "unit": "minutes", "type": "work", "color": "#ef4444" },
+      { "name": "Break", "duration": 5, "unit": "minutes", "type": "rest", "color": "#10b981" }
+    ],
+    "emoji": "🍅",
+    "tags": ["pomodoro", "focus", "work"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 1800,
+      "exerciseCount": 2,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 1
+    }
+  },
+  {
+    "id": "template-003",
+    "name": "Yoga Flow",
+    "description": "Gentle yoga sequence for relaxation.",
+    "category": "wellness",
+    "duration": 660,
+    "difficulty": "easy",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Child's Pose", "duration": 2, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" },
+      { "name": "Cat-Cow", "duration": 2, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" },
+      { "name": "Downward Dog", "duration": 2, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" },
+      { "name": "Savasana", "duration": 5, "unit": "minutes", "type": "relax", "color": "#8b5cf6" }
+    ],
+    "emoji": "🧘",
+    "tags": ["yoga", "relaxation", "flexibility"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 660,
+      "exerciseCount": 4,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 3
+    }
+  },
+  {
+    "id": "template-004",
+    "name": "Tabata Cardio",
+    "description": "Intense Tabata-style cardio routine.",
+    "category": "cardio",
+    "duration": 60,
+    "difficulty": "hard",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Sprint", "duration": 20, "unit": "seconds", "type": "cardio", "color": "#ef4444" },
+      { "name": "Rest", "duration": 10, "unit": "seconds", "type": "rest", "color": "#3b82f6" },
+      { "name": "Burpees", "duration": 20, "unit": "seconds", "type": "cardio", "color": "#ef4444" },
+      { "name": "Rest", "duration": 10, "unit": "seconds", "type": "rest", "color": "#3b82f6" }
+    ],
+    "emoji": "🏃",
+    "tags": ["tabata", "cardio", "intense"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 60,
+      "exerciseCount": 4,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 2
+    }
+  },
+  {
+    "id": "template-005",
+    "name": "Study Sprint",
+    "description": "Focused study session with short breaks.",
+    "category": "productivity",
+    "duration": 3600,
+    "difficulty": "medium",
+    "templateType": "routine",
+    "exercises": [
+      { "name": "Study", "duration": 50, "unit": "minutes", "type": "work", "color": "#8b5cf6" },
+      { "name": "Break", "duration": 10, "unit": "minutes", "type": "rest", "color": "#10b981" }
+    ],
+    "emoji": "📚",
+    "tags": ["study", "focus", "productivity"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 3600,
+      "exerciseCount": 2,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 1
+    }
+  },
+  {
+    "id": "template-006",
+    "name": "Morning Stretch",
+    "description": "Quick morning stretching routine.",
+    "category": "wellness",
+    "duration": 240,
+    "difficulty": "easy",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Neck Rolls", "duration": 1, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" },
+      { "name": "Shoulder Circles", "duration": 1, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" },
+      { "name": "Hamstring Stretch", "duration": 2, "unit": "minutes", "type": "stretch", "color": "#8b5cf6" }
+    ],
+    "emoji": "🌅",
+    "tags": ["stretch", "morning", "flexibility"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 240,
+      "exerciseCount": 3,
+      "isRoomCompatible": false,
+      "recommendedParticipants": 1
+    }
+  },
+  {
+    "id": "template-007",
+    "name": "Breathing Exercise",
+    "description": "Guided breathing for relaxation.",
+    "category": "wellness",
+    "duration": 19,
+    "difficulty": "easy",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Inhale", "duration": 4, "unit": "seconds", "type": "breath", "color": "#10b981" },
+      { "name": "Hold", "duration": 7, "unit": "seconds", "type": "breath", "color": "#3b82f6" },
+      { "name": "Exhale", "duration": 8, "unit": "seconds", "type": "breath", "color": "#8b5cf6" }
+    ],
+    "emoji": "🌬️",
+    "tags": ["breathing", "relaxation", "mindfulness"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 19,
+      "exerciseCount": 3,
+      "isRoomCompatible": false,
+      "recommendedParticipants": 1
+    }
+  },
+  {
+    "id": "template-008",
+    "name": "Core Strength",
+    "description": "Abdominal workout for core strength.",
+    "category": "workout",
+    "duration": 180,
+    "difficulty": "medium",
+    "templateType": "workout",
+    "exercises": [
+      { "name": "Plank", "duration": 1, "unit": "minutes", "type": "strength", "color": "#f59e0b" },
+      { "name": "Rest", "duration": 30, "unit": "seconds", "type": "rest", "color": "#3b82f6" },
+      { "name": "Crunches", "duration": 1, "unit": "minutes", "type": "strength", "color": "#f59e0b" }
+    ],
+    "emoji": "💪",
+    "tags": ["core", "strength", "abs"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 180,
+      "exerciseCount": 3,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 3
+    }
+  },
+  {
+    "id": "template-009",
+    "name": "Power Nap",
+    "description": "Short nap timer for quick refresh.",
+    "category": "wellness",
+    "duration": 1200,
+    "difficulty": "easy",
+    "templateType": "routine",
+    "exercises": [
+      { "name": "Nap", "duration": 20, "unit": "minutes", "type": "relax", "color": "#8b5cf6" }
+    ],
+    "emoji": "😴",
+    "tags": ["nap", "rest", "recovery"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 1200,
+      "exerciseCount": 1,
+      "isRoomCompatible": false,
+      "recommendedParticipants": 1
+    }
+  },
+  {
+    "id": "template-010",
+    "name": "Creative Sprint",
+    "description": "Timed creative session for artists/writers.",
+    "category": "productivity",
+    "duration": 3600,
+    "difficulty": "medium",
+    "templateType": "routine",
+    "exercises": [
+      { "name": "Create", "duration": 45, "unit": "minutes", "type": "work", "color": "#f59e0b" },
+      { "name": "Break", "duration": 15, "unit": "minutes", "type": "rest", "color": "#10b981" }
+    ],
+    "emoji": "🎨",
+    "tags": ["creative", "focus", "art"],
+    "metadata": {
+      "source": "template",
+      "isTemplate": true,
+      "isEditable": false,
+      "totalDuration": 3600,
+      "exerciseCount": 2,
+      "isRoomCompatible": true,
+      "recommendedParticipants": 1
+    }
+  }
+]

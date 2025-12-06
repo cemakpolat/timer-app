@@ -1,5 +1,8 @@
 /**
  * Timer utility functions for formatting and calculations
+ *
+ * Timers: Single countdowns for focused work, exercise, or any single activity.
+ * Routines: Multi-step sequences (composite timers) for workouts, study blocks, etc.
  */
 
 /**
