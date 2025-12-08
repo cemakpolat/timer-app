@@ -137,6 +137,30 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
   const [prefillTemplate, setPrefillTemplate] = useState(null);
 
+  /**
+   * Generate a unique display name by combining user input with a generated suffix
+   */
+  const generateUniqueDisplayName = (userInput) => {
+    if (!userInput || userInput.trim() === '') {
+      // Generate a random name if no input
+      const adjectives = ['Swift', 'Bright', 'Calm', 'Bold', 'Wise', 'Quick', 'Gentle', 'Sharp'];
+      const nouns = ['Eagle', 'Wolf', 'Bear', 'Fox', 'Owl', 'Lion', 'Tiger', 'Hawk'];
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const suffix = Math.random().toString(36).substring(2, 5);
+      return `${adj}${noun}${suffix}`;
+    }
+
+    // Clean the user input
+    const cleanInput = userInput.trim();
+    
+    // Generate a short unique suffix (3 characters)
+    const suffix = Math.random().toString(36).substring(2, 5);
+    
+    // Combine user input with suffix
+    return `${cleanInput}${suffix}`;
+  };
+
   // Get all available timers (including composite timers)
   // const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
 
@@ -175,8 +199,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     }
 
     if (!displayName.trim()) {
-      await alert('Please enter your display name');
-      return;
+      // Generate a unique name if none provided
+      const generatedName = generateUniqueDisplayName('');
+      setDisplayName(generatedName);
     }
 
     if (timerTab === 'available' && !selectedTimer) {
@@ -202,10 +227,15 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
       }
     }
 
+    const finalDisplayName = displayName.trim() || generateUniqueDisplayName('');
+    if (!displayName.trim()) {
+      setDisplayName(finalDisplayName);
+    }
+    
     const roomData = {
       name: roomName.trim(),
       maxParticipants: parseInt(maxParticipants),
-      creatorName: displayName.trim(),
+      creatorName: finalDisplayName,
       tag: selectedTag // Add tag to room data
     };
 
@@ -390,7 +420,13 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="How others will see you..."
+              onBlur={(e) => {
+                // Generate unique name when user finishes typing
+                if (e.target.value.trim()) {
+                  setDisplayName(generateUniqueDisplayName(e.target.value));
+                }
+              }}
+              placeholder="Enter your name (we'll make it unique)..."
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
@@ -404,6 +440,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 boxSizing: 'border-box'
               }}
             />
+            <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.6), marginTop: 4 }}>
+              A unique suffix will be added to ensure your name is unique
+            </div>
           </div>
 
           {/* Room Tag */}
@@ -884,17 +923,17 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
           <div style={{ position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
             <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Session Length</div>
-              <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter duration in minutes (max 180)</div>
+              <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter duration in minutes (max 720)</div>
               <input
                 type="number"
                 value={tempDuration}
-                onChange={(e) => setTempDuration(Math.max(1, Math.min(180, parseInt(e.target.value || 0))))}
+                onChange={(e) => setTempDuration(Math.max(1, Math.min(720, parseInt(e.target.value || 0))))}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') setShowDurationEditor(false);
                   if (e.key === 'Enter') {
                     const val = parseInt(tempDuration, 10);
-                    if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val));
+                    if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val));
                     setShowDurationEditor(false);
                   }
                 }}
@@ -902,7 +941,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               />
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
-                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
+                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
               </div>
             </div>
           </div>
