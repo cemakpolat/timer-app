@@ -628,11 +628,19 @@ export default function TimerApp() {
       }
       
       await joinRoom(roomId, { displayName });
+
+      // If a sequence is running, start composite timer in the room
+      console.log('handleJoinRoom sync check:', { mode, isRunning, sequenceLength: sequence.length, currentStep });
+      if (mode === 'sequence' && isRunning) {
+        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+        console.log('Starting composite room timer:', firstDuration, sequence);
+        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
+      }
     } catch (err) {
       console.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');
     }
-  }, [joinRoom]);
+  }, [joinRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
 
   const handleCreateRoom = async (roomData) => {
     // Validate unique room name (case-insensitive)
@@ -646,6 +654,12 @@ export default function TimerApp() {
       await createRoom(roomData);
       // Feedback on success
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room created', type: 'success', ttl: 3000 } }));
+
+      // If a sequence is running, start composite timer in the room
+      if (mode === 'sequence' && isRunning) {
+        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
+      }
     } catch (err) {
       console.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
@@ -1443,6 +1457,13 @@ export default function TimerApp() {
   // Theme management: Theme UI handled in settings; setters remain for compatibility
   const startSequence = () => {
     if (sequence.length === 0) return;
+
+    if (currentRoom) {
+      // Start composite timer in room (pass sequence as duration for FirebaseService)
+      startRoomTimer({ steps: sequence, currentStep: 0 });
+      return;
+    }
+
     setMode('sequence');
     setCurrentStep(0);
     const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
@@ -2018,7 +2039,10 @@ export default function TimerApp() {
                     <div style={{ fontSize: 16, fontWeight: 600, color: theme.text, marginBottom: 16, textAlign: 'center' }}>
                       Sequence: {completedSession.name}
                     </div>
-                    {console.log('Sequence data:', completedSession.sequence)}
+                    {/* Debug: Show sequence data */}
+                    <div style={{ background: 'rgba(255,0,0,0.1)', padding: 10, marginBottom: 16, fontSize: 12, color: 'red', border: '1px solid red' }}>
+                      Debug: Sequence data - {JSON.stringify(completedSession.sequence, null, 2)}
+                    </div>
                     {/* Always show step names list */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, maxWidth: 400, margin: '0 auto', marginBottom: 24 }}>
                       {/* Left: Progress Dots */}
@@ -3529,6 +3553,9 @@ export default function TimerApp() {
                   setShowCreateRoomModal={setShowCreateRoomModal}
                   activeBackground={activeBackground}
                   timerVisualization={timerVisualization}
+                  sequence={sequence}
+                  mode={mode}
+                  currentStep={currentStep}
                 />
               )}
 
@@ -3608,10 +3635,17 @@ export default function TimerApp() {
                       window.localStorage.setItem('lastRoutineSource', 'routines');
                       // If workout has exercises (composite/sequence), start as sequence
                       if (workout.exercises && workout.exercises.length > 0) {
-                        setSequence(workout.exercises.map(step => ({ ...step, accent: step.accent || step.color })));
+                        const workoutSequence = workout.exercises.map(step => ({ ...step, accent: step.accent || step.color }));
+                        setSequence(workoutSequence);
                         setSeqName(workout.name);
-                        // Start the sequence without switching tabs
-                        startSequence();
+                        
+                        // If in a room, start composite timer in room immediately
+                        if (currentRoom) {
+                          startRoomTimer({ steps: workoutSequence, currentStep: 0 });
+                        } else {
+                          // Start the sequence without switching tabs
+                          startSequence();
+                        }
                         return;
                       }
 

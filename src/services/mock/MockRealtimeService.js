@@ -371,7 +371,8 @@ class MockRealtimeService extends IRealtimeService {
     };
   }
 
-  async startRoomTimer(roomId, duration) {
+  async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
+    console.log('startRoomTimer called with', roomId, duration, timerType, timerData);
     const rooms = JSON.parse(localStorage.getItem('mockRooms') || '[]');
     const room = rooms.find(r => r.id === roomId);
 
@@ -387,10 +388,17 @@ class MockRealtimeService extends IRealtimeService {
 
     const now = Date.now();
 
+    // Set timer type and data
+    room.timerType = timerType;
+    if (timerType === 'composite') {
+      room.compositeTimer = timerData;
+      room.currentStep = timerData?.currentStep || 0;
+    }
+
     // For composite timers, use the duration of the current step
     let stepDuration = duration;
-    if (room.timerType === 'composite' && room.compositeTimer?.steps) {
-      const currentStepData = room.compositeTimer.steps[room.currentStep || 0];
+    if (timerType === 'composite' && timerData?.steps) {
+      const currentStepData = timerData.steps[room.currentStep || 0];
       if (currentStepData) {
         stepDuration = currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60;
       }
@@ -409,7 +417,7 @@ class MockRealtimeService extends IRealtimeService {
     this.notifyListeners(`room_${roomId}`, room);
 
     // Auto-advance composite timer steps
-    if (room.timerType === 'composite' && room.compositeTimer?.steps) {
+    if (timerType === 'composite' && timerData?.steps) {
       setTimeout(() => {
         this.advanceCompositeStep(roomId);
       }, stepDuration * 1000);

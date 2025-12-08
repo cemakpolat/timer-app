@@ -130,8 +130,10 @@ export class IRealtimeService {
    * Start room timer synchronously
    * @param {string} roomId - Room identifier
    * @param {number} duration - Timer duration in seconds
+   * @param {string} timerType - Timer type ('timer', 'composite')
+   * @param {Object} timerData - Additional timer data for composite timers
    */
-  async startRoomTimer(roomId, duration) {
+  async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
     throw new Error('Method not implemented');
   }
 
