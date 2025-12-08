@@ -278,6 +278,37 @@ class MockRealtimeService extends IRealtimeService {
     } catch (e) {}
   }
 
+  async deleteFocusRoom(roomId, requesterId = this.currentUserId) {
+    const rooms = JSON.parse(localStorage.getItem('mockRooms') || '[]');
+    const room = rooms.find(r => r.id === roomId);
+
+    if (!room) throw new Error('Room not found');
+
+    // Check if requester is the creator
+    if (room.createdBy !== requesterId) {
+      throw new Error('Only the room creator can delete this room');
+    }
+
+    // Remove the room
+    const updatedRooms = rooms.filter(r => r.id !== roomId);
+    localStorage.setItem('mockRooms', JSON.stringify(updatedRooms));
+
+    // Remove userRooms mapping for all participants
+    const mockUserRooms = JSON.parse(localStorage.getItem('mockUserRooms') || '{}');
+    Object.keys(room.participants || {}).forEach(userId => {
+      if (mockUserRooms[userId] === roomId) {
+        delete mockUserRooms[userId];
+      }
+    });
+    localStorage.setItem('mockUserRooms', JSON.stringify(mockUserRooms));
+
+    // Notify listeners
+    this.notifyListeners(`room_${roomId}`, null);
+    this.notifyListeners('rooms', updatedRooms);
+
+    return { success: true, message: 'Room deleted' };
+  }
+
   subscribeToFocusRoom(roomId, callback) {
     const key = `room_${roomId}`;
 

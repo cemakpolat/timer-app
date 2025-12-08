@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Clock, Calendar, Play, Send, Search, X, LogOut, Settings, Share2, Trash2 } from 'lucide-react';
+import { CompactTimerVisualization, MinimalTimerVisualization, CardStackTimerVisualization, TimelineTimerVisualization } from '../TimerVisualizations';
 import { useToast } from '../../context/ToastContext';
 import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
 import RoomExpirationModal from '../FocusRooms/RoomExpirationModal';
@@ -95,7 +96,9 @@ function FocusRoomsPanel({
   handleShareRoomLink,
   formatTime,
   getParticipantCount,
-  isRoomFull
+  isRoomFull,
+  activeBackground,
+  timerVisualization
 }) {
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -440,7 +443,7 @@ function FocusRoomsPanel({
       ) : (
         <>
           {/* Active Room View */}
-          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+          <div style={{ background: activeBackground || theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
@@ -630,34 +633,63 @@ function FocusRoomsPanel({
                 key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
                 style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
               >
-                {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                  <>
-                    <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {currentRoom.compositeTimer.steps.map((step, idx) => (
-                        <React.Fragment key={idx}>
-                          <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                          {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
-                      {currentRoom.compositeTimer.steps.map((step, idx) => (
-                        <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                  <div style={{ fontSize: 14, color: currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.color || theme.accent, marginBottom: 8, fontWeight: 600 }}>
-                    {currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.name}
-                  </div>
-                )}
-                <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent, marginBottom: 8 }}>
-                  {formatTime(Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000)))}
-                </div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                  {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
-                </div>
+                {(() => {
+                  const remainingTime = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
+                  const totalTime = currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 0 : currentRoom.timer.duration;
+                  if (timerVisualization === 'default') {
+                    return (
+                      <div style={{ display: 'flex', gap: 32, alignItems: 'stretch', flexDirection: 'row', minHeight: '200px' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                            <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                              {currentRoom.compositeTimer.steps.map((step, idx) => (
+                                <React.Fragment key={idx}>
+                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
+                                  {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          )}
+                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                            <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
+                              {currentRoom.compositeTimer.steps.map((step, idx) => (
+                                <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 72, fontWeight: 300, color: theme.accent, marginBottom: 8 }}>
+                            {formatTime(remainingTime)}
+                          </div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                            {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    const VisualizationComponent = timerVisualization === 'compact' ? CompactTimerVisualization :
+                      timerVisualization === 'minimal' ? MinimalTimerVisualization :
+                      timerVisualization === 'cardStack' ? CardStackTimerVisualization :
+                      timerVisualization === 'timeline' ? TimelineTimerVisualization :
+                      CompactTimerVisualization;
+                    return (
+                      <VisualizationComponent
+                        time={remainingTime}
+                        totalTime={totalTime}
+                        sequence={currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps : null}
+                        currentStep={currentRoom.timerType === 'composite' ? currentRoom.currentStep || 0 : null}
+                        mode={currentRoom.timerType === 'composite' ? 'composite' : 'timer'}
+                        theme={theme}
+                        isRunning={true}
+                        isPaused={false}
+                        currentRound={null}
+                        isWork={null}
+                        rounds={null}
+                        style={{ marginBottom: 8 }}
+                      />
+                    );
+                  }
+                })()}
               </div>
             )}
 

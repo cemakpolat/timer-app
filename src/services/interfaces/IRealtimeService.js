@@ -88,6 +88,15 @@ export class IRealtimeService {
   }
 
   /**
+   * Delete a focus room (owner only)
+   * @param {string} roomId - Room identifier
+   * @param {string} requesterId - User requesting deletion (must be owner)
+   */
+  async deleteFocusRoom(roomId, requesterId) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
    * Subscribe to focus room updates
    * @param {string} roomId - Room identifier
    * @param {Function} callback - Called when room updates

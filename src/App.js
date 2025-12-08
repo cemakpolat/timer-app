@@ -1211,7 +1211,7 @@ export default function TimerApp() {
     }
   }, [firstTimerDate, currentStreak, lastCompletionDate, dailyChallenge, checkAchievements]);
 
-  const handleComplete = React.useCallback(() => {
+  const handleComplete = () => {
     setIsTransitioning(true);
     setIsRunning(false);
     // Stop ambient sound when timer completes
@@ -1307,11 +1307,19 @@ export default function TimerApp() {
               return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
             }, 0);
             const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
+            // Normalize sequence steps for visualization (duration in seconds, name, color)
+            const normalizedSequence = currentSeq.map(step => ({
+              name: step.name || (step.type || 'Step'),
+              duration: step.unit === 'sec' ? step.duration : step.duration * 60,
+              color: step.color || step.accent || (theme && theme.accent) || '#8b5cf6'
+            }));
+
             const completionData = {
                 type: 'Sequence',
                 name: sequenceName,
                 totalSeconds: totalSeconds,
-                details: `${currentSeq.length} steps`
+                details: `${currentSeq.length} steps`,
+                sequence: normalizedSequence
             };
             addToHistory(completionData);
 
@@ -1374,27 +1382,10 @@ export default function TimerApp() {
             setIsTransitioning(false);
       }
     }, 500);
-  }, [
-    mode,
-    isWork,
-    currentRound,
-    rounds,
-    work,
-    rest,
-    repeatEnabled,
-    initialTime,
-    saved,
-    addToHistory,
-    playAlarmSound,
-    stopAmbient,
-    seqName,
-    ambientSoundType,
-    getSoundFile,
-    startAmbient
-  ]);  // Keep ref updated with the latest handleComplete function so effects can call it
+  };
   useEffect(() => {
     handleCompleteRef.current = handleComplete;
-  }, [handleComplete]);
+  });
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -2019,6 +2010,98 @@ export default function TimerApp() {
                 {completedSession?.details && (
                   <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginTop: 8 }}>
                     {completedSession.details}
+                  </div>
+                )}
+                {/* Render visualization preview for completed sequences */}
+                {completedSession?.type === 'Sequence' && completedSession.sequence && (
+                  <div style={{ marginTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: theme.text, marginBottom: 16, textAlign: 'center' }}>
+                      Sequence: {completedSession.name}
+                    </div>
+                    {console.log('Sequence data:', completedSession.sequence)}
+                    {/* Always show step names list */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, maxWidth: 400, margin: '0 auto', marginBottom: 24 }}>
+                      {/* Left: Progress Dots */}
+                      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {completedSession.sequence.map((step, idx) => (
+                          <div key={idx} style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: step.color,
+                            opacity: 0.8,
+                            transition: 'all 0.3s ease'
+                          }} />
+                        ))}
+                      </div>
+                      {/* Right: All Step Names */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {completedSession.sequence.map((step, idx) => (
+                          <div key={idx} style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: step.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            justifyContent: 'space-between'
+                          }}>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name || 'Unnamed Step'}</span>
+                            <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), flexShrink: 0 }}>{formatTime(step.duration)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Show visualization based on type */}
+                    {timerVisualization !== 'default' && (
+                      (() => {
+                        const Viz = timerVisualization === 'compact' ? CompactTimerVisualization :
+                          timerVisualization === 'minimal' ? MinimalTimerVisualization :
+                          timerVisualization === 'cardStack' ? CardStackTimerVisualization :
+                          timerVisualization === 'timeline' ? TimelineTimerVisualization :
+                          CompactTimerVisualization;
+                        
+                        // For compact/minimal, show visualization for each step
+                        if (timerVisualization === 'compact' || timerVisualization === 'minimal') {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                              {completedSession.sequence.map((step, idx) => (
+                                <div key={idx} style={{ opacity: 1 }}>
+                                  <Viz
+                                    time={step.duration}
+                                    totalTime={step.duration}
+                                    sequence={completedSession.sequence}
+                                    currentStep={idx}
+                                    mode={'sequence'}
+                                    theme={theme}
+                                    isRunning={false}
+                                    currentRound={null}
+                                    rounds={null}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        
+                        // For cardStack/timeline, show full visualization
+                        return (
+                          <div style={{ maxWidth: 420, margin: '0 auto' }}>
+                            <Viz
+                              time={completedSession.sequence[completedSession.sequence.length - 1].duration}
+                              totalTime={completedSession.sequence[completedSession.sequence.length - 1].duration}
+                              sequence={completedSession.sequence}
+                              currentStep={completedSession.sequence.length - 1}
+                              mode={'sequence'}
+                              theme={theme}
+                              isRunning={false}
+                              currentRound={null}
+                              rounds={null}
+                            />
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 )}
               </div>
@@ -3444,6 +3527,8 @@ export default function TimerApp() {
                   getParticipantCount={getParticipantCount}
                   isRoomFull={isRoomFull}
                   setShowCreateRoomModal={setShowCreateRoomModal}
+                  activeBackground={activeBackground}
+                  timerVisualization={timerVisualization}
                 />
               )}
 
@@ -3654,7 +3739,7 @@ export default function TimerApp() {
       </div>
 
       {/* Weather Effect Canvas */}
-      {weatherEffect !== 'none' && (
+      {weatherEffect !== 'none' && !showWorldClocks && (
         <WeatherEffect type={weatherEffect} config={weatherConfig[weatherEffect]} />
       )}
 
