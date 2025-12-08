@@ -30,18 +30,21 @@ const getTextOpacity = (theme, opacity = 0.7) => {
  * Helper component to render a timer button
  */
 const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
-  const isComposite = timer.isSequence || timer.group === 'Sequences';
+  const isComposite = timer.isSequence || timer.exercises || timer.group === 'Sequences';
   let displayDuration = `${timer.duration} ${timer.unit || 'min'}`;
 
-  if (isComposite && timer.steps) {
-    const totalSec = timer.steps.reduce((sum, step) => {
-      return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-    }, 0);
-    displayDuration = `${Math.floor(totalSec / 60)}m`;
-  } else if (timer.exercises && !isComposite) {
-    // Handle template with exercises
-    const totalSec = timer.exercises.reduce((sum, ex) => sum + (ex.duration || 0), 0);
-    displayDuration = `${Math.floor(totalSec / 60)}m`;
+  if (isComposite) {
+    if (timer.steps) {
+      const totalSec = timer.steps.reduce((sum, step) => {
+        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+      }, 0);
+      displayDuration = `${Math.floor(totalSec / 60)}m`;
+    } else if (timer.exercises) {
+      const totalSec = timer.exercises.reduce((sum, ex) => {
+        return sum + (ex.unit === 'sec' || ex.unit === 'seconds' ? ex.duration : ex.duration * 60);
+      }, 0);
+      displayDuration = `${Math.floor(totalSec / 60)}m`;
+    }
   }
 
   return (
@@ -255,11 +258,18 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
       roomData.timerType = 'single';
     } else {
       // Using an available timer
-      roomData.timerType = selectedTimer.isSequence ? 'composite' : 'single';
+      const isComposite = selectedTimer.isSequence || selectedTimer.exercises;
+      roomData.timerType = isComposite ? 'composite' : 'single';
       if (selectedTimer.isSequence) {
         roomData.compositeTimer = selectedTimer;
         const totalSeconds = selectedTimer.steps.reduce((sum, step) => {
           return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+        }, 0);
+        roomData.duration = totalSeconds;
+      } else if (selectedTimer.exercises) {
+        roomData.compositeTimer = selectedTimer;
+        const totalSeconds = selectedTimer.exercises.reduce((sum, ex) => {
+          return sum + (ex.unit === 'sec' || ex.unit === 'seconds' ? ex.duration : ex.duration * 60);
         }, 0);
         roomData.duration = totalSeconds;
       } else {
@@ -842,9 +852,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               ) : selectedTimer ? (
                 <>
                   <div>Timer: {selectedTimer.name}</div>
-                  {selectedTimer.isSequence || selectedTimer.group === 'Sequences' ? (
+                  {selectedTimer.isSequence || selectedTimer.exercises || selectedTimer.group === 'Sequences' ? (
                     <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
-                      Composite • {selectedTimer.steps?.length} steps
+                      {selectedTimer.isSequence ? `Composite • ${selectedTimer.steps?.length} steps` : `Routine • ${selectedTimer.exercises?.length} exercises`}
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
