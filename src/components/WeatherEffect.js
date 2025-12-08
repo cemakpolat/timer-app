@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-const WeatherEffect = ({ type, config, width, height }) => {
+const WeatherEffect = ({ type, config, width, height, paused = false }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
@@ -756,22 +756,39 @@ const WeatherEffect = ({ type, config, width, height }) => {
         particles.push(new Particle());
       }
 
-      const animate = () => {
+      let lastFrameTime = performance.now();
+      const targetFPS = 30; // cap to 30fps to reduce CPU usage by default
+      const frameInterval = 1000 / targetFPS;
+
+      const animate = (now) => {
+        // If paused explicitly or page is hidden, skip updates but keep RAF active
+        if (paused || document.hidden) {
+          animationRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        if (!now) now = performance.now();
+        const delta = now - lastFrameTime;
+        if (delta < frameInterval) {
+          animationRef.current = requestAnimationFrame(animate);
+          return; // skip frame to cap FPS
+        }
+        lastFrameTime = now;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // Update and draw all particles
         for (let i = 0; i < particles.length; i++) {
           const particle = particles[i];
-
-          
           particle.update();
           particle.draw();
         }
-        
+
         animationRef.current = requestAnimationFrame(animate);
       };
 
-      animate();
+      // kick off animation with RAF so we get high-resolution timestamps
+      animationRef.current = requestAnimationFrame(animate);
 
       const handleResize = () => {
         canvas.width = window.innerWidth;
@@ -787,7 +804,7 @@ const WeatherEffect = ({ type, config, width, height }) => {
         }
       };
     }
-  }, [type, config, width, height]);
+  }, [type, config, width, height, paused]);
 
   if (type === 'none') return null;
 

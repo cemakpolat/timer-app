@@ -1105,12 +1105,44 @@ const Header = ({
 
               {/* Timer Visualization Settings */}
               {settingsView === 'timerVisualization' && (
-                <TimerVisualizationSelector
-                  currentVisualization={timerVisualization}
-                  onVisualizationChange={setTimerVisualization}
-                  theme={theme}
-                  getTextOpacity={getTextOpacity}
-                />
+                <>
+                  {/* Back Button and Title */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setSettingsView('main')}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Back"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: theme.text }}>
+                      Timer Visualization
+                    </div>
+                  </div>
+                  <TimerVisualizationSelector
+                    currentVisualization={timerVisualization}
+                    onVisualizationChange={setTimerVisualization}
+                    theme={theme}
+                    getTextOpacity={getTextOpacity}
+                  />
+                </>
               )}
             </div>
           )}

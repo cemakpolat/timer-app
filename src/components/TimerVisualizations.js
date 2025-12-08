@@ -162,11 +162,11 @@ const MinimalTimerVisualization = ({ time, totalTime, sequence, currentStep, mod
       <div style={{
         fontSize: 24,
         fontWeight: 700,
-        color: theme.accent,
+        color: theme.text,
         textAlign: 'center',
         letterSpacing: '0.5px'
       }}>
-        {mode === 'sequence' && sequence?.[currentStep] ? sequence[currentStep].name : 'Timer'}
+        {mode === 'sequence' && sequence?.[currentStep] ? (sequence[currentStep].name || `Step ${currentStep + 1}`) : 'Timer'}
       </div>
 
       {/* Center: Giant Timer with Circular Progress Ring */}

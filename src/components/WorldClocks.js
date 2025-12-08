@@ -165,7 +165,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
         zIndex: 1,
         boxShadow: '0 25px 50px rgba(0,0,0,0.4)'
       }}>
-        {/* Weather Effect Background - inside modal */}
+        {/* Weather Effect Background - full screen in modal */}
         {weatherEffect !== 'none' && (
           <div style={{
             position: 'absolute',
@@ -173,15 +173,13 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            borderRadius: '16px',
-            overflow: 'hidden',
             zIndex: 0
           }}>
             <WeatherEffect 
               type={weatherEffect} 
-              config={weatherConfig}
-              width={isFullScreen ? window.innerWidth : 800}
-              height={isFullScreen ? window.innerHeight : 600}
+              config={weatherConfig[weatherEffect]}
+              width={window.innerWidth}
+              height={window.innerHeight}
             />
           </div>
         )}
