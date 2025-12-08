@@ -200,7 +200,8 @@ export default function TimerApp() {
     return () => {
       RealtimeServiceFactory.offInit(onInit);
       RealtimeServiceFactory.offError(onError);
-      RealtimeServiceFactory.resetService();
+      // Removed resetService() call to prevent disconnecting service during development
+      // or React StrictMode double-mounting. Service will disconnect naturally on page unload.
       setServiceReady(false);
     };
   }, []);
@@ -622,8 +623,15 @@ export default function TimerApp() {
       let displayName = localStorage.getItem('userDisplayName');
       if (!displayName) {
         const service = RealtimeServiceFactory.getServiceSafe();
+        // eslint-disable-next-line no-unused-vars
         const userId = service?.currentUserId || 'anonymous';
-        displayName = `User ${userId.substring(0, 5)}`;
+        // Generate a unique display name
+        const adjectives = ['Swift', 'Bright', 'Calm', 'Bold', 'Wise', 'Quick', 'Gentle', 'Sharp'];
+        const nouns = ['Eagle', 'Wolf', 'Bear', 'Fox', 'Owl', 'Lion', 'Tiger', 'Hawk'];
+        const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const noun = nouns[Math.floor(Math.random() * nouns.length)];
+        const suffix = Math.random().toString(36).substring(2, 5);
+        displayName = `${adj}${noun}${suffix}`;
         localStorage.setItem('userDisplayName', displayName);
       }
       

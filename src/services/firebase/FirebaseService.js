@@ -279,6 +279,13 @@ class FirebaseService extends IRealtimeService {
 
     const creatorName = roomData.creatorName || (this.currentUserProfile && this.currentUserProfile.displayName) || `User ${this.currentUserId?.substr?.(0,6) || ''}`;
 
+    // Validate maximum session duration (12 hours = 43200 seconds)
+    const MAX_DURATION_SEC = 43200; // 12 hours
+    const roomDuration = roomData.duration || 1500;
+    if (roomDuration > MAX_DURATION_SEC) {
+      throw new Error(`Room duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Requested: ${roomDuration} seconds.`);
+    }
+
     const now = Date.now();
     // Determine if room is scheduled (scheduledFor is in the future)
     const scheduledFor = roomData.scheduledFor || null;
@@ -680,6 +687,23 @@ class FirebaseService extends IRealtimeService {
   async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
     if (!this.db) throw new Error('Service not initialized');
 
+    // Validate maximum session duration (12 hours = 43200 seconds)
+    const MAX_DURATION_SEC = 43200; // 12 hours
+    if (duration > MAX_DURATION_SEC) {
+      throw new Error(`Timer duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Requested: ${duration} seconds.`);
+    }
+
+    // For composite timers, also validate total duration
+    if (timerType === 'composite' && timerData?.steps) {
+      const totalDurationSec = timerData.steps.reduce((total, step) => {
+        return total + (step.unit === 'sec' ? step.duration : step.duration * 60);
+      }, 0);
+      
+      if (totalDurationSec > MAX_DURATION_SEC) {
+        throw new Error(`Composite timer total duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Total: ${totalDurationSec} seconds.`);
+      }
+    }
+
     const { ref, set, get, update } = this.firebase;
 
     // Check if room is scheduled and time hasn't arrived yet
@@ -794,6 +818,15 @@ class FirebaseService extends IRealtimeService {
 
     if (!room.timer || !room.timer.endsAt) {
       throw new Error('Timer not started');
+    }
+
+    // Check that total duration won't exceed 12 hours
+    const MAX_TOTAL_DURATION_SEC = 43200; // 12 hours
+    const currentDuration = room.timer.duration || 0;
+    const newTotalDuration = currentDuration + extensionMs / 1000;
+    
+    if (newTotalDuration > MAX_TOTAL_DURATION_SEC) {
+      throw new Error(`Total timer duration cannot exceed 12 hours (${MAX_TOTAL_DURATION_SEC} seconds). Current: ${Math.floor(currentDuration)}s, Extension would make: ${Math.floor(newTotalDuration)}s.`);
     }
 
     // Extend the timer

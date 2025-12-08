@@ -286,10 +286,15 @@ const useFocusRoom = () => {
       if (room.status !== 'scheduled') {
         // Get or generate display name for the creator
         let displayName = localStorage.getItem('userDisplayName');
-        if (!displayName) {
-          const service = RealtimeServiceFactory.getServiceSafe();
-          const userId = service?.currentUserId || 'anonymous';
-          displayName = roomData.creatorName || `User ${userId.substring(0, 5)}`;
+        if (!displayName || roomData.creatorName) {
+          // Use the creatorName from roomData if provided, otherwise generate one
+          if (roomData.creatorName) {
+            displayName = roomData.creatorName;
+          } else {
+            const service = RealtimeServiceFactory.getServiceSafe();
+            const userId = service?.currentUserId || 'anonymous';
+            displayName = `User ${userId.substring(0, 5)}`;
+          }
           localStorage.setItem('userDisplayName', displayName);
         }
         

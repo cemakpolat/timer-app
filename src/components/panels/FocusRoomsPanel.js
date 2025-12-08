@@ -735,7 +735,7 @@ function FocusRoomsPanel({
             <RoomExpirationModal
               isOpen={showRoomExpirationModal}
               roomId={currentRoom?.id}
-              isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getService()?.currentUserId}
+              isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getServiceSafe()?.currentUserId}
               onExtend={handleExtendTimer}
               onClose={handleCloseRoom}
               gracePeriodSec={120}
@@ -774,7 +774,7 @@ function FocusRoomsPanel({
                 ) : (
                   messages.map((msg) => {
                     const participant = currentRoom.participants?.[msg.userId];
-                    const isMe = msg.userId === RealtimeServiceFactory.getService().currentUserId;
+                    const isMe = msg.userId === RealtimeServiceFactory.getServiceSafe()?.currentUserId;
                     return (
                       <div
                         key={msg.id}
