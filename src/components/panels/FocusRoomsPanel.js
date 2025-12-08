@@ -98,8 +98,22 @@ function FocusRoomsPanel({
   getParticipantCount,
   isRoomFull,
   activeBackground,
-  timerVisualization
+  timerVisualization,
+  sequence: externalSequence = [],
+  mode,
+  currentStep
 }) {
+  // Use sequence from props (from App.js state when routine is started)
+  const sequence = React.useMemo(() => 
+    externalSequence && externalSequence.length > 0 ? externalSequence : [],
+    [externalSequence]
+  );
+  
+  React.useEffect(() => {
+    if (sequence && sequence.length > 0) {
+      console.log('FocusRoomsPanel now has sequence:', sequence);
+    }
+  }, [sequence]);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
@@ -570,7 +584,17 @@ function FocusRoomsPanel({
                 )}
                 {!currentRoom.timer && (
                   <button
-                    onClick={() => startRoomTimer(currentRoom.duration)}
+                    onClick={() => {
+                      console.log('Start Timer Button - sequence available:', sequence?.length, sequence);
+                      if (sequence && sequence.length > 0) {
+                        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+                        console.log('Starting composite timer with sequence:', sequence);
+                        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep || 0 });
+                      } else {
+                        console.log('No sequence, starting single timer');
+                        startRoomTimer(currentRoom.duration);
+                      }
+                    }}
                     style={{
                       background: theme.accent,
                       border: 'none',
@@ -634,6 +658,12 @@ function FocusRoomsPanel({
                 style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
               >
                 {(() => {
+                  console.log('Room timer debug:', {
+                    timerType: currentRoom.timerType,
+                    compositeTimer: currentRoom.compositeTimer,
+                    currentStep: currentRoom.currentStep,
+                    timerVisualization
+                  });
                   const remainingTime = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
                   const totalTime = currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 0 : currentRoom.timer.duration;
                   if (timerVisualization === 'default') {
@@ -678,7 +708,7 @@ function FocusRoomsPanel({
                         totalTime={totalTime}
                         sequence={currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps : null}
                         currentStep={currentRoom.timerType === 'composite' ? currentRoom.currentStep || 0 : null}
-                        mode={currentRoom.timerType === 'composite' ? 'composite' : 'timer'}
+                        mode={currentRoom.timerType === 'composite' ? 'sequence' : 'timer'}
                         theme={theme}
                         isRunning={true}
                         isPaused={false}

@@ -680,7 +680,7 @@ class FirebaseService extends IRealtimeService {
   async startRoomTimer(roomId, duration) {
     if (!this.db) throw new Error('Service not initialized');
 
-    const { ref, set, get } = this.firebase;
+    const { ref, set, get, update } = this.firebase;
 
     // Check if room is scheduled and time hasn't arrived yet
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
@@ -693,14 +693,36 @@ class FirebaseService extends IRealtimeService {
       throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
     }
 
-    const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
+    // Support composite timers: if duration is an object, treat as composite
+    let timerType = 'timer';
+    let compositeTimer = null;
+    let timerDuration = duration;
+    if (typeof duration === 'object' && duration !== null && duration.steps) {
+      timerType = 'composite';
+      compositeTimer = duration;
+      // Use duration of current step
+      const currentStepData = compositeTimer.steps[compositeTimer.currentStep || 0];
+      timerDuration = currentStepData ? (currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60) : 0;
+    }
 
+    const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
     const now = Date.now();
     await set(timerRef, {
       startedAt: now,
-      endsAt: now + (duration * 1000),
-      duration
+      endsAt: now + (timerDuration * 1000),
+      duration: timerDuration
     });
+
+    // Update room with timerType and compositeTimer if needed
+    const roomUpdate = { timerType };
+    if (compositeTimer) {
+      roomUpdate.compositeTimer = compositeTimer;
+      roomUpdate.currentStep = compositeTimer.currentStep || 0;
+    } else {
+      roomUpdate.compositeTimer = null;
+      roomUpdate.currentStep = 0;
+    }
+    await update(roomRef, roomUpdate);
     // Schedule room removal after timer end + configured delay
     try {
       const delaySec = (this.config && this.config.roomRemovalDelaySec) || parseInt(process.env.REACT_APP_ROOM_REMOVAL_DELAY_SEC || '30', 10);

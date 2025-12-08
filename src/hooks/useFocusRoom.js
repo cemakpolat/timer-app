@@ -397,12 +397,12 @@ const useFocusRoom = () => {
   /**
    * Start timer in current room
    */
-  const startTimer = useCallback(async (duration) => {
+  const startTimer = useCallback(async (duration, timerType = 'timer', timerData = null) => {
     if (!currentRoom) return;
 
     try {
       const service = RealtimeServiceFactory.getService();
-      await service.startRoomTimer(currentRoom.id, duration);
+      await service.startRoomTimer(currentRoom.id, duration, timerType, timerData);
       setError(null);
     } catch (err) {
       console.error('Failed to start timer:', err);
