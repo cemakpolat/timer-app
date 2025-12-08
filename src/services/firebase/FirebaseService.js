@@ -677,7 +677,7 @@ class FirebaseService extends IRealtimeService {
   /**
    * Start room timer
    */
-  async startRoomTimer(roomId, duration) {
+  async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
     if (!this.db) throw new Error('Service not initialized');
 
     const { ref, set, get, update } = this.firebase;
@@ -693,16 +693,11 @@ class FirebaseService extends IRealtimeService {
       throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
     }
 
-    // Support composite timers: if duration is an object, treat as composite
-    let timerType = 'timer';
-    let compositeTimer = null;
+    // Handle composite timers
     let timerDuration = duration;
-    if (typeof duration === 'object' && duration !== null && duration.steps) {
-      timerType = 'composite';
-      compositeTimer = duration;
-      // Use duration of current step
-      const currentStepData = compositeTimer.steps[compositeTimer.currentStep || 0];
-      timerDuration = currentStepData ? (currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60) : 0;
+    if (timerType === 'composite' && timerData?.steps) {
+      const currentStepData = timerData.steps[timerData.currentStep || 0];
+      timerDuration = currentStepData ? (currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60) : duration;
     }
 
     const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
@@ -713,11 +708,11 @@ class FirebaseService extends IRealtimeService {
       duration: timerDuration
     });
 
-    // Update room with timerType and compositeTimer if needed
+    // Update room with timerType and compositeTimer
     const roomUpdate = { timerType };
-    if (compositeTimer) {
-      roomUpdate.compositeTimer = compositeTimer;
-      roomUpdate.currentStep = compositeTimer.currentStep || 0;
+    if (timerType === 'composite' && timerData) {
+      roomUpdate.compositeTimer = timerData;
+      roomUpdate.currentStep = timerData.currentStep || 0;
     } else {
       roomUpdate.compositeTimer = null;
       roomUpdate.currentStep = 0;
