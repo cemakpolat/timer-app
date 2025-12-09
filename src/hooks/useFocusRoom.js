@@ -336,9 +336,17 @@ const useFocusRoom = () => {
       } catch (e) {
         // ignore
       }
-      // Unsubscribe from updates
+
+      // Unsubscribe from all room subscriptions (timer, room, messages)
+      subscriptionsRef.current.forEach((unsub, roomId) => {
+        try { unsub(); } catch (e) {}
+      });
+      subscriptionsRef.current.clear();
+      subscribedRoomIdsRef.current.clear();
+
+      // Also call currentRoom._unsubscribe if present (legacy)
       if (currentRoom._unsubscribe) {
-        currentRoom._unsubscribe();
+        try { currentRoom._unsubscribe(); } catch (e) {}
       }
 
       setCurrentRoom(null);
