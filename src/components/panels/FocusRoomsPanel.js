@@ -587,30 +587,23 @@ function FocusRoomsPanel({
                     onClick={() => {
                       console.log('Start Timer Button - sequence available:', sequence?.length, sequence);
                       console.log('Room timerType:', currentRoom.timerType, 'compositeTimer:', currentRoom.compositeTimer);
+                      // Try all sources for composite steps
+                      let compositeSteps = [];
                       if (sequence && sequence.length > 0) {
-                        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
-                        console.log('Starting composite timer with sequence:', sequence);
-                        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep || 0 });
-                      } else if (currentRoom.compositeTimer) {
-                        console.log('Starting room composite timer:', currentRoom.compositeTimer);
-                        const timerData = currentRoom.compositeTimer;
-                        let firstDuration;
-                        if (timerData.exercises) {
-                          // Handle exercises from templates
-                          firstDuration = timerData.exercises[0].unit === 'sec' || timerData.exercises[0].unit === 'seconds' 
-                            ? timerData.exercises[0].duration 
-                            : timerData.exercises[0].duration * 60;
-                          startRoomTimer(firstDuration, 'composite', timerData);
-                        } else if (timerData.steps) {
-                          // Handle steps from user sequences
-                          firstDuration = timerData.steps[0].unit === 'sec' ? timerData.steps[0].duration : timerData.steps[0].duration * 60;
-                          startRoomTimer(firstDuration, 'composite', timerData);
-                        } else {
-                          console.log('Invalid composite timer data');
-                          startRoomTimer(currentRoom.duration);
-                        }
+                        compositeSteps = sequence;
+                      } else if (currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0) {
+                        compositeSteps = currentRoom.compositeTimer.steps;
+                      } else if (currentRoom.compositeTimer?.exercises && currentRoom.compositeTimer.exercises.length > 0) {
+                        compositeSteps = currentRoom.compositeTimer.exercises;
+                      }
+                      if (compositeSteps.length > 0) {
+                        const firstDuration = compositeSteps[0].unit === 'sec' || compositeSteps[0].unit === 'seconds'
+                          ? compositeSteps[0].duration
+                          : compositeSteps[0].duration * 60;
+                        console.log('Starting composite timer with steps:', compositeSteps);
+                        startRoomTimer(firstDuration, 'composite', { steps: compositeSteps, currentStep: currentStep || 0 });
                       } else {
-                        console.log('No sequence, starting single timer');
+                        console.log('No composite steps found, starting single timer');
                         startRoomTimer(currentRoom.duration);
                       }
                     }}
