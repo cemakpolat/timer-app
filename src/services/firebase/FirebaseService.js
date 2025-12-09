@@ -555,6 +555,24 @@ class FirebaseService extends IRealtimeService {
     } catch (e) {
       console.warn('Post-leave room check failed:', e);
     }
+
+    // Clean up any subscriptions for this room to prevent ghost updates
+    const keysToCleanup = [`room_${roomId}`, `messages_${roomId}`, `timer_${roomId}`];
+    keysToCleanup.forEach(key => {
+      const sub = this.subscriptions.get(key);
+      if (sub) {
+        try {
+          const { off } = this.firebase;
+          off(sub.ref, 'value', sub.listener);
+          this.subscriptions.delete(key);
+          console.log(`Cleaned up subscription for ${key} after user ${userId} left room ${roomId}`);
+        } catch (e) {
+          console.warn('Failed to cleanup subscription', key, e);
+        }
+      }
+    });
+
+    console.log(`User ${userId} left room ${roomId}. Subscriptions remaining:`, this.subscriptions.size);
   }
 
   /**
