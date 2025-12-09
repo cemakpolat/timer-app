@@ -303,7 +303,14 @@ export default function TimerApp() {
       setTimerExpired(false);
       setShowRoomExpirationModal(false);
     }
-  }, [currentRoom?.timer, timerExpired, startRoomTimer]);
+  }, [
+    currentRoom?.timer,
+    timerExpired,
+    startRoomTimer,
+    currentRoom?.compositeTimer,
+    currentRoom?.currentStep,
+    currentRoom?.timerType
+  ]);
 
   // Handle timer extension
   const handleExtendTimer = async (extensionMs) => {
