@@ -258,7 +258,21 @@ class FirebaseService extends IRealtimeService {
     const userRoomsRef = ref(this.db, `userRooms/${this.currentUserId}`);
     const userRoomsSnapshot = await get(userRoomsRef);
     if (userRoomsSnapshot.exists()) {
-      throw new Error('You already have an active room. Leave your current room before creating a new one.');
+      // Defensive: check if the referenced room actually exists and is active
+      const staleRoomId = userRoomsSnapshot.val();
+      if (staleRoomId) {
+        const staleRoomRef = ref(this.db, `focusRooms/${staleRoomId}`);
+        const staleRoomSnap = await get(staleRoomRef);
+        if (!staleRoomSnap.exists() || staleRoomSnap.val().completed || Object.keys(staleRoomSnap.val().participants || {}).length === 0) {
+          // Stale entry: clean up userRooms
+          await set(userRoomsRef, null);
+        } else {
+          throw new Error('You already have an active room. Leave your current room before creating a new one.');
+        }
+      } else {
+        // Defensive: clean up null/invalid userRooms entry
+        await set(userRoomsRef, null);
+      }
     }
 
     // Task 4: Check global limit (max 100 active rooms)
@@ -457,9 +471,7 @@ class FirebaseService extends IRealtimeService {
     updates[`userRooms/${userId}`] = null;
 
     try {
-      console.log('Attempting leave update by', this.currentUserId, 'updates:', updates);
       await update(rootRef, updates);
-      console.log('Leave update succeeded for', userId, 'in room', roomId);
     } catch (err) {
       if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
         throw new Error('Permission denied when leaving room: ensure Realtime DB rules allow the user to remove their participant and userRooms entries.');
@@ -724,7 +736,10 @@ class FirebaseService extends IRealtimeService {
         }));
       } catch (e) {
         // If normalization fails, leave timerData as-is and let later checks fail cleanly
-        console.warn('Failed to normalize composite timerData.exercises -> steps', e);
+        // Only log if in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to normalize composite timerData.exercises -> steps', e);
+        }
       }
     }
 
