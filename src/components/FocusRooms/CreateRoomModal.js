@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, Clock } from 'lucide-react';
-import { useModal } from '../../context/ModalContext';
+// import { useModal } from '../../context/ModalContext';
+import { useToast } from '../../context/ToastContext';
 import { useTimers } from '../../hooks/useTimers';
 
 // Utility function to get contrasting text color
@@ -178,7 +179,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     { value: 'other', label: 'Other', color: '#6b7280' }
   ];
 
-  const { alert } = useModal();
+  // const { alert } = useModal();
+  const { showToast } = useToast();
 
   // Load prefill template on mount or when prefillTemplateId changes
   React.useEffect(() => {
@@ -197,7 +199,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     e.preventDefault();
 
     if (!roomName.trim()) {
-      await alert('Please enter a room name');
+      showToast('Please enter a room name', 'error', 4000);
       return;
     }
 
@@ -208,24 +210,24 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     }
 
     if (timerTab === 'available' && !selectedTimer) {
-      await alert('Please select a timer');
+      showToast('Please select a timer', 'error', 4000);
       return;
     }
 
     // Phase 2a: Validate scheduling inputs if enabled
     if (scheduleRoom) {
       if (!scheduledDate || !scheduledTime) {
-        await alert('Please select both date and time for scheduling');
+        showToast('Please select both date and time for scheduling', 'error', 4000);
         return;
       }
       // Parse date and time into a timestamp
       const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
       if (isNaN(scheduledDateTime.getTime())) {
-        await alert('Invalid date or time');
+        showToast('Invalid date or time', 'error', 4000);
         return;
       }
       if (scheduledDateTime.getTime() <= Date.now()) {
-        await alert('Scheduled time must be in the future');
+        showToast('Scheduled time must be in the future', 'error', 4000);
         return;
       }
     }
@@ -294,7 +296,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     } catch (err) {
       // Show inline feedback if creation failed (e.g., duplicate name or permission error)
       const msg = err?.message || 'Failed to create room';
-      await alert(msg);
+      showToast(msg, 'error', 5000);
     }
   };
 

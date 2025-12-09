@@ -110,9 +110,7 @@ function FocusRoomsPanel({
   );
   
   React.useEffect(() => {
-    if (sequence && sequence.length > 0) {
-      console.log('FocusRoomsPanel now has sequence:', sequence);
-    }
+    // (Log removed for production cleanliness)
   }, [sequence]);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -585,8 +583,7 @@ function FocusRoomsPanel({
                 {!currentRoom.timer && (
                   <button
                     onClick={() => {
-                      console.log('Start Timer Button - sequence available:', sequence?.length, sequence);
-                      console.log('Room timerType:', currentRoom.timerType, 'compositeTimer:', currentRoom.compositeTimer);
+                      // (Logs removed for production cleanliness)
                       // Try all sources for composite steps
                       let compositeSteps = [];
                       if (sequence && sequence.length > 0) {
@@ -600,10 +597,10 @@ function FocusRoomsPanel({
                         const firstDuration = compositeSteps[0].unit === 'sec' || compositeSteps[0].unit === 'seconds'
                           ? compositeSteps[0].duration
                           : compositeSteps[0].duration * 60;
-                        console.log('Starting composite timer with steps:', compositeSteps);
+                        // (Log removed for production cleanliness)
                         startRoomTimer(firstDuration, 'composite', { steps: compositeSteps, currentStep: currentStep || 0 });
                       } else {
-                        console.log('No composite steps found, starting single timer');
+                        // (Log removed for production cleanliness)
                         startRoomTimer(currentRoom.duration);
                       }
                     }}
@@ -670,12 +667,7 @@ function FocusRoomsPanel({
                 style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
               >
                 {(() => {
-                  console.log('Room timer debug:', {
-                    timerType: currentRoom.timerType,
-                    compositeTimer: currentRoom.compositeTimer,
-                    currentStep: currentRoom.currentStep,
-                    timerVisualization
-                  });
+                  // (Log removed for production cleanliness)
                   const remainingTime = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
                   const totalTime = currentRoom.timerType === 'composite' ? 
                     (currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 
