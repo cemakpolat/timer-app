@@ -349,6 +349,9 @@ const useFocusRoom = () => {
         try { currentRoom._unsubscribe(); } catch (e) {}
       }
 
+      // Remove the left room from rooms list to prevent re-subscription and ghost updates
+      setRooms((cur) => cur.filter(r => r.id !== currentRoom.id));
+
       setCurrentRoom(null);
       setMessages([]);
       setRoomTimer(null);
