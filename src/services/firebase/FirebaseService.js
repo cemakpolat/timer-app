@@ -291,6 +291,26 @@ class FirebaseService extends IRealtimeService {
     const scheduledFor = roomData.scheduledFor || null;
     const isScheduled = scheduledFor && scheduledFor > now;
 
+    // Normalize compositeTimer shape if caller provided exercises
+    let compositeTimerNormalized = null;
+    if (roomData.compositeTimer) {
+      if (roomData.compositeTimer.steps) {
+        compositeTimerNormalized = roomData.compositeTimer;
+      } else if (roomData.compositeTimer.exercises) {
+        compositeTimerNormalized = {
+          ...roomData.compositeTimer,
+          steps: roomData.compositeTimer.exercises.map(ex => ({
+            name: ex.name,
+            duration: ex.duration,
+            unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
+            type: ex.type,
+            color: ex.color,
+            accent: ex.accent
+          }))
+        };
+      }
+    }
+
     const room = {
       id: roomId,
       name: roomData.name || 'Focus Room',
@@ -309,7 +329,11 @@ class FirebaseService extends IRealtimeService {
       timerStartedAt: null,
       timerEndsAt: null,
       completed: false,
-      isPublic: roomData.isPublic !== false
+      isPublic: roomData.isPublic !== false,
+      // Store composite timer data if provided
+      compositeTimer: compositeTimerNormalized || null,
+      timerType: roomData.timerType || (compositeTimerNormalized ? 'composite' : 'single'),
+      currentStep: 0
     };
 
     await set(roomRef, room);
@@ -687,6 +711,23 @@ class FirebaseService extends IRealtimeService {
   async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
     if (!this.db) throw new Error('Service not initialized');
 
+    // Defensive normalization: accept `timerData` in either { steps: [...] } or { exercises: [...] } shape
+    if (timerType === 'composite' && timerData && !timerData.steps && timerData.exercises) {
+      try {
+        timerData.steps = timerData.exercises.map(ex => ({
+          name: ex.name,
+          duration: ex.duration,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
+          type: ex.type,
+          color: ex.color,
+          accent: ex.accent
+        }));
+      } catch (e) {
+        // If normalization fails, leave timerData as-is and let later checks fail cleanly
+        console.warn('Failed to normalize composite timerData.exercises -> steps', e);
+      }
+    }
+
     // Validate maximum session duration (12 hours = 43200 seconds)
     const MAX_DURATION_SEC = 43200; // 12 hours
     if (duration > MAX_DURATION_SEC) {
@@ -697,6 +738,14 @@ class FirebaseService extends IRealtimeService {
     if (timerType === 'composite' && timerData?.steps) {
       const totalDurationSec = timerData.steps.reduce((total, step) => {
         return total + (step.unit === 'sec' ? step.duration : step.duration * 60);
+      }, 0);
+      
+      if (totalDurationSec > MAX_DURATION_SEC) {
+        throw new Error(`Composite timer total duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Total: ${totalDurationSec} seconds.`);
+      }
+    } else if (timerType === 'composite' && timerData?.exercises) {
+      const totalDurationSec = timerData.exercises.reduce((total, exercise) => {
+        return total + (exercise.unit === 'sec' || exercise.unit === 'seconds' ? exercise.duration : exercise.duration * 60);
       }, 0);
       
       if (totalDurationSec > MAX_DURATION_SEC) {
@@ -722,6 +771,9 @@ class FirebaseService extends IRealtimeService {
     if (timerType === 'composite' && timerData?.steps) {
       const currentStepData = timerData.steps[timerData.currentStep || 0];
       timerDuration = currentStepData ? (currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60) : duration;
+    } else if (timerType === 'composite' && timerData?.exercises) {
+      const currentExerciseData = timerData.exercises[timerData.currentStep || 0];
+      timerDuration = currentExerciseData ? (currentExerciseData.unit === 'sec' || currentExerciseData.unit === 'seconds' ? currentExerciseData.duration : currentExerciseData.duration * 60) : duration;
     }
 
     const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
