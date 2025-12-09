@@ -261,6 +261,38 @@ export default function TimerApp() {
         // Check if timer has expired
         const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
         if (timeRemainingSec === 0 && !timerExpired) {
+          // Handle composite timer progression
+          if (currentRoom.timerType === 'composite' && currentRoom.compositeTimer) {
+            const items = currentRoom.compositeTimer.steps || currentRoom.compositeTimer.exercises || [];
+            const currentStep = currentRoom.currentStep || 0;
+            
+            if (currentStep < items.length - 1) {
+              // Advance to next step
+              const nextStep = currentStep + 1;
+              const nextItem = items[nextStep];
+              const nextDuration = nextItem.unit === 'sec' || nextItem.unit === 'seconds' 
+                ? nextItem.duration 
+                : nextItem.duration * 60;
+              
+              console.log(`Advancing composite timer from step ${currentStep} to ${nextStep}: ${nextItem.name} (${nextDuration}s)`);
+              
+              // Start next timer step
+              startRoomTimer(nextDuration, 'composite', {
+                ...currentRoom.compositeTimer,
+                currentStep: nextStep
+              }).catch(err => {
+                console.error('Failed to advance composite timer:', err);
+                setTimerExpired(true);
+                setShowRoomExpirationModal(true);
+              });
+              
+              return; // Don't show expiration modal yet
+            } else {
+              console.log(`Composite timer completed all ${items.length} steps`);
+            }
+          }
+          
+          // Timer is complete or not composite
           setTimerExpired(true);
           setShowRoomExpirationModal(true);
         }
@@ -271,7 +303,7 @@ export default function TimerApp() {
       setTimerExpired(false);
       setShowRoomExpirationModal(false);
     }
-  }, [currentRoom?.timer, timerExpired]);
+  }, [currentRoom?.timer, timerExpired, startRoomTimer]);
 
   // Handle timer extension
   const handleExtendTimer = async (extensionMs) => {
@@ -1467,8 +1499,9 @@ export default function TimerApp() {
     if (sequence.length === 0) return;
 
     if (currentRoom) {
-      // Start composite timer in room (pass sequence as duration for FirebaseService)
-      startRoomTimer({ steps: sequence, currentStep: 0 });
+      // Start composite timer in room (pass numeric duration + timerData)
+      const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+      startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: 0 });
       return;
     }
 
@@ -3649,7 +3682,8 @@ export default function TimerApp() {
                         
                         // If in a room, start composite timer in room immediately
                         if (currentRoom) {
-                          startRoomTimer({ steps: workoutSequence, currentStep: 0 });
+                          const firstDuration = workoutSequence[0].unit === 'sec' || workoutSequence[0].unit === 'seconds' ? workoutSequence[0].duration : workoutSequence[0].duration * 60;
+                          startRoomTimer(firstDuration, 'composite', { steps: workoutSequence, currentStep: 0 });
                         } else {
                           // Start the sequence without switching tabs
                           startSequence();

@@ -586,10 +586,29 @@ function FocusRoomsPanel({
                   <button
                     onClick={() => {
                       console.log('Start Timer Button - sequence available:', sequence?.length, sequence);
+                      console.log('Room timerType:', currentRoom.timerType, 'compositeTimer:', currentRoom.compositeTimer);
                       if (sequence && sequence.length > 0) {
                         const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
                         console.log('Starting composite timer with sequence:', sequence);
                         startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep || 0 });
+                      } else if (currentRoom.compositeTimer) {
+                        console.log('Starting room composite timer:', currentRoom.compositeTimer);
+                        const timerData = currentRoom.compositeTimer;
+                        let firstDuration;
+                        if (timerData.exercises) {
+                          // Handle exercises from templates
+                          firstDuration = timerData.exercises[0].unit === 'sec' || timerData.exercises[0].unit === 'seconds' 
+                            ? timerData.exercises[0].duration 
+                            : timerData.exercises[0].duration * 60;
+                          startRoomTimer(firstDuration, 'composite', timerData);
+                        } else if (timerData.steps) {
+                          // Handle steps from user sequences
+                          firstDuration = timerData.steps[0].unit === 'sec' ? timerData.steps[0].duration : timerData.steps[0].duration * 60;
+                          startRoomTimer(firstDuration, 'composite', timerData);
+                        } else {
+                          console.log('Invalid composite timer data');
+                          startRoomTimer(currentRoom.duration);
+                        }
                       } else {
                         console.log('No sequence, starting single timer');
                         startRoomTimer(currentRoom.duration);
@@ -665,25 +684,30 @@ function FocusRoomsPanel({
                     timerVisualization
                   });
                   const remainingTime = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
-                  const totalTime = currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 0 : currentRoom.timer.duration;
+                  const totalTime = currentRoom.timerType === 'composite' ? 
+                    (currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 
+                     currentRoom.compositeTimer?.exercises?.[currentRoom.currentStep || 0]?.duration || 0) : 
+                    currentRoom.timer.duration;
+                  const compositeItems = currentRoom.compositeTimer?.steps || currentRoom.compositeTimer?.exercises || [];
+                  const itemType = currentRoom.compositeTimer?.steps ? 'steps' : 'exercises';
                   if (timerVisualization === 'default') {
                     return (
                       <div style={{ display: 'flex', gap: 32, alignItems: 'stretch', flexDirection: 'row', minHeight: '200px' }}>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                          {currentRoom.timerType === 'composite' && compositeItems.length > 0 && (
                             <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                              {currentRoom.compositeTimer.steps.map((step, idx) => (
+                              {compositeItems.map((item, idx) => (
                                 <React.Fragment key={idx}>
-                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                                  {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
+                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${item.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${item.color}60` : 'none', margin: '0 auto' }} />
+                                  {idx < compositeItems.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
                                 </React.Fragment>
                               ))}
                             </div>
                           )}
-                          {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
+                          {currentRoom.timerType === 'composite' && compositeItems.length > 0 && (
                             <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
-                              {currentRoom.compositeTimer.steps.map((step, idx) => (
-                                <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
+                              {compositeItems.map((item, idx) => (
+                                <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
                               ))}
                             </div>
                           )}
@@ -691,7 +715,7 @@ function FocusRoomsPanel({
                             {formatTime(remainingTime)}
                           </div>
                           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                            {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
+                            {currentRoom.timerType === 'composite' ? `${itemType === 'steps' ? 'Step' : 'Exercise'} ${(currentRoom.currentStep || 0) + 1} of ${compositeItems.length}` : 'Time Remaining'}
                           </div>
                         </div>
                       </div>
@@ -706,7 +730,7 @@ function FocusRoomsPanel({
                       <VisualizationComponent
                         time={remainingTime}
                         totalTime={totalTime}
-                        sequence={currentRoom.timerType === 'composite' ? currentRoom.compositeTimer?.steps : null}
+                        sequence={currentRoom.timerType === 'composite' ? compositeItems : null}
                         currentStep={currentRoom.timerType === 'composite' ? currentRoom.currentStep || 0 : null}
                         mode={currentRoom.timerType === 'composite' ? 'sequence' : 'timer'}
                         theme={theme}

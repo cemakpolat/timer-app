@@ -267,9 +267,19 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
         }, 0);
         roomData.duration = totalSeconds;
       } else if (selectedTimer.exercises) {
-        roomData.compositeTimer = selectedTimer;
-        const totalSeconds = selectedTimer.exercises.reduce((sum, ex) => {
-          return sum + (ex.unit === 'sec' || ex.unit === 'seconds' ? ex.duration : ex.duration * 60);
+        // Normalize exercises -> steps so room storage uses a consistent composite shape
+        const steps = selectedTimer.exercises.map(ex => ({
+          name: ex.name,
+          duration: ex.duration,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
+          type: ex.type,
+          color: ex.color,
+          accent: ex.accent
+        }));
+        roomData.compositeTimer = { ...selectedTimer, steps };
+        roomData.timerType = 'composite';
+        const totalSeconds = steps.reduce((sum, ex) => {
+          return sum + (ex.unit === 'sec' ? ex.duration : ex.duration * 60);
         }, 0);
         roomData.duration = totalSeconds;
       } else {
