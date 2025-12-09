@@ -24,6 +24,8 @@ const useFocusRoom = () => {
   const subscribedRoomIdsRef = useRef(new Set());
   // Track unsub functions per room so we can clean them up
   const subscriptionsRef = useRef(new Map());
+  // Track room IDs that the user has explicitly left (to prevent re-subscription)
+  const leftRoomIdsRef = useRef(new Set());
 
   /**
    * Initial fetch to get room list, then subscribe to each room for real-time updates
@@ -200,6 +202,9 @@ const useFocusRoom = () => {
       }
       const room = await service.joinFocusRoom(roomId, undefined, userInfo);
 
+      // Clear from leftRoomIds if user is re-joining a previously left room
+      leftRoomIdsRef.current.delete(roomId);
+
       setCurrentRoom(room);
       setError(null);
 
@@ -337,14 +342,18 @@ const useFocusRoom = () => {
         // ignore
       }
 
-      // Unsubscribe from all room subscriptions (timer, room, messages)
-      subscriptionsRef.current.forEach((unsub, roomId) => {
-        try { unsub(); } catch (e) {}
-      });
-      subscriptionsRef.current.clear();
-      subscribedRoomIdsRef.current.clear();
+      // Mark this room as left to prevent automatic re-subscription
+      leftRoomIdsRef.current.add(currentRoom.id);
 
-      // Also call currentRoom._unsubscribe if present (legacy)
+      // Unsubscribe from the specific room's subscriptions
+      const roomSubscription = subscriptionsRef.current.get(currentRoom.id);
+      if (roomSubscription) {
+        try { roomSubscription(); } catch (e) {}
+        subscriptionsRef.current.delete(currentRoom.id);
+      }
+      subscribedRoomIdsRef.current.delete(currentRoom.id);
+
+      // Also call currentRoom._unsubscribe if present (legacy - for room, messages, timer)
       if (currentRoom._unsubscribe) {
         try { currentRoom._unsubscribe(); } catch (e) {}
       }
@@ -469,6 +478,11 @@ const useFocusRoom = () => {
     const subscribeToRoom = async (roomId) => {
       // Skip if already subscribed
       if (subscribedRoomIdsRef.current.has(roomId)) {
+        return;
+      }
+
+      // Skip if user has explicitly left this room
+      if (leftRoomIdsRef.current.has(roomId)) {
         return;
       }
 
