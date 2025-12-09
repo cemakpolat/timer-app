@@ -934,6 +934,10 @@ class FirebaseService extends IRealtimeService {
       const rootRef = ref(this.db, '/');
       const updates = {};
       updates[`focusRooms/${roomId}`] = null;
+      // Clean up userRooms mapping for all participants (not just creator)
+      Object.keys(participants).forEach(uid => {
+        updates[`userRooms/${uid}`] = null;
+      });
       updates[`userRooms/${requesterId}`] = null;
       await update(rootRef, updates);
       // clear any scheduled cleanup
