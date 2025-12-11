@@ -52,7 +52,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
       <div
         style={{
           background: theme.card,
-          borderRadius: 10,
+          borderRadius: theme.borderRadius,
           padding: 15,
           maxWidth: 480,
           width: '100%',
@@ -76,7 +76,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
               style={{
                 width: '100%',
                 padding: 10,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.03)',
                 color: 'white',
@@ -97,7 +97,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
               style={{
                 width: 120,
                 padding: 10,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 border: '1px solid rgba(255,255,255,0.1)',
                 background: 'rgba(255,255,255,0.03)',
                 color: 'white'
@@ -116,8 +116,8 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave }) => {
             background: theme.card,
             borderTop: '1px solid rgba(255,255,255,0.1)'
           }}>
-            <button type="button" onClick={onClose} style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: 'white', border: 'none' }}>Cancel</button>
-            <button type="submit" style={{ padding: '10px 14px', borderRadius: 8, background: theme.accent, color: 'white', border: 'none' }}>Save</button>
+            <button type="button" onClick={onClose} style={{ padding: '10px 14px', borderRadius: theme.borderRadius, background: 'rgba(255,255,255,0.06)', color: 'white', border: 'none' }}>Cancel</button>
+            <button type="submit" style={{ padding: '10px 14px', borderRadius: theme.borderRadius, background: theme.accent, color: 'white', border: 'none' }}>Save</button>
           </div>
         </form>
       </div>

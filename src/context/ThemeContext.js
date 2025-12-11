@@ -18,6 +18,16 @@ export const ThemeProvider = ({ children }) => {
     THEMES[0].name
   );
 
+  const [customBorderRadius, setCustomBorderRadius] = useLocalStorage(
+    STORAGE_KEYS.CUSTOM_BORDER_RADIUS,
+    null // null means use theme default
+  );
+
+  const [themeOpacity, setThemeOpacity] = useLocalStorage(
+    STORAGE_KEYS.THEME_OPACITY,
+    1 // 1 means full opacity
+  );
+
   const [previewTheme, setPreviewTheme] = useState(null);
 
   // Get current theme object
@@ -25,8 +35,14 @@ export const ThemeProvider = ({ children }) => {
     return THEMES.find(t => t.name === themeName) || THEMES[0];
   }, [themeName]);
 
-  // Get effective theme (preview or current)
-  const effectiveTheme = previewTheme || theme;
+  // Get effective theme (preview or current) with custom border radius
+  const effectiveTheme = useMemo(() => {
+    const baseTheme = previewTheme || theme;
+    return {
+      ...baseTheme,
+      borderRadius: customBorderRadius !== null ? customBorderRadius : baseTheme.borderRadius || 10
+    };
+  }, [previewTheme, theme, customBorderRadius]);
 
   const setTheme = (newTheme) => {
     if (typeof newTheme === 'string') {
@@ -42,7 +58,11 @@ export const ThemeProvider = ({ children }) => {
     themes: THEMES,
     setTheme,
     previewTheme,
-    setPreviewTheme
+    setPreviewTheme,
+    customBorderRadius,
+    setCustomBorderRadius,
+    themeOpacity,
+    setThemeOpacity
   };
 
   return (

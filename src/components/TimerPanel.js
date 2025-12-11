@@ -101,7 +101,7 @@ const TimerPanel = ({
               padding: 8,
               background: 'rgba(255,255,255,0.05)',
               border: `1px solid rgba(255,255,255,0.1)`,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               color: theme.text,
               textAlign: 'center',
               fontSize: 16
@@ -120,7 +120,7 @@ const TimerPanel = ({
               padding: 8,
               background: 'rgba(255,255,255,0.05)',
               border: `1px solid rgba(255,255,255,0.1)`,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               color: theme.text,
               textAlign: 'center',
               fontSize: 16
@@ -131,7 +131,7 @@ const TimerPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               padding: '8px 16px',
               cursor: 'pointer',
               display: 'flex',

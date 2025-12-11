@@ -43,7 +43,7 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
@@ -62,7 +62,7 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
@@ -81,7 +81,7 @@ const StopwatchPanel = ({
           style={{
             background: 'rgba(255,255,255,0.1)',
             border: `1px solid rgba(255,255,255,0.2)`,
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: '12px 20px',
             cursor: 'pointer',
             display: 'flex',

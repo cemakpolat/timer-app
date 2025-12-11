@@ -44,7 +44,7 @@ function AchievementsPanel({
   return (
     <>
       {/* Achievements */}
-      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+      <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Award size={18} /> Achievements
         </h2>
@@ -52,7 +52,7 @@ function AchievementsPanel({
           {ACHIEVEMENTS.map(ach => {
             const isUnlocked = achievements.includes(ach.id);
             return (
-              <div key={ach.id} style={{ padding: 16, background: isUnlocked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: 12, textAlign: 'center', opacity: isUnlocked ? 1 : 0.5, border: isUnlocked ? `2px solid ${theme.accent}40` : 'none', transition: 'all 0.3s' }}>
+              <div key={ach.id} style={{ padding: 16, background: isUnlocked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: theme.borderRadius, textAlign: 'center', opacity: isUnlocked ? 1 : 0.5, border: isUnlocked ? `2px solid ${theme.accent}40` : 'none', transition: 'all 0.3s' }}>
                 <div style={{ fontSize: 32, marginBottom: 8, filter: isUnlocked ? 'none' : 'grayscale(100%)' }}>{ach.icon}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{ach.name}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{ach.description}</div>
@@ -68,13 +68,13 @@ function AchievementsPanel({
         if (suggestions.length === 0) return null;
 
         return (
-          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginTop: 24 }}>
             <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Sparkles size={18} /> Your Insights
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {suggestions.map((sug, idx) => (
-                <div key={idx} style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={idx} style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontSize: 24 }}>{sug.icon}</div>
                   <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>{sug.text}</div>
                 </div>
@@ -85,11 +85,11 @@ function AchievementsPanel({
       })()}
 
       {/* Daily Challenge */}
-      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
+      <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginTop: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Target size={18} /> Daily Challenge
         </h2>
-        <div style={{ padding: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 16, border: dailyChallenge?.progress >= dailyChallenge?.target ? `2px solid ${theme.accent}` : 'none' }}>
+        <div style={{ padding: 20, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, border: dailyChallenge?.progress >= dailyChallenge?.target ? `2px solid ${theme.accent}` : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{ fontSize: 32 }}>{dailyChallenge?.icon || '🎯'}</div>
             <div style={{ flex: 1 }}>
@@ -100,14 +100,14 @@ function AchievementsPanel({
               </div>
             </div>
           </div>
-          <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: theme.borderRadius, overflow: 'hidden' }}>
             <div style={{ width: `${Math.min(100, ((dailyChallenge?.progress || 0) / (dailyChallenge?.target || 1)) * 100)}%`, height: '100%', background: theme.accent, transition: 'width 0.3s' }} />
           </div>
         </div>
       </div>
 
       {/* Time Capsule */}
-      <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
+      <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginTop: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Mail size={18} /> Time Capsule
         </h2>
@@ -117,7 +117,7 @@ function AchievementsPanel({
         {!showCapsuleInput ? (
           <button
             onClick={() => setShowCapsuleInput(true)}
-            style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+            style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 16, color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           >
             📩 Create Time Capsule
           </button>
@@ -127,19 +127,19 @@ function AchievementsPanel({
               value={capsuleMessage}
               onChange={(e) => setCapsuleMessage(e.target.value)}
               placeholder="Write your message here..."
-              style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 16, color: theme.text, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', minHeight: 100, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: theme.borderRadius, padding: 16, color: theme.text, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button
                 onClick={createTimeCapsule}
                 disabled={!capsuleMessage.trim()}
-                style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 12, padding: 12, color: 'white', cursor: capsuleMessage.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: capsuleMessage.trim() ? 1 : 0.5 }}
+                style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 12, color: 'white', cursor: capsuleMessage.trim() ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: capsuleMessage.trim() ? 1 : 0.5 }}
               >
                 Send to Future
               </button>
               <button
                 onClick={() => { setShowCapsuleInput(false); setCapsuleMessage(''); }}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: 12, color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
               >
                 Cancel
               </button>
@@ -156,7 +156,7 @@ function AchievementsPanel({
       {/* Backup & Restore moved to Settings - removed here */}
 
       {/* History Log (hidden for now) */}
-      <div style={{ display: 'none', background: theme.card, borderRadius: 10, padding: 15, marginTop: 24 }}>
+      <div style={{ display: 'none', background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <History size={18} /> Recent History

@@ -46,7 +46,10 @@ const Header = ({
   deleteBackgroundImage,
   // Timer visualization
   timerVisualization,
-  setTimerVisualization
+  setTimerVisualization,
+  // Border radius
+  customBorderRadius,
+  setCustomBorderRadius
 
 }) => {
   const settingsPanelRef = useRef(null);
@@ -71,6 +74,7 @@ const Header = ({
   const modal = useModal();
   const [selectedMusicId, setSelectedMusicId] = useState(null);
   const [showOpacityModal, setShowOpacityModal] = useState(false);
+  const [showBorderRadiusModal, setShowBorderRadiusModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   const truncate = (s, n = 28) => {
@@ -194,7 +198,7 @@ const Header = ({
           onClick={onShowInfo}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -220,7 +224,7 @@ const Header = ({
           onClick={onShowAchievements}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -246,7 +250,7 @@ const Header = ({
           onClick={onShowFeedback}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -272,7 +276,7 @@ const Header = ({
           onClick={onShowWorldClocks}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -299,7 +303,7 @@ const Header = ({
             onClick={onShowSettings}
             style={{
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 10,
               color: theme.accent,
               cursor: 'pointer',
@@ -331,7 +335,7 @@ const Header = ({
                 right: 0,
                 background: theme.card,
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: settingsView === 'main' ? 4 : 8,
                 minWidth: settingsView === 'main' ? 'auto' : 200,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
@@ -349,7 +353,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -377,7 +381,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -405,7 +409,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -433,7 +437,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -461,7 +465,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -489,7 +493,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -517,7 +521,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -551,7 +555,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -587,7 +591,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -619,7 +623,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.isDefault && theme.name === 'Midnight' ? 'rgba(255,255,255,0.3)' : theme.text,
                         cursor: theme.isDefault && theme.name === 'Midnight' ? 'not-allowed' : 'pointer',
@@ -651,7 +655,7 @@ const Header = ({
                       style={{
                         background: (theme.isDefault && theme.name === 'Midnight') ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: (theme.isDefault && theme.name === 'Midnight') ? getTextOpacity(theme, 0.3) : '#ff4444',
                         cursor: (theme.isDefault && theme.name === 'Midnight') ? 'not-allowed' : 'pointer',
@@ -678,7 +682,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -698,6 +702,38 @@ const Header = ({
                       <Eye size={18} />
                     </button>
 
+                    {/* Border Radius Control Button */}
+                    <button
+                      onClick={() => setShowBorderRadiusModal(true)}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Adjust Border Radius"
+                    >
+                      <div style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: customBorderRadius !== null ? `${customBorderRadius}px` : `${theme.borderRadius || 10}px`,
+                        background: theme.accent,
+                        border: '1px solid rgba(255,255,255,0.3)'
+                      }} />
+                    </button>
+
                     <div style={{ flex: 1 }} />
 
                     {/* Add New Theme Icon */}
@@ -709,7 +745,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -750,7 +786,7 @@ const Header = ({
                         style={{
                           background: t.bg,
                           border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
-                          borderRadius: 8,
+                          borderRadius: theme.borderRadius,
                           padding: 12,
                           cursor: 'pointer',
                           fontSize: 11,
@@ -788,7 +824,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -819,7 +855,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: weatherEffect === 'none' ? 'rgba(255,255,255,0.3)' : theme.text,
                         cursor: weatherEffect === 'none' ? 'not-allowed' : 'pointer',
@@ -877,7 +913,7 @@ const Header = ({
                           style={{
                             background: weatherEffect === effect.id ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '12px 8px',
                             color: weatherEffect === effect.id ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -932,7 +968,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '10px 12px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -1047,7 +1083,7 @@ const Header = ({
                           style={{
                             background: ambientSound === sound.name ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             color: ambientSound === sound.name ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -1067,7 +1103,7 @@ const Header = ({
                           style={{
                             background: ambientSound === `custom_${file.id}` ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             color: ambientSound === `custom_${file.id}` ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -1113,7 +1149,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -1166,7 +1202,7 @@ const Header = ({
           <div
             style={{
               background: theme.card,
-              borderRadius: 12,
+              borderRadius: theme.borderRadius,
               padding: 24,
               minWidth: 300,
               boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
@@ -1221,7 +1257,7 @@ const Header = ({
                   style={{
                     background: Math.abs(themeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '10px 12px',
                     color: Math.abs(themeOpacity - preset.value) < 0.01 ? getTextOpacity(theme, 1) : theme.text,
                     cursor: 'pointer',
@@ -1252,7 +1288,131 @@ const Header = ({
                 width: '100%',
                 background: theme.accent,
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
+                padding: '12px 16px',
+                color: getTextOpacity(theme, 1),
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Border Radius Modal */}
+      {showBorderRadiusModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => setShowBorderRadiusModal(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: theme.borderRadius,
+              padding: 24,
+              minWidth: 300,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              border: `1px solid rgba(255,255,255,0.1)`
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>
+              Border Radius
+            </h2>
+
+            <p style={{ fontSize: 13, color: getTextOpacity(theme, 0.6), marginBottom: 16 }}>
+              Adjust the corner rounding of UI elements. Current: {customBorderRadius}px
+            </p>
+
+            {/* Border Radius Slider */}
+            <div style={{ marginBottom: 24 }}>
+              <input
+                type="range"
+                min="0"
+                max="32"
+                step="2"
+                value={customBorderRadius}
+                onChange={(e) => setCustomBorderRadius(parseInt(e.target.value))}
+                style={{
+                  width: '100%',
+                  height: 6,
+                  borderRadius: 3,
+                  background: getTextOpacity(theme, 0.2),
+                  outline: 'none',
+                  cursor: 'pointer',
+                  accentColor: theme.accent
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: getTextOpacity(theme, 0.5) }}>
+                <span>0px</span>
+                <span>16px</span>
+                <span>32px</span>
+              </div>
+            </div>
+
+            {/* Preset Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Sharp', value: 0 },
+                { label: 'Medium', value: 12 },
+                { label: 'Rounded', value: 24 }
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => setCustomBorderRadius(preset.value)}
+                  style={{
+                    background: customBorderRadius === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                    borderRadius: theme.borderRadius,
+                    padding: '10px 12px',
+                    color: customBorderRadius === preset.value ? getTextOpacity(theme, 1) : theme.text,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (customBorderRadius !== preset.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (customBorderRadius !== preset.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.05)';
+                    }
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowBorderRadiusModal(false)}
+              style={{
+                width: '100%',
+                background: theme.accent,
+                border: 'none',
+                borderRadius: theme.borderRadius,
                 padding: '12px 16px',
                 color: getTextOpacity(theme, 1),
                 cursor: 'pointer',

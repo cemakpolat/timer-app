@@ -55,7 +55,7 @@ const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
       style={{
         background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
         border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius,
         padding: '8px 10px',
         color: isSelected ? getContrastColor(theme.accent) : theme.text,
         cursor: 'pointer',
@@ -78,12 +78,12 @@ const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {isComposite && (
-          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: theme.borderRadius, whiteSpace: 'nowrap' }}>
             Composite
           </span>
         )}
         {timer.exercises && (
-          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: theme.borderRadius, whiteSpace: 'nowrap' }}>
             Template
           </span>
         )}
@@ -140,6 +140,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   const [scheduledTime, setScheduledTime] = useState(''); // Time in HH:mm format
   const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
   const [prefillTemplate, setPrefillTemplate] = useState(null);
+  const [isCreating, setIsCreating] = useState(false); // Prevent double submission
 
   /**
    * Generate a unique display name by combining user input with a generated suffix
@@ -291,12 +292,15 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     }
 
     try {
+      setIsCreating(true);
       await onCreateRoom(roomData);
       onClose();
     } catch (err) {
       // Show inline feedback if creation failed (e.g., duplicate name or permission error)
       const msg = err?.message || 'Failed to create room';
       showToast(msg, 'error', 5000);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -340,7 +344,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
         style={{
           background: theme.card,
           position: 'relative',
-          borderRadius: 10,
+          borderRadius: theme.borderRadius,
           padding: 15,
           maxWidth: 500,
           width: '100%',
@@ -363,7 +367,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               color: getTextOpacity(theme, 0.6),
               cursor: 'pointer',
               padding: 8,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               display: 'flex',
               alignItems: 'center',
               transition: 'all 0.2s'
@@ -381,7 +385,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
             <div style={{
               background: `rgba(${parseInt(theme.accent.slice(1,3),16)},${parseInt(theme.accent.slice(3,5),16)},${parseInt(theme.accent.slice(5,7),16)},0.1)`,
               border: `1px solid ${theme.accent}`,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               padding: 12,
               marginBottom: 16,
               display: 'flex',
@@ -421,7 +425,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${roomName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 12,
                 color: theme.text,
                 fontSize: 14,
@@ -453,7 +457,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${displayName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 12,
                 color: theme.text,
                 fontSize: 14,
@@ -550,7 +554,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                         style={{
                           background: duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.06)`,
                           border: `1px solid ${duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
-                          borderRadius: 10,
+                          borderRadius: theme.borderRadius,
                           padding: '10px 6px',
                           minHeight: 44,
                           display: 'flex',
@@ -575,7 +579,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       style={{
                         background: !presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.05)',
                         border: `1px solid ${!presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                        borderRadius: 10,
+                        borderRadius: theme.borderRadius,
                         padding: '10px 6px',
                         minHeight: 44,
                         display: 'flex',
@@ -598,7 +602,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   <div style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     textAlign: 'center',
                     color: getTextOpacity(theme, 0.6),
@@ -709,7 +713,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   style={{
                       background: maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
                       border: `2px solid ${maxParticipants === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                      borderRadius: 10,
+                      borderRadius: theme.borderRadius,
                       padding: '10px 6px',
                       minHeight: 44,
                       display: 'flex',
@@ -734,7 +738,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 style={{
                   background: !presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.18)' : 'rgba(255,255,255,0.05)',
                   border: `2px solid ${!presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '10px 6px',
                   minHeight: 44,
                   display: 'flex',
@@ -760,7 +764,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 width: '100%',
                 background: scheduleRoom ? theme.accent : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${scheduleRoom ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 cursor: 'pointer',
@@ -787,7 +791,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
                       border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: 10,
                       color: theme.text,
                       fontSize: 14,
@@ -807,7 +811,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
                       border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: 10,
                       color: theme.text,
                       fontSize: 14,
@@ -835,7 +839,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   width: 120,
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 10,
                   color: theme.text,
                   fontSize: 14,
@@ -848,7 +852,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
           </div>
           <div style={{
             background: 'rgba(255,255,255,0.05)',
-            borderRadius: 12,
+            borderRadius: theme.borderRadius,
             padding: 16,
             marginBottom: 24,
             border: `1px solid ${theme.accent}40`
@@ -879,7 +883,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               )}
               <div>Capacity: Up to {maxParticipants} people</div>
               {scheduleRoom && scheduledDate && scheduledTime && (
-                <div style={{ marginTop: 8, padding: 8, background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, borderRadius: 6, fontSize: 13 }}>
+                <div style={{ marginTop: 8, padding: 8, background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, borderRadius: theme.borderRadius, fontSize: 13 }}>
                   📅 Scheduled: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
                 </div>
               )}
@@ -904,7 +908,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 flex: 1,
                 background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 16,
                 color: theme.text,
                 cursor: 'pointer',
@@ -919,23 +923,24 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
             </button>
             <button
               type="submit"
+              disabled={isCreating}
               style={{
                 flex: 1,
-                background: theme.accent,
+                background: isCreating ? 'rgba(255,255,255,0.3)' : theme.accent,
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 16,
-                color: getContrastColor(theme.accent),
-                cursor: 'pointer',
+                color: isCreating ? 'rgba(255,255,255,0.5)' : getContrastColor(theme.accent),
+                cursor: isCreating ? 'not-allowed' : 'pointer',
                 fontSize: 15,
                 fontWeight: 600,
                 transition: 'all 0.2s',
-                boxShadow: `0 4px 12px ${theme.accent}40`
+                boxShadow: isCreating ? 'none' : `0 4px 12px ${theme.accent}40`
               }}
-              onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
-              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => !isCreating && (e.target.style.transform = 'translateY(-1px)')}
+              onMouseLeave={(e) => !isCreating && (e.target.style.transform = 'translateY(0)')}
             >
-              Create Room
+              {isCreating ? 'Creating...' : 'Create Room'}
             </button>
           </div>
         </form>
@@ -943,7 +948,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
         {/* In-modal editors (rendered inside modal content) */}
         {showDurationEditor && (
           <div style={{ position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
-            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Session Length</div>
               <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter duration in minutes (max 720)</div>
               <input
@@ -959,11 +964,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                     setShowDurationEditor(false);
                   }
                 }}
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
+                style={{ width: '100%', padding: 10, borderRadius: theme.borderRadius, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
               />
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
-                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
+                <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
               </div>
             </div>
           </div>
@@ -971,7 +976,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
 
         {showParticipantsEditor && (
           <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
-            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Max Participants</div>
               <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter a number between 2 and 100</div>
               <input
@@ -987,11 +992,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                     setShowParticipantsEditor(false);
                   }
                 }}
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
+                style={{ width: '100%', padding: 10, borderRadius: theme.borderRadius, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
               />
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowParticipantsEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
-                <button type="button" onClick={() => { const val = parseInt(tempParticipants, 10); if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val)); setShowParticipantsEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
+                <button type="button" onClick={() => setShowParticipantsEditor(false)} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempParticipants, 10); if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val)); setShowParticipantsEditor(false); }} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
               </div>
             </div>
           </div>

@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 
-const inputStyleSimple = (accentColor, textColor = '#ffffff') => ({
+const inputStyleSimple = (theme, accentColor, textColor = '#ffffff') => ({
   width: '100%',
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.06)',
-  borderRadius: 8,
+  borderRadius: theme.borderRadius,
   padding: 10,
   color: textColor,
   boxSizing: 'border-box'
 });
 
-const smallInput = (accentColor, textColor = '#ffffff') => ({
+const smallInput = (theme, accentColor, textColor = '#ffffff') => ({
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.06)',
-  borderRadius: 6,
+  borderRadius: theme.borderRadius,
   padding: 8,
   color: textColor,
   boxSizing: 'border-box'
@@ -62,7 +62,7 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px' }}>
-      <div style={{ width: '100%', maxWidth: 980, background: theme.bg, borderRadius: 12, padding: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: 980, background: theme.bg, borderRadius: theme.borderRadius, padding: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Edit Workout</h3>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: theme.text, cursor: 'pointer', fontSize: '1.5rem', padding: '4px' }}>✕</button>
@@ -72,18 +72,18 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
           {/* Basic Info - Stack on mobile */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input value={local.name || ''} onChange={(e) => setLocal(prev => ({ ...prev, name: e.target.value }))} placeholder="Name" style={inputStyleSimple(theme.accent, theme.text)} />
-              <input value={local.emoji || ''} onChange={(e) => setLocal(prev => ({ ...prev, emoji: e.target.value }))} placeholder="Emoji" style={inputStyleSimple(theme.accent, theme.text)} />
+              <input value={local.name || ''} onChange={(e) => setLocal(prev => ({ ...prev, name: e.target.value }))} placeholder="Name" style={inputStyleSimple(theme, theme.accent, theme.text)} />
+              <input value={local.emoji || ''} onChange={(e) => setLocal(prev => ({ ...prev, emoji: e.target.value }))} placeholder="Emoji" style={inputStyleSimple(theme, theme.accent, theme.text)} />
             </div>
 
-            <textarea value={local.description || ''} onChange={(e) => setLocal(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" rows={2} style={inputStyleSimple(theme.accent, theme.text)} />
+            <textarea value={local.description || ''} onChange={(e) => setLocal(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" rows={2} style={inputStyleSimple(theme, theme.accent, theme.text)} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input value={local.category || ''} onChange={(e) => setLocal(prev => ({ ...prev, category: e.target.value }))} placeholder="Category" style={inputStyleSimple(theme.accent, theme.text)} />
-              <input value={local.difficulty || ''} onChange={(e) => setLocal(prev => ({ ...prev, difficulty: e.target.value }))} placeholder="Difficulty" style={inputStyleSimple(theme.accent, theme.text)} />
+              <input value={local.category || ''} onChange={(e) => setLocal(prev => ({ ...prev, category: e.target.value }))} placeholder="Category" style={inputStyleSimple(theme, theme.accent, theme.text)} />
+              <input value={local.difficulty || ''} onChange={(e) => setLocal(prev => ({ ...prev, difficulty: e.target.value }))} placeholder="Difficulty" style={inputStyleSimple(theme, theme.accent, theme.text)} />
             </div>
 
-            <input value={(local.tags || []).join(', ')} onChange={(e) => setLocal(prev => ({ ...prev, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))} placeholder="Tags (comma separated)" style={inputStyleSimple(theme.accent, theme.text)} />
+            <input value={(local.tags || []).join(', ')} onChange={(e) => setLocal(prev => ({ ...prev, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))} placeholder="Tags (comma separated)" style={inputStyleSimple(theme, theme.accent, theme.text)} />
           </div>
 
           {/* Room settings - Stack on mobile */}
@@ -93,22 +93,22 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
               <span>Available for Focus Rooms</span>
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input type="number" min={1} value={local.metadata?.recommendedParticipants || ''} onChange={(e) => setLocal(prev => ({ ...prev, metadata: { ...(prev.metadata||{}), recommendedParticipants: parseInt(e.target.value || '0') } }))} placeholder="Recommended participants" style={inputStyleSimple(theme.accent, theme.text)} />
+              <input type="number" min={1} value={local.metadata?.recommendedParticipants || ''} onChange={(e) => setLocal(prev => ({ ...prev, metadata: { ...(prev.metadata||{}), recommendedParticipants: parseInt(e.target.value || '0') } }))} placeholder="Recommended participants" style={inputStyleSimple(theme, theme.accent, theme.text)} />
               <div style={{ color: theme.text, fontSize: 13, textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>{local.exercises?.length || 0} steps • {Math.ceil(totalDuration/60)} min</div>
             </div>
           </div>
 
           {/* Exercise editor list - Mobile responsive */}
-          <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: 12 }}>
+          <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: theme.borderRadius, padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <strong style={{ color: theme.text }}>Exercises / Steps</strong>
-              <button onClick={addStep} style={{ background: theme.accent, border: 'none', color: '#000', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: '0.9rem' }}>+ Add Step</button>
+              <button onClick={addStep} style={{ background: theme.accent, border: 'none', color: '#000', borderRadius: theme.borderRadius, padding: '8px 12px', cursor: 'pointer', fontSize: '0.9rem' }}>+ Add Step</button>
             </div>
 
             {(local.exercises || []).map((step, idx) => {
               const isOpen = openAccordion === idx;
               return (
-                <div key={idx} style={{ marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+                <div key={idx} style={{ marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, overflow: 'hidden' }}>
                   {/* Accordion Header */}
                   <div 
                     style={{ 
@@ -189,7 +189,7 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
                     <div style={{ padding: '16px', background: 'rgba(255,255,255,0.005)', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
                       {/* Step name */}
                       <div style={{ marginBottom: 12 }}>
-                        <input value={step.name || ''} onChange={(e) => updateStep(idx, { name: e.target.value })} placeholder="Step name" style={{ width: '100%', ...inputStyleSimple(theme.accent, theme.text) }} />
+                        <input value={step.name || ''} onChange={(e) => updateStep(idx, { name: e.target.value })} placeholder="Step name" style={{ width: '100%', ...inputStyleSimple(theme, theme.accent, theme.text) }} />
                       </div>
 
                       {/* Step details - responsive grid */}
@@ -197,8 +197,8 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', color: theme.text, marginBottom: 4 }}>Duration</label>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input type="number" value={step.duration || 0} onChange={(e) => updateStep(idx, { duration: parseInt(e.target.value || '0') })} style={{ flex: 1, minWidth: 0, ...smallInput(theme.accent, theme.text) }} />
-                            <select value={step.unit || 'sec'} onChange={(e) => updateStep(idx, { unit: e.target.value })} style={{ width: '80px', flexShrink: 0, ...smallInput(theme.accent, theme.text) }}>
+                            <input type="number" value={step.duration || 0} onChange={(e) => updateStep(idx, { duration: parseInt(e.target.value || '0') })} style={{ flex: 1, minWidth: 0, ...smallInput(theme, theme.accent, theme.text) }} />
+                            <select value={step.unit || 'sec'} onChange={(e) => updateStep(idx, { unit: e.target.value })} style={{ width: '80px', flexShrink: 0, ...smallInput(theme, theme.accent, theme.text) }}>
                               <option value="sec">sec</option>
                               <option value="min">min</option>
                             </select>
@@ -207,7 +207,7 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
 
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', color: theme.text, marginBottom: 4 }}>Type</label>
-                          <select value={step.type || 'work'} onChange={(e) => updateStep(idx, { type: e.target.value })} style={{ width: '100%', ...smallInput(theme.accent, theme.text) }}>
+                          <select value={step.type || 'work'} onChange={(e) => updateStep(idx, { type: e.target.value })} style={{ width: '100%', ...smallInput(theme, theme.accent, theme.text) }}>
                             <option value="warmup">warmup</option>
                             <option value="work">work</option>
                             <option value="rest">rest</option>
@@ -218,15 +218,15 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', color: theme.text, marginBottom: 4 }}>Color</label>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input type="color" value={step.color || '#ef4444'} onChange={(e) => updateStep(idx, { color: e.target.value })} style={{ width: '50px', height: '36px', border: 'none', borderRadius: 6, cursor: 'pointer', flexShrink: 0, background: 'none' }} />
-                            <input value={step.color || ''} onChange={(e) => updateStep(idx, { color: e.target.value })} placeholder="#ef4444" style={{ flex: 1, ...smallInput(theme.accent, theme.text) }} />
+                            <input type="color" value={step.color || '#ef4444'} onChange={(e) => updateStep(idx, { color: e.target.value })} style={{ width: '50px', height: '36px', border: 'none', borderRadius: theme.borderRadius, cursor: 'pointer', flexShrink: 0, background: 'none' }} />
+                            <input value={step.color || ''} onChange={(e) => updateStep(idx, { color: e.target.value })} placeholder="#ef4444" style={{ flex: 1, ...smallInput(theme, theme.accent, theme.text) }} />
                           </div>
                         </div>
                       </div>
 
                       {/* Remove button */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button onClick={() => removeStep(idx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '4px 8px', borderRadius: 4, transition: 'background 0.2s ease' }} onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>Remove Step</button>
+                        <button onClick={() => removeStep(idx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '4px 8px', borderRadius: theme.borderRadius, transition: 'background 0.2s ease' }} onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>Remove Step</button>
                       </div>
                     </div>
                   )}
@@ -237,8 +237,8 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
 
           {/* Action buttons - responsive */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-            <button onClick={() => onSave(local)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '12px', color: '#000', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>Save Changes</button>
-            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '12px', color: theme.text, fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => onSave(local)} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '12px', color: '#000', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>Save Changes</button>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.06)', borderRadius: theme.borderRadius, padding: '12px', color: theme.text, fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       </div>

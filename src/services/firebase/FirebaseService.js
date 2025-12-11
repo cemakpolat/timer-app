@@ -263,11 +263,22 @@ class FirebaseService extends IRealtimeService {
       if (staleRoomId) {
         const staleRoomRef = ref(this.db, `focusRooms/${staleRoomId}`);
         const staleRoomSnap = await get(staleRoomRef);
-        if (!staleRoomSnap.exists() || staleRoomSnap.val().completed || Object.keys(staleRoomSnap.val().participants || {}).length === 0) {
-          // Stale entry: clean up userRooms
+        if (!staleRoomSnap.exists()) {
+          // Room doesn't exist: clean up userRooms
           await set(userRoomsRef, null);
         } else {
-          throw new Error('You already have an active room. Leave your current room before creating a new one.');
+          const roomData = staleRoomSnap.val();
+          const isCompleted = roomData.completed;
+          const participants = roomData.participants || {};
+          const hasNoParticipants = Object.keys(participants).length === 0;
+          const userIsParticipant = participants[this.currentUserId] !== undefined;
+          
+          if (isCompleted || hasNoParticipants || !userIsParticipant) {
+            // Stale entry: room is completed, empty, or user is not a participant - clean up userRooms
+            await set(userRoomsRef, null);
+          } else {
+            throw new Error('You already have an active room. Leave your current room before creating a new one.');
+          }
         }
       } else {
         // Defensive: clean up null/invalid userRooms entry

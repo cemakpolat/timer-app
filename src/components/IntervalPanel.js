@@ -72,7 +72,7 @@ const IntervalPanel = ({
                 padding: 8,
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 color: theme.text,
                 textAlign: 'center',
                 fontSize: 16
@@ -91,7 +91,7 @@ const IntervalPanel = ({
                 padding: 8,
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 color: theme.text,
                 textAlign: 'center',
                 fontSize: 16
@@ -110,7 +110,7 @@ const IntervalPanel = ({
                 padding: 8,
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 color: theme.text,
                 textAlign: 'center',
                 fontSize: 16
@@ -128,7 +128,7 @@ const IntervalPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 12,
+              borderRadius: theme.borderRadius,
               padding: '16px 32px',
               cursor: 'pointer',
               display: 'flex',
@@ -147,7 +147,7 @@ const IntervalPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 12,
+              borderRadius: theme.borderRadius,
               padding: '16px 32px',
               cursor: 'pointer',
               display: 'flex',
@@ -166,7 +166,7 @@ const IntervalPanel = ({
           style={{
             background: 'rgba(255,255,255,0.1)',
             border: `1px solid rgba(255,255,255,0.2)`,
-            borderRadius: 12,
+            borderRadius: theme.borderRadius,
             padding: '16px 32px',
             cursor: 'pointer',
             display: 'flex',
