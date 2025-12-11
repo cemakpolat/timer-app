@@ -23,9 +23,8 @@ import { Palette, Plus, X } from 'lucide-react';
  * - setNewThemeCard: Function to update card color
  * - newThemeAccent: Hex color for accent
  * - setNewThemeAccent: Function to update accent color
- * - newThemeText: Hex color for text
- * - setNewThemeText: Function to update text color
- * - createCustomTheme: Function to save new custom theme
+ * - customBorderRadius: Current custom border radius value
+ * - setCustomBorderRadius: Function to set custom border radius
  */
 function ThemeManager({
   theme,
@@ -48,7 +47,9 @@ function ThemeManager({
   setNewThemeAccent,
   newThemeText,
   setNewThemeText,
-  createCustomTheme
+  createCustomTheme,
+  customBorderRadius,
+  setCustomBorderRadius
 }) {
   return (
     <>
@@ -80,6 +81,29 @@ function ThemeManager({
               )}
             </div>
           )}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '12px 0', paddingTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Border Radius</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input
+                type="range"
+                min="0"
+                max="32"
+                value={customBorderRadius !== null ? customBorderRadius : theme.borderRadius || 10}
+                onChange={(e) => setCustomBorderRadius(parseInt(e.target.value))}
+                style={{ flex: 1, accentColor: theme.accent }}
+              />
+              <div style={{ fontSize: 12, color: theme.text, minWidth: 24 }}>
+                {customBorderRadius !== null ? customBorderRadius : theme.borderRadius || 10}px
+              </div>
+              <button
+                onClick={() => setCustomBorderRadius(null)}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, padding: '4px 8px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 11 }}
+                title="Reset to theme default"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
           <button
             onClick={() => { setShowColorPicker(true); setShowThemes(false); }}
             style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 8, padding: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy, useMemo } from 'react';
 import { Play, Pause, RotateCcw, Clock, Zap, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, ChevronUp, ChevronDown, Users, ListChecks } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
@@ -372,20 +372,49 @@ export default function TimerApp() {
     }
   });
   
+  // Load custom border radius from localStorage
+  const [customBorderRadius, setCustomBorderRadius] = useState(() => {
+    try {
+      const stored = localStorage.getItem('customBorderRadius');
+      return stored !== null ? parseInt(stored) : null;
+    } catch (error) {
+      console.error('Failed to load customBorderRadius:', error);
+      return null;
+    }
+  });
+
   // Load theme opacity from localStorage
   const [themeOpacity, setThemeOpacity] = useState(() => {
     try {
-      return parseFloat(localStorage.getItem('themeOpacity')) || 1;
+      const stored = localStorage.getItem('themeOpacity');
+      return stored !== null ? parseFloat(stored) : 1;
     } catch (error) {
       console.error('Failed to load themeOpacity:', error);
       return 1;
     }
   });
 
+  // Persist custom border radius to localStorage
+  useEffect(() => {
+    if (customBorderRadius !== null) {
+      localStorage.setItem('customBorderRadius', customBorderRadius.toString());
+    } else {
+      localStorage.removeItem('customBorderRadius');
+    }
+  }, [customBorderRadius]);
+
   // Persist theme opacity to localStorage
   useEffect(() => {
     localStorage.setItem('themeOpacity', themeOpacity.toString());
   }, [themeOpacity]);
+
+  // Get effective theme with custom border radius
+  const effectiveTheme = useMemo(() => {
+    return {
+      ...theme,
+      borderRadius: customBorderRadius !== null ? customBorderRadius : (theme.borderRadius !== undefined ? theme.borderRadius : 10)
+    };
+  }, [theme, customBorderRadius]);
 
   const [, setShowThemes] = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -1929,8 +1958,8 @@ export default function TimerApp() {
         '--theme-opacity': themeOpacity
       }}
     >
-      <ModalProvider theme={theme}>
-      <ToastProvider theme={theme}>
+      <ModalProvider theme={effectiveTheme}>
+      <ToastProvider theme={effectiveTheme}>
       <style>{`
         @keyframes pulseTimer {
           0%, 100% { transform: scale(1); }
@@ -2213,11 +2242,11 @@ export default function TimerApp() {
       )}
 
       {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: getContrastColor(theme.accent), cursor: 'pointer' }}>Close</button></div></div>}
-      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
-      {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => { setShowCreateRoomModal(false); setPrefillTemplateId(null); }} onCreateRoom={handleCreateRoom} savedTimers={saved} prefillTemplateId={prefillTemplateId} />}
-      {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
-      {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
-      {showWorldClocks && <WorldClocks theme={theme} onClose={() => setShowWorldClocks(false)} weatherEffect={weatherEffect} weatherConfig={weatherConfig} />}
+      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
+      {showCreateRoomModal && <CreateRoomModal theme={effectiveTheme} onClose={() => { setShowCreateRoomModal(false); setPrefillTemplateId(null); }} onCreateRoom={handleCreateRoom} savedTimers={saved} prefillTemplateId={prefillTemplateId} />}
+      {showFeedbackModal && <FeedbackModal theme={effectiveTheme} onClose={() => setShowFeedbackModal(false)} />}
+      {showInfoModal && <InfoModal theme={effectiveTheme} onClose={() => setShowInfoModal(false)} />}
+      {showWorldClocks && <WorldClocks theme={effectiveTheme} onClose={() => setShowWorldClocks(false)} weatherEffect={weatherEffect} weatherConfig={weatherConfig} />}
 
       {/* Create Scene Modal */}
       {showCreateSceneModal && (
@@ -2934,7 +2963,7 @@ export default function TimerApp() {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px' }}>
         
         <Header
-          theme={theme}
+          theme={effectiveTheme}
           themeOpacity={themeOpacity}
           setThemeOpacity={setThemeOpacity}
           onShowInfo={() => setShowInfoModal(true)}
@@ -2978,6 +3007,9 @@ export default function TimerApp() {
           // Timer visualization props
           timerVisualization={timerVisualization}
           setTimerVisualization={setTimerVisualization}
+          // Border radius props
+          customBorderRadius={customBorderRadius}
+          setCustomBorderRadius={setCustomBorderRadius}
         />
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
@@ -3155,22 +3187,7 @@ export default function TimerApp() {
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
-                      theme={theme}
-                      isRunning={isRunning}
-                      currentRound={currentRound}
-                      isWork={isWork}
-                      rounds={rounds}
-                    />
-                  )}
-
-                  {timerVisualization === 'minimal' && (
-                    <MinimalTimerVisualization
-                      time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
-                      sequence={sequence}
-                      currentStep={currentStep}
-                      mode={mode}
-                      theme={theme}
+                      theme={effectiveTheme}
                       isRunning={isRunning}
                       currentRound={currentRound}
                       rounds={rounds}
@@ -3184,21 +3201,7 @@ export default function TimerApp() {
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
-                      theme={theme}
-                      isRunning={isRunning}
-                      currentRound={currentRound}
-                      rounds={rounds}
-                    />
-                  )}
-
-                  {timerVisualization === 'timeline' && (
-                    <TimelineTimerVisualization
-                      time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
-                      sequence={sequence}
-                      currentStep={currentStep}
-                      mode={mode}
-                      theme={theme}
+                      theme={effectiveTheme}
                       isRunning={isRunning}
                       currentRound={currentRound}
                       rounds={rounds}
@@ -3334,7 +3337,7 @@ export default function TimerApp() {
             {/* Composite Panel for Composite tab - moved upwards */}
             {activeMainTab === 'timer' && activeFeatureTab === 'composite' && !(isRunning || time > 0 || isTransitioning) && (
               <CompositePanel
-                theme={theme}
+                theme={effectiveTheme}
                 showBuilder={showBuilder}
                 setShowBuilder={setShowBuilder}
                 seqName={seqName}
@@ -3350,7 +3353,7 @@ export default function TimerApp() {
 
             {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
             {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && !(isRunning || time > 0 || isTransitioning) && (
-              <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+              <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -3569,11 +3572,11 @@ export default function TimerApp() {
             {/* Main Content - Suspense Boundary for Lazy-Loaded Components */}
             {/* Hide all main content in Clean Mode when not running */}
             {!theme.isCleanMode && (
-            <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+            <Suspense fallback={<LazyLoadingFallback theme={effectiveTheme} />}>
               {/* Focus Rooms Main Tab */}
               {activeMainTab === 'rooms' && !activeFeatureTab && !(isRunning || time > 0 || isTransitioning) && (
                 <FocusRoomsPanel
-                  theme={theme}
+                  theme={effectiveTheme}
                   currentRoom={currentRoom}
                   rooms={rooms}
                   roomsLoading={roomsLoading}
@@ -3610,7 +3613,7 @@ export default function TimerApp() {
               {/* Timer Main Tab - Show selected timer type */}
               {activeMainTab === 'timer' && !activeFeatureTab && !(isRunning || time > 0 || isTransitioning) && (
                 <TimerPanel
-                  theme={theme}
+                  theme={effectiveTheme}
                   time={time}
                   initialTime={initialTime}
                   isRunning={isRunning}
@@ -3652,7 +3655,7 @@ export default function TimerApp() {
               {/* Timer Feature Tabs */}
               {activeMainTab === 'timer' && activeFeatureTab === 'interval' && !(isRunning || time > 0 || isTransitioning) && (
                 <IntervalPanel
-                  theme={theme}
+                  theme={effectiveTheme}
                   time={time}
                   isRunning={isRunning}
                   work={work}
@@ -3673,9 +3676,9 @@ export default function TimerApp() {
 
               {/* Routines Main Tab */}
               {activeMainTab === 'routines' && !activeFeatureTab && !(isRunning || time > 0 || isTransitioning) && (
-                <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
+                <Suspense fallback={<LazyLoadingFallback theme={effectiveTheme} />}>
                   <RoutinesPanel
-                    theme={theme}
+                    theme={effectiveTheme}
                     savedSequences={saved.filter(t => t.isSequence)}
                     savedTimers={saved.filter(t => !t.isSequence)}
                     onStartRoutine={(workout) => {
@@ -3763,7 +3766,7 @@ export default function TimerApp() {
               {/* Feature Tabs for Rooms */}
               {activeMainTab === 'rooms' && activeFeatureTab === 'achievements' && !(isRunning || time > 0 || isTransitioning) && (
                 <AchievementsPanel
-                  theme={theme}
+                  theme={effectiveTheme}
                   ACHIEVEMENTS={ACHIEVEMENTS}
                   achievements={achievements}
                   getSmartSuggestions={getSmartSuggestions}
@@ -3782,7 +3785,7 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && !(isRunning || time > 0 || isTransitioning) && (
-                <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+                <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
                   <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
                   <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
                     {formatTime(time)}
@@ -3813,7 +3816,7 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'achievements' && !(isRunning || time > 0 || isTransitioning) && (
-                <AchievementsPanel theme={theme} formatDate={formatDate} />
+                <AchievementsPanel theme={effectiveTheme} formatDate={formatDate} />
               )}
             </Suspense>
             )}

@@ -53,7 +53,7 @@ const TimerVisualizationSelector = ({
                 padding: 16,
                 background: isSelected ? theme.accent + '20' : 'rgba(255,255,255,0.05)',
                 border: `1px solid ${isSelected ? theme.accent : getTextOpacity(theme, 0.1)}`,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 textAlign: 'left',
@@ -63,7 +63,7 @@ const TimerVisualizationSelector = ({
               <div style={{
                 width: 40,
                 height: 40,
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 background: isSelected ? theme.accent : 'rgba(255,255,255,0.1)',
                 display: 'flex',
                 alignItems: 'center',

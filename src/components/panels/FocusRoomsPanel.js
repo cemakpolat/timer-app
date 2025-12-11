@@ -169,7 +169,7 @@ function FocusRoomsPanel({
       {!currentRoom ? (
         <>
           {/* Room List */}
-          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={18} /> Focus Rooms
@@ -179,7 +179,7 @@ function FocusRoomsPanel({
                 style={{
                   background: theme.accent,
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: '8px 16px',
                   color: getContrastColor(theme.accent),
                   cursor: 'pointer',
@@ -208,7 +208,7 @@ function FocusRoomsPanel({
                     width: '100%',
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '12px 12px 12px 40px',
                     color: theme.text,
                     fontSize: 14,
@@ -305,7 +305,7 @@ function FocusRoomsPanel({
                     key={room.id}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
-                      borderRadius: 16,
+                      borderRadius: theme.borderRadius,
                       padding: 20,
                       border: `1px solid rgba(255,255,255,0.1)`,
                       transition: 'all 0.3s'
@@ -316,7 +316,7 @@ function FocusRoomsPanel({
                         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                           {room.name}
                           {room.status === 'scheduled' && (
-                            <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                            <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: theme.borderRadius, fontWeight: 500 }}>
                               📅 Scheduled
                             </span>
                           )}
@@ -346,7 +346,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'rgba(34,197,94,0.2)',
                               border: '1px solid rgba(34,197,94,0.5)',
-                              borderRadius: 8,
+                              borderRadius: theme.borderRadius,
                               padding: '8px',
                               color: '#22c55e',
                               cursor: 'pointer',
@@ -371,7 +371,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              borderRadius: 10,
+                              borderRadius: theme.borderRadius,
                               padding: 8,
                               color: theme.accent,
                               cursor: 'pointer',
@@ -407,7 +407,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'rgba(239,68,68,0.2)',
                               border: '1px solid rgba(239,68,68,0.5)',
-                              borderRadius: 8,
+                              borderRadius: theme.borderRadius,
                               padding: '8px',
                               color: '#ef4444',
                               cursor: 'pointer',
@@ -433,7 +433,7 @@ function FocusRoomsPanel({
                           style={{
                             background: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)` : theme.accent,
                             border: 'none',
-                            borderRadius: 12,
+                            borderRadius: theme.borderRadius,
                             padding: '10px 20px',
                             color: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? theme.text : getContrastColor(theme.accent),
                             cursor: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'not-allowed' : 'pointer',
@@ -455,7 +455,7 @@ function FocusRoomsPanel({
       ) : (
         <>
           {/* Active Room View */}
-          <div style={{ background: activeBackground || theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+          <div style={{ background: activeBackground || theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
@@ -469,7 +469,7 @@ function FocusRoomsPanel({
                   style={{
                     background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '8px',
                     color: theme.text,
                     cursor: 'pointer',
@@ -496,7 +496,7 @@ function FocusRoomsPanel({
                     style={{
                       background: '#ef4444',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: 'white',
                       cursor: 'pointer',
@@ -515,7 +515,7 @@ function FocusRoomsPanel({
                     style={{
                       background: 'rgba(255,255,255,0.06)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -533,7 +533,7 @@ function FocusRoomsPanel({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderRadius: 10,
+                    borderRadius: theme.borderRadius,
                     padding: 8,
                     color: theme.accent,
                     cursor: 'pointer',
@@ -560,7 +560,7 @@ function FocusRoomsPanel({
                     style={{
                       background: 'rgba(34,197,94,0.2)',
                       border: '1px solid rgba(34,197,94,0.5)',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: '#22c55e',
                       cursor: 'pointer',
@@ -607,7 +607,7 @@ function FocusRoomsPanel({
                     style={{
                       background: theme.accent,
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -638,7 +638,7 @@ function FocusRoomsPanel({
                     key={userId}
                     style={{
                       background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '6px 12px',
                       fontSize: 13,
                       display: 'flex',
@@ -664,7 +664,7 @@ function FocusRoomsPanel({
             {currentRoom.timer && (
               <div
                 key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
-                style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
+                style={{ background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
               >
                 {(() => {
                   // (Log removed for production cleanliness)
@@ -766,7 +766,7 @@ function FocusRoomsPanel({
               <div
                 style={{
                   background: 'rgba(255,255,255,0.03)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   marginBottom: 12,
                   maxHeight: 300,
@@ -806,7 +806,7 @@ function FocusRoomsPanel({
                         <div
                           style={{
                             background: isMe ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
-                            borderRadius: 12,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             maxWidth: '70%',
                             wordBreak: 'break-word'
@@ -834,7 +834,7 @@ function FocusRoomsPanel({
                     flex: 1,
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14
@@ -850,7 +850,7 @@ function FocusRoomsPanel({
                   style={{
                     background: theme.accent,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '12px 20px',
                     color: theme.text,
                     cursor: 'pointer',
@@ -928,7 +928,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(34,197,94,0.2)',
                   border: '1px solid rgba(34,197,94,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#22c55e',
                   cursor: 'pointer',
@@ -950,7 +950,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(59,130,246,0.2)',
                   border: '1px solid rgba(59,130,246,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#3b82f6',
                   cursor: 'pointer',
@@ -972,7 +972,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(168,85,247,0.2)',
                   border: '1px solid rgba(168,85,247,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#a855f7',
                   cursor: 'pointer',
@@ -994,7 +994,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -1010,6 +1010,16 @@ function FocusRoomsPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Room Settings Modal */}
+      {showRoomSettings && currentRoom && (
+        <RoomSettingsModal
+          theme={theme}
+          room={currentRoom}
+          onClose={() => setShowRoomSettings(false)}
+          onSave={handleSaveRoomSettings}
+        />
       )}
     </>
   );
