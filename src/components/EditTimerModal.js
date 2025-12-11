@@ -87,14 +87,14 @@ const EditTimerModal = ({ theme, timer, onSave, onClose }) => {
           </div>
 
           {/* Room settings - Stack on mobile */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: theme.borderRadius }}>
             <label style={{ color: theme.text, display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={!!local.metadata?.isRoomCompatible} onChange={(e) => setLocal(prev => ({ ...prev, metadata: { ...(prev.metadata||{}), isRoomCompatible: e.target.checked } }))} />
               <span>Available for Focus Rooms</span>
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <input type="number" min={1} value={local.metadata?.recommendedParticipants || ''} onChange={(e) => setLocal(prev => ({ ...prev, metadata: { ...(prev.metadata||{}), recommendedParticipants: parseInt(e.target.value || '0') } }))} placeholder="Recommended participants" style={inputStyleSimple(theme, theme.accent, theme.text)} />
-              <div style={{ color: theme.text, fontSize: 13, textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>{local.exercises?.length || 0} steps • {Math.ceil(totalDuration/60)} min</div>
+              <div style={{ color: theme.text, fontSize: 13, textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: theme.borderRadius }}>{local.exercises?.length || 0} steps • {Math.ceil(totalDuration/60)} min</div>
             </div>
           </div>
 

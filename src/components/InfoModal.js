@@ -97,7 +97,7 @@ export default function InfoModal({ theme, onClose }) {
 				className="info-modal-content"
 				style={{
 					background: theme.card,
-					borderRadius: 10,
+					borderRadius: theme.borderRadius,
 					padding: 15,
 					maxWidth: 700,
 					width: '100%',
@@ -121,7 +121,7 @@ export default function InfoModal({ theme, onClose }) {
 						right: 16,
 						background: 'rgba(255,255,255,0.1)',
 						border: 'none',
-						borderRadius: 8,
+						borderRadius: theme.borderRadius,
 						padding: 8,
 						color: getTextOpacity(theme, 0.6),
 						cursor: 'pointer',
@@ -182,7 +182,7 @@ export default function InfoModal({ theme, onClose }) {
 								key={idx}
 								style={{
 									background: 'rgba(255,255,255,0.03)',
-									borderRadius: 16,
+									borderRadius: theme.borderRadius,
 									padding: 20,
 									border: `1px solid ${getTextOpacity(theme, 0.05)}`,
 									transition: 'all 0.3s'
@@ -201,7 +201,7 @@ export default function InfoModal({ theme, onClose }) {
 										style={{
 											minWidth: 40,
 											height: 40,
-											borderRadius: 10,
+											borderRadius: theme.borderRadius,
 											background: `${theme.accent}20`,
 											display: 'flex',
 											alignItems: 'center',
@@ -244,7 +244,7 @@ export default function InfoModal({ theme, onClose }) {
 					style={{
 						padding: 16,
 						background: 'rgba(255,255,255,0.02)',
-						borderRadius: 12,
+						borderRadius: theme.borderRadius,
 						borderTop: '1px solid rgba(255,255,255,0.05)',
 						fontSize: 12,
 						color: getTextOpacity(theme, 0.5),
@@ -274,7 +274,7 @@ export default function InfoModal({ theme, onClose }) {
 						width: '100%',
 						background: theme.accent,
 						border: 'none',
-						borderRadius: 12,
+						borderRadius: theme.borderRadius,
 						padding: 14,
 						color: getContrastColor(theme.accent),
 						cursor: 'pointer',

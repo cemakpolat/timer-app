@@ -683,7 +683,7 @@ function FocusRoomsPanel({
                             <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
                               {compositeItems.map((item, idx) => (
                                 <React.Fragment key={idx}>
-                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${item.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${item.color}60` : 'none', margin: '0 auto' }} />
+                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: theme.borderRadius, background: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${item.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${item.color}60` : 'none', margin: '0 auto' }} />
                                   {idx < compositeItems.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
                                 </React.Fragment>
                               ))}
@@ -885,7 +885,7 @@ function FocusRoomsPanel({
           <div
             style={{
               background: theme.card,
-              borderRadius: 24,
+              borderRadius: theme.borderRadius,
               padding: 32,
               maxWidth: 500,
               width: '100%'
@@ -895,7 +895,7 @@ function FocusRoomsPanel({
             <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
               📅 Export "{calendarExportRoom.name}" to Calendar
             </h2>
-            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
               {calendarExportRoom.scheduledFor ? (
                 <>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>

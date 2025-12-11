@@ -1037,14 +1037,14 @@ const Header = ({
                           style={{ display: 'none' }}
                           id="custom-music-upload"
                         />
-                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
+                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: theme.borderRadius, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
                           <Upload size={14} />
                         </label>
 
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalDownload(); }}
                           title="Download selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Download size={14} />
@@ -1052,7 +1052,7 @@ const Header = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalRename(); }}
                           title="Rename selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Pencil size={14} />
@@ -1060,7 +1060,7 @@ const Header = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalDelete(); }}
                           title="Delete selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Trash size={14} />
@@ -1230,7 +1230,7 @@ const Header = ({
                 style={{
                   width: '100%',
                   height: 6,
-                  borderRadius: 3,
+                  borderRadius: theme.borderRadius,
                   background: getTextOpacity(theme, 0.2),
                   outline: 'none',
                   cursor: 'pointer',
@@ -1354,7 +1354,7 @@ const Header = ({
                 style={{
                   width: '100%',
                   height: 6,
-                  borderRadius: 3,
+                  borderRadius: theme.borderRadius,
                   background: getTextOpacity(theme, 0.2),
                   outline: 'none',
                   cursor: 'pointer',

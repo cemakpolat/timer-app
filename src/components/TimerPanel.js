@@ -69,7 +69,7 @@ const TimerPanel = ({
 
       {/* Input fields and Start button */}
       {!isRunning && (
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 32 }}>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 32, borderRadius: theme.borderRadius }}>
           <input
             type="number"
             min="0"
@@ -82,7 +82,7 @@ const TimerPanel = ({
               padding: 8,
               background: 'rgba(255,255,255,0.05)',
               border: `1px solid rgba(255,255,255,0.1)`,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               color: theme.text,
               textAlign: 'center',
               fontSize: 16

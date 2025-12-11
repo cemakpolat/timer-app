@@ -1,72 +1,72 @@
 // Theme configurations
 export const THEMES = [
-  { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", borderRadius: 10 },
-  { name: "Ocean", bg: "#0a1929", card: "#1e3a5f", accent: "#06b6d4", borderRadius: 12 },
-  { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981", borderRadius: 8 },
-  { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6", borderRadius: 16 },
-  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047", borderRadius: 6 },
-  { name: "Crimson Sunset", bg: "#220000", card: "#4d0000", accent: "#ff4500", borderRadius: 14 },
-  { name: "Easter", bg: "#fdf2f8", card: "#fce7f3", accent: "#f472b6", text: "#831843", borderRadius: 20 }, // Pink/Pastel
-  { name: "Christmas", bg: "#022c22", card: "#064e3b", accent: "#ef4444", borderRadius: 12 }, // Dark Green/Red
-  { name: "Summer", bg: "#fff7ed", card: "#ffedd5", accent: "#f97316", text: "#7c2d12", borderRadius: 18 }, // Orange/Warm
-  { name: "Holiday", bg: "#422006", card: "#713f12", accent: "#eab308", borderRadius: 10 }, // Brown/Gold
-  { name: "Winter Holiday", bg: "#172554", card: "#1e3a8a", accent: "#60a5fa", borderRadius: 8 }, // Deep Blue/Ice
-  { name: "Spring", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d", borderRadius: 16 }, // Light Green
-  { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706", borderRadius: 12 }, // Brown/Orange
+  { name: "Midnight", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6" },
+  { name: "Ocean", bg: "#0a1929", card: "#1e3a5f", accent: "#06b6d4" },
+  { name: "Forest", bg: "#064e3b", card: "#065f46", accent: "#10b981" },
+  { name: "Purple", bg: "#1e1b4b", card: "#312e81", accent: "#8b5cf6" },
+  { name: "Warm Grey", bg: "#262626", card: "#3f3f46", accent: "#fde047" },
+  { name: "Crimson Sunset", bg: "#220000", card: "#4d0000", accent: "#ff4500" },
+  { name: "Easter", bg: "#fdf2f8", card: "#fce7f3", accent: "#f472b6", text: "#831843" }, // Pink/Pastel
+  { name: "Christmas", bg: "#022c22", card: "#064e3b", accent: "#ef4444" }, // Dark Green/Red
+  { name: "Summer", bg: "#fff7ed", card: "#ffedd5", accent: "#f97316", text: "#7c2d12" }, // Orange/Warm
+  { name: "Holiday", bg: "#422006", card: "#713f12", accent: "#eab308" }, // Brown/Gold
+  { name: "Winter Holiday", bg: "#172554", card: "#1e3a8a", accent: "#60a5fa" }, // Deep Blue/Ice
+  { name: "Spring", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d" }, // Light Green
+  { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706" }, // Brown/Orange
   
   // Professional/Business Themes
-  { name: "Corporate Blue", bg: "#f8fafc", card: "#ffffff", accent: "#1e40af", text: "#1e293b", borderRadius: 4 }, // Clean blue & white - sharp corners for professional look
-  { name: "Executive Grey", bg: "#f1f5f9", card: "#ffffff", accent: "#334155", text: "#0f172a", borderRadius: 6 }, // Professional grey scale - slightly rounded
+  { name: "Corporate Blue", bg: "#f8fafc", card: "#ffffff", accent: "#1e40af", text: "#1e293b" }, // Clean blue & white - sharp corners for professional look
+  { name: "Executive Grey", bg: "#f1f5f9", card: "#ffffff", accent: "#334155", text: "#0f172a" }, // Professional grey scale - slightly rounded
   
   // Cultural Themes
-  { name: "Japanese", bg: "#1a0808", card: "#2d0f0f", accent: "#dc2626", text: "#fef2f2", borderRadius: 8 }, // Deep red & black
-  { name: "Sakura", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843", borderRadius: 20 }, // Cherry blossom pink
-  { name: "Indian Festival", bg: "#451a03", card: "#78350f", accent: "#f59e0b", text: "#fef3c7", borderRadius: 12 }, // Saffron & gold
-  { name: "Turkish", bg: "#7f1d1d", card: "#991b1b", accent: "#fef3c7", text: "#fef3c7", borderRadius: 16 }, // Turkish red & gold
-  { name: "Arabian Nights", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7", borderRadius: 14 }, // Deep blue & gold
-  { name: "Mediterranean", bg: "#0c4a6e", card: "#075985", accent: "#fcd34d", text: "#fef3c7", borderRadius: 18 }, // Aegean blue
-  { name: "African Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa", borderRadius: 10 }, // Warm earth tones
-  { name: "Nordic Ice", bg: "#0c4a6e", card: "#075985", accent: "#67e8f9", text: "#cffafe", borderRadius: 6 }, // Ice blue
-  { name: "Celtic Green", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4", borderRadius: 12 }, // Irish green
-  { name: "Mexican Fiesta", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7", borderRadius: 16 }, // Terracotta & gold
-  { name: "Brazilian Carnival", bg: "#4d0f4d", card: "#6b216b", accent: "#fcd34d", text: "#fef3c7", borderRadius: 20 }, // Purple & gold
-  { name: "Chinese Red", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7", borderRadius: 8 }, // Lucky red & gold
-  { name: "Korean Hanbok", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843", borderRadius: 18 }, // Pastel pink
-  { name: "Thai Temple", bg: "#451a03", card: "#78350f", accent: "#fbbf24", text: "#fef3c7", borderRadius: 12 }, // Gold & brown
-  { name: "Indonesian Batik", bg: "#422006", card: "#713f12", accent: "#0891b2", text: "#cffafe", borderRadius: 14 }, // Brown & teal
-  { name: "Moroccan Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa", borderRadius: 10 }, // Spice colors
-  { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7", borderRadius: 16 }, // Royal blue & gold
-  { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985", borderRadius: 12 }, // White & blue
+  { name: "Japanese", bg: "#1a0808", card: "#2d0f0f", accent: "#dc2626", text: "#fef2f2",    }, // Deep red & black
+  { name: "Sakura", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843" }, // Cherry blossom pink
+  { name: "Indian Festival", bg: "#451a03", card: "#78350f", accent: "#f59e0b", text: "#fef3c7" }, // Saffron & gold
+  { name: "Turkish", bg: "#7f1d1d", card: "#991b1b", accent: "#fef3c7", text: "#fef3c7" }, // Turkish red & gold
+  { name: "Arabian Nights", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7" }, // Deep blue & gold
+  { name: "Mediterranean", bg: "#0c4a6e", card: "#075985", accent: "#fcd34d", text: "#fef3c7" }, // Aegean blue
+  { name: "African Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa" }, // Warm earth tones
+  { name: "Nordic Ice", bg: "#0c4a6e", card: "#075985", accent: "#67e8f9", text: "#cffafe" }, // Ice blue
+  { name: "Celtic Green", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4" }, // Irish green
+  { name: "Mexican Fiesta", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7" }, // Terracotta & gold
+  { name: "Brazilian Carnival", bg: "#4d0f4d", card: "#6b216b", accent: "#fcd34d", text: "#fef3c7" }, // Purple & gold
+  { name: "Chinese Red", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7" }, // Lucky red & gold
+  { name: "Korean Hanbok", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843" }, // Pastel pink
+  { name: "Thai Temple", bg: "#451a03", card: "#78350f", accent: "#fbbf24", text: "#fef3c7" }, // Gold & brown
+  { name: "Indonesian Batik", bg: "#422006", card: "#713f12", accent: "#0891b2", text: "#cffafe" }, // Brown & teal
+  { name: "Moroccan Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa" }, // Spice colors
+  { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7"  }, // Royal blue & gold
+  { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985" }, // White & blue
   
   // City-Inspired Themes
-  { name: "Tokyo Neon", bg: "#0a0a0a", card: "#1a1a1a", accent: "#ff0080", text: "#f0f0f0", borderRadius: 2 }, // Cyberpunk neon pink
-  { name: "New York City", bg: "#1a1a1a", card: "#2d2d2d", accent: "#fbbf24", text: "#f5f5f5", borderRadius: 0 }, // Urban yellow taxi - sharp corners
-  { name: "Paris Elegance", bg: "#f8f6f0", card: "#ffffff", accent: "#1e3a8a", text: "#1e293b", borderRadius: 8 }, // French blue elegance
-  { name: "London Fog", bg: "#3f3f46", card: "#52525b", accent: "#dc2626", text: "#f5f5f5", borderRadius: 6 }, // British grey & red
-  { name: "Dubai Gold", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7", borderRadius: 20 }, // Luxurious gold
-  { name: "Amsterdam Canal", bg: "#0c4a6e", card: "#075985", accent: "#fb923c", text: "#f0f9ff", borderRadius: 10 }, // Canal blue & orange
-  { name: "Singapore Garden", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4", borderRadius: 16 }, // Garden city green
-  { name: "Sydney Beach", bg: "#0ea5e9", card: "#38bdf8", accent: "#fbbf24", text: "#0c4a6e", borderRadius: 24 }, // Beach blue & sand
-  { name: "Rio Colors", bg: "#fef3c7", card: "#fde68a", accent: "#16a34a", text: "#14532d", borderRadius: 18 }, // Brazilian yellow & green
-  { name: "Mumbai Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa", borderRadius: 14 }, // Spice market colors
-  { name: "Moscow Winter", bg: "#f0f9ff", card: "#e0f2fe", accent: "#dc2626", text: "#1e293b", borderRadius: 4 }, // Snow white & Russian red
-  { name: "Istanbul Bazaar", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7", borderRadius: 12 }, // Bazaar red & gold
-  { name: "Barcelona Gaudi", bg: "#fef2f8", card: "#fce7f3", accent: "#0891b2", text: "#831843", borderRadius: 28 }, // Colorful mosaic - very rounded
-  { name: "Cape Town Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa", borderRadius: 16 }, // Sunset colors
-  { name: "Stockholm Minimal", bg: "#f8fafc", card: "#ffffff", accent: "#64748b", text: "#0f172a", borderRadius: 2 }, // Scandinavian minimalism
-  { name: "Seoul Modern", bg: "#fafafa", card: "#ffffff", accent: "#ec4899", text: "#1f2937", borderRadius: 12 }, // Modern K-style
-  { name: "Venice Canal", bg: "#0c4a6e", card: "#075985", accent: "#fbbf24", text: "#f0f9ff", borderRadius: 8 }, // Water & gold
+  { name: "Tokyo Neon", bg: "#0a0a0a", card: "#1a1a1a", accent: "#ff0080", text: "#f0f0f0"  }, // Cyberpunk neon pink
+  { name: "New York City", bg: "#1a1a1a", card: "#2d2d2d", accent: "#fbbf24", text: "#f5f5f5" }, // Urban yellow taxi - sharp corners
+  { name: "Paris Elegance", bg: "#f8f6f0", card: "#ffffff", accent: "#1e3a8a", text: "#1e293b" }, // French blue elegance
+  { name: "London Fog", bg: "#3f3f46", card: "#52525b", accent: "#dc2626", text: "#f5f5f5"  }, // British grey & red
+  { name: "Dubai Gold", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7" }, // Luxurious gold
+  { name: "Amsterdam Canal", bg: "#0c4a6e", card: "#075985", accent: "#fb923c", text: "#f0f9ff" }, // Canal blue & orange
+  { name: "Singapore Garden", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4" }, // Garden city green
+  { name: "Sydney Beach", bg: "#0ea5e9", card: "#38bdf8", accent: "#fbbf24", text: "#0c4a6e" }, // Beach blue & sand
+  { name: "Rio Colors", bg: "#fef3c7", card: "#fde68a", accent: "#16a34a", text: "#14532d" }, // Brazilian yellow & green
+  { name: "Mumbai Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa"  }, // Spice market colors
+  { name: "Moscow Winter", bg: "#f0f9ff", card: "#e0f2fe", accent: "#dc2626", text: "#1e293b" }, // Snow white & Russian red
+  { name: "Istanbul Bazaar", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7" }, // Bazaar red & gold
+  { name: "Barcelona Gaudi", bg: "#fef2f8", card: "#fce7f3", accent: "#0891b2", text: "#831843"  }, // Colorful mosaic - very rounded
+  { name: "Cape Town Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa"    }, // Sunset colors
+  { name: "Stockholm Minimal", bg: "#f8fafc", card: "#ffffff", accent: "#64748b", text: "#0f172a"  }, // Scandinavian minimalism
+  { name: "Seoul Modern", bg: "#fafafa", card: "#ffffff", accent: "#ec4899", text: "#1f2937"  }, // Modern K-style
+  { name: "Venice Canal", bg: "#0c4a6e", card: "#075985", accent: "#fbbf24", text: "#f0f9ff"  }, // Water & gold
   
   // Artist-Inspired Themes
-  { name: "Van Gogh - Starry Night", bg: "#0f1419", card: "#1e293b", accent: "#fbbf24", text: "#f1f5f9", borderRadius: 24 }, // Deep blue night sky with yellow stars - very rounded for swirling effect
-  { name: "Dali - Surreal Desert", bg: "#fef7ed", card: "#fed7aa", accent: "#ea580c", text: "#9a3412", borderRadius: 32 }, // Warm desert tones, melting clocks - extremely rounded for surreal effect
-  { name: "Monet - Water Lilies", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d", borderRadius: 28 }, // Soft greens and pastels - very rounded for impressionist softness
-  { name: "Picasso - Cubist Blue", bg: "#f0f9ff", card: "#e0f2fe", accent: "#1e40af", text: "#1e293b", borderRadius: 0 }, // Blue period colors - sharp corners for geometric cubism
-  { name: "Frida Kahlo - Mexican Folk", bg: "#fef2f8", card: "#fce7f3", accent: "#dc2626", text: "#831843", borderRadius: 12 }, // Bright Mexican colors - moderately rounded
+  { name: "Van Gogh - Starry Night", bg: "#0f1419", card: "#1e293b", accent: "#fbbf24", text: "#f1f5f9"  }, // Deep blue night sky with yellow stars - very rounded for swirling effect
+  { name: "Dali - Surreal Desert", bg: "#fef7ed", card: "#fed7aa", accent: "#ea580c", text: "#9a3412" }, // Warm desert tones, melting clocks - extremely rounded for surreal effect
+  { name: "Monet - Water Lilies", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d"  }, // Soft greens and pastels - very rounded for impressionist softness
+  { name: "Picasso - Cubist Blue", bg: "#f0f9ff", card: "#e0f2fe", accent: "#1e40af", text: "#1e293b" }, // Blue period colors - sharp corners for geometric cubism
+  { name: "Frida Kahlo - Mexican Folk", bg: "#fef2f8", card: "#fce7f3", accent: "#dc2626", text: "#831843" }, // Bright Mexican colors - moderately rounded
   
   // Special Themes
-  { name: "Minimal Light", bg: "#ffffff", card: null, accent: "#000000", text: "#000000", isMinimal: true, isLight: true, borderRadius: 0 }, // Transparent mode - no background, no cards
-  { name: "Clean Mode", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isCleanMode: true, borderRadius: 8 }  // Clean mode - only header and focus
+  { name: "Minimal Light", bg: "#ffffff", card: null, accent: "#000000", text: "#000000", isMinimal: true, isLight: true }, // Transparent mode - no background, no cards
+  { name: "Clean Mode", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isCleanMode: true }  // Clean mode - only header and focus
 ];
 
 // Ambient sound configurations

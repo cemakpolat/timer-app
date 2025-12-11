@@ -6,7 +6,7 @@ export const inputBaseStyle = (accentColor, theme) => ({
   width: '100%',
   background: 'rgba(255,255,255,0.05)',
   border: `1px solid rgba(255,255,255,0.1)`,
-  borderRadius: '8px',
+  borderRadius: theme?.borderRadius !== undefined ? `${theme.borderRadius}px` : '8px',
   padding: '12px',
   color: 'white',
   fontSize: '14px',
@@ -34,7 +34,7 @@ export const accentInputStyle = (accentColor, theme) => ({
 
 export const buttonBaseStyle = (theme) => ({
   border: 'none',
-  borderRadius: '12px',
+  borderRadius: theme?.borderRadius !== undefined ? `${theme.borderRadius}px` : '12px',
   padding: '12px 24px',
   color: 'white',
   cursor: 'pointer',
@@ -67,7 +67,7 @@ export const buttonDangerStyle = (theme) => ({
 
 export const cardStyle = (theme) => ({
   background: theme.card,
-  borderRadius: '24px',
+  borderRadius: theme?.borderRadius !== undefined ? `${theme.borderRadius}px` : '24px',
   padding: '32px',
   boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
   transition: 'transform 0.2s, box-shadow 0.2s'

@@ -12,6 +12,7 @@ const StopwatchPanel = ({
   onReset,
   theme
 }) => {
+  const timerBorderRadius = (theme && (theme.timerBorderRadius !== undefined)) ? theme.timerBorderRadius : (theme && theme.borderRadius !== undefined ? theme.borderRadius : 12);
   const formatTime = (sec) => {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
@@ -21,7 +22,7 @@ const StopwatchPanel = ({
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: 15 }}>
+    <div style={{ textAlign: 'center', padding: 15, borderRadius: timerBorderRadius }}>
       {/* Display */}
       <div
         style={{
@@ -43,7 +44,7 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: theme.borderRadius,
+              borderRadius: timerBorderRadius,
               padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
@@ -62,7 +63,7 @@ const StopwatchPanel = ({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: theme.borderRadius,
+              borderRadius: timerBorderRadius,
               padding: '12px 20px',
               cursor: 'pointer',
               display: 'flex',
@@ -81,7 +82,7 @@ const StopwatchPanel = ({
           style={{
             background: 'rgba(255,255,255,0.1)',
             border: `1px solid rgba(255,255,255,0.2)`,
-            borderRadius: theme.borderRadius,
+            borderRadius: timerBorderRadius,
             padding: '12px 20px',
             cursor: 'pointer',
             display: 'flex',

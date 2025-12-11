@@ -16,6 +16,7 @@ const TimerPanel = ({
   startTimer,
   shareCurrentTimer
 }) => {
+  const timerBorderRadius = (theme && (theme.timerBorderRadius !== undefined)) ? theme.timerBorderRadius : (theme && theme.borderRadius !== undefined ? theme.borderRadius : 12);
   const handleStartTimer = () => {
     const h = parseInt(inputHours) || 0;
     const m = parseInt(inputMinutes) || 0;
@@ -25,16 +26,16 @@ const TimerPanel = ({
   };
 
   return (
-    <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ background: theme.card, borderRadius: timerBorderRadius, padding: 15, marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderRadius: timerBorderRadius,alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, margin: 0 }}>Timer</h2>
         {(inputHours || inputMinutes || inputSeconds) && (
           <button 
             onClick={shareCurrentTimer} 
-            style={{ 
+              style={{ 
               background: 'rgba(255,255,255,0.1)', 
               border: 'none', 
-              borderRadius: 8, 
+              borderRadius: timerBorderRadius, 
               padding: '8px 12px', 
               color: theme.text, 
               cursor: 'pointer', 
@@ -48,7 +49,7 @@ const TimerPanel = ({
           </button>
         )}
       </div>
-      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10 }}>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 10 ,borderRadius: timerBorderRadius}}>
         <span>
           <b>Timer</b>: A simple countdown for focused work, exercise, or any single activity. For multi-step routines, use the <b>Routines</b> tab.
         </span>
@@ -62,6 +63,7 @@ const TimerPanel = ({
           gap: 12,
           marginBottom: 16,
           justifyContent: 'center',
+          borderRadius: timerBorderRadius,  
           flexWrap: 'wrap'
         }}
         className="flex-wrap-sm hh-mm-ss-input-group"
@@ -77,7 +79,7 @@ const TimerPanel = ({
               textAlign: 'center',
               background: 'rgba(255,255,255,0.05)',
               border: `2px solid ${theme.accent}`,
-              borderRadius: 10,
+              borderRadius: timerBorderRadius,
               padding: '12px 6px',
               color: theme.text,
               fontSize: 16,
@@ -95,7 +97,7 @@ const TimerPanel = ({
               textAlign: 'center',
               background: 'rgba(255,255,255,0.05)',
               border: `2px solid ${theme.accent}`,
-              borderRadius: 10,
+              borderRadius: timerBorderRadius,
               padding: '12px 6px',
               color: theme.text,
               fontSize: 16,
@@ -113,7 +115,7 @@ const TimerPanel = ({
               textAlign: 'center',
               background: 'rgba(255,255,255,0.05)',
               border: `2px solid ${theme.accent}`,
-              borderRadius: 10,
+              borderRadius: timerBorderRadius,
               padding: '12px 6px',
               color: theme.text,
               fontSize: 16,
@@ -127,7 +129,7 @@ const TimerPanel = ({
           style={{
             background: theme.accent,
             border: 'none',
-            borderRadius: 10,
+            borderRadius: timerBorderRadius,
             padding: '12px 20px',
             color: 'white',
             cursor: 'pointer',
@@ -143,10 +145,10 @@ const TimerPanel = ({
       </div>
 
       {/* Quick Presets */}
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 , borderRadius: timerBorderRadius}}>
         Quick presets:
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8, borderRadius: timerBorderRadius }}>
         {[
           { label: '10s', val: 10, unit: 'sec' }, 
           { label: '30s', val: 30, unit: 'sec' }, 
@@ -159,7 +161,7 @@ const TimerPanel = ({
             style={{ 
               background: 'rgba(255,255,255,0.05)', 
               border: 'none', 
-              borderRadius: 8, 
+                borderRadius: timerBorderRadius, 
               padding: 12, 
               color: theme.text, 
               cursor: 'pointer', 
@@ -170,7 +172,7 @@ const TimerPanel = ({
           </button>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, borderRadius: timerBorderRadius,   }}>
         {[10, 15, 25, 45].map(m => (
           <button 
             key={m} 
@@ -178,7 +180,7 @@ const TimerPanel = ({
             style={{ 
               background: 'rgba(255,255,255,0.05)', 
               border: 'none', 
-              borderRadius: 8, 
+                borderRadius: timerBorderRadius, 
               padding: 12, 
               color: theme.text, 
               cursor: 'pointer', 

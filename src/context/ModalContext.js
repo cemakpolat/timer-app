@@ -33,8 +33,8 @@ export const ModalProvider = ({ children, theme = {} }) => {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
-          <div style={{ position: 'relative', zIndex: 1210, width: 'min(540px, 92%)' }}>
-            <div style={{ background: modal.theme?.card || '#111', borderRadius: 12, padding: 18, color: modal.theme?.text || '#fff', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+            <div style={{ position: 'relative', zIndex: 1210, width: 'min(540px, 92%)' }}>
+            <div style={{ background: modal.theme?.card || '#111', borderRadius: (modal.theme?.borderRadius ?? 12), padding: 18, color: modal.theme?.text || '#fff', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
               <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{modal.title}</div>
               <div style={{ fontSize: 14, marginBottom: 12, color: 'rgba(255,255,255,0.85)' }}>{modal.message}</div>
 
@@ -43,7 +43,7 @@ export const ModalProvider = ({ children, theme = {} }) => {
                   autoFocus
                   defaultValue={modal.defaultValue}
                   id="modal-prompt-input"
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#fff', boxSizing: 'border-box', marginBottom: 12 }}
+                  style={{ width: '100%', padding: 10, borderRadius: (modal.theme?.borderRadius ?? 8), border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: '#fff', boxSizing: 'border-box', marginBottom: 12 }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       modal.resolve(e.target.value);
@@ -62,7 +62,7 @@ export const ModalProvider = ({ children, theme = {} }) => {
                 {modal.type === 'confirm' && (
                   <button
                     onClick={() => { modal.resolve(false); setModal(null); }}
-                    style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}
+                    style={{ padding: '8px 12px', borderRadius: (modal.theme?.borderRadius ?? 8), background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}
                   >
                     Cancel
                   </button>
@@ -70,7 +70,7 @@ export const ModalProvider = ({ children, theme = {} }) => {
                 {modal.type === 'prompt' && (
                   <button
                     onClick={() => { modal.resolve(null); setModal(null); }}
-                    style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}
+                    style={{ padding: '8px 12px', borderRadius: (modal.theme?.borderRadius ?? 8), background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'white' }}
                   >
                     Cancel
                   </button>
@@ -91,7 +91,7 @@ export const ModalProvider = ({ children, theme = {} }) => {
                       setModal(null);
                     }
                   }}
-                  style={{ padding: '8px 12px', borderRadius: 8, background: modal.theme?.accent || '#3b82f6', border: 'none', color: '#000', fontWeight: 700 }}
+                  style={{ padding: '8px 12px', borderRadius: (modal.theme?.borderRadius ?? 8), background: modal.theme?.accent || '#3b82f6', border: 'none', color: '#000', fontWeight: 700 }}
                 >
                   {modal.type === 'alert' ? 'OK' : modal.type === 'confirm' ? 'Yes' : 'Save'}
                 </button>
