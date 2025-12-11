@@ -309,17 +309,28 @@ class FirebaseService extends IRealtimeService {
     let compositeTimerNormalized = null;
     if (roomData.compositeTimer) {
       if (roomData.compositeTimer.steps) {
-        compositeTimerNormalized = roomData.compositeTimer;
+        // Ensure all steps have defined values (no undefined)
+        compositeTimerNormalized = {
+          ...roomData.compositeTimer,
+          steps: roomData.compositeTimer.steps.map(step => ({
+            name: step.name || 'Unnamed Step',
+            duration: step.duration || 60,
+            unit: (step.unit === 'seconds' || step.unit === 'sec') ? 'sec' : (step.unit || 'min'),
+            type: step.type || 'work',
+            color: step.color || '#3b82f6',
+            accent: step.accent || step.color || '#3b82f6'
+          }))
+        };
       } else if (roomData.compositeTimer.exercises) {
         compositeTimerNormalized = {
           ...roomData.compositeTimer,
           steps: roomData.compositeTimer.exercises.map(ex => ({
-            name: ex.name,
-            duration: ex.duration,
-            unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
-            type: ex.type,
-            color: ex.color,
-            accent: ex.accent
+            name: ex.name || 'Unnamed Exercise',
+            duration: ex.duration || 60,
+            unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+            type: ex.type || 'work',
+            color: ex.color || '#3b82f6',
+            accent: ex.accent || ex.color || '#3b82f6'
           }))
         };
       }
@@ -745,12 +756,12 @@ class FirebaseService extends IRealtimeService {
     if (timerType === 'composite' && timerData && !timerData.steps && timerData.exercises) {
       try {
         timerData.steps = timerData.exercises.map(ex => ({
-          name: ex.name,
-          duration: ex.duration,
-          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
-          type: ex.type,
-          color: ex.color,
-          accent: ex.accent
+          name: ex.name || 'Unnamed Exercise',
+          duration: ex.duration || 60,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+          type: ex.type || 'work',
+          color: ex.color || '#3b82f6',
+          accent: ex.accent || ex.color || '#3b82f6'
         }));
       } catch (e) {
         // If normalization fails, leave timerData as-is and let later checks fail cleanly

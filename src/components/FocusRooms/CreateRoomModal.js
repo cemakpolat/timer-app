@@ -271,12 +271,12 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
       } else if (selectedTimer.exercises) {
         // Normalize exercises -> steps so room storage uses a consistent composite shape
         const steps = selectedTimer.exercises.map(ex => ({
-          name: ex.name,
-          duration: ex.duration,
-          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : ex.unit,
-          type: ex.type,
-          color: ex.color,
-          accent: ex.accent
+          name: ex.name || 'Unnamed Exercise',
+          duration: ex.duration || 60,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+          type: ex.type || 'work',
+          color: ex.color || '#3b82f6',
+          accent: ex.accent || ex.color || '#3b82f6'
         }));
         roomData.compositeTimer = { ...selectedTimer, steps };
         roomData.timerType = 'composite';
