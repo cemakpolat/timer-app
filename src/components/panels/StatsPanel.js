@@ -22,18 +22,18 @@ function StatsPanel({
   return (
     <>
       {/* Stats Card */}
-      <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginBottom: 24 }}>
+      <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 32, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20 }}>📊 Your Progress</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
-          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{currentStreak}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>🔥 Day Streak</div>
           </div>
-          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{totalCompletions}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>✅ Completed</div>
           </div>
-          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: theme.accent }}>{saved?.length || 0}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>⏱️ Saved Timers</div>
           </div>
@@ -56,12 +56,12 @@ function StatsPanel({
         };
 
         return (
-          <div style={{ background: theme.card, borderRadius: 24, padding: 32, marginTop: 24 }}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 32, marginTop: 24 }}>
             <h2 style={{ fontSize: 18, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <TrendingUp size={18} /> This Month vs Last Month
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
-              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Completions</div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.completions}</div>
                 {hasLastMonth && (
@@ -70,7 +70,7 @@ function StatsPanel({
                   </div>
                 )}
               </div>
-              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Total Time</div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{Math.floor(currentStats.totalSeconds / 3600)}h</div>
                 {hasLastMonth && (
@@ -79,7 +79,7 @@ function StatsPanel({
                   </div>
                 )}
               </div>
-              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+              <div style={{ padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Best Streak</div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: theme.accent }}>{currentStats.bestStreak} days</div>
                 {hasLastMonth && (

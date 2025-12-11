@@ -46,7 +46,7 @@ export const ToastProvider = ({ children, theme = {} }) => {
             maxWidth: 420,
             background: theme.card || '#111',
             color: theme.text || '#fff',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: '10px 14px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.04)',

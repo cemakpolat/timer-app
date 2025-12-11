@@ -154,7 +154,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
       <div style={{
         background: 'rgba(255,255,255,0.15)',
         backdropFilter: 'blur(25px) saturate(1.2)',
-        borderRadius: isFullScreen ? '0' : '16px',
+        borderRadius: isFullScreen ? 0 : theme.borderRadius,
         padding: isFullScreen ? '24px' : '24px',
         maxWidth: isFullScreen ? '100vw' : '800px',
         width: isFullScreen ? '100vw' : '100%',
@@ -201,14 +201,14 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
           <h2 style={{ margin: 0, color: theme.text }}>World Clocks</h2>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* Clock Type Toggle */}
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: '2px' }}>
               <button
                 onClick={() => setClockType('analog')}
                 title="Analog Clock"
                 style={{
                   background: clockType === 'analog' ? theme.accent : 'transparent',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: theme.borderRadius,
                   padding: '6px 12px',
                   color: clockType === 'analog' ? '#fff' : theme.text,
                   cursor: 'pointer',
@@ -228,7 +228,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                 style={{
                   background: clockType === 'digital' ? theme.accent : 'transparent',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: theme.borderRadius,
                   padding: '6px 12px',
                   color: clockType === 'digital' ? '#fff' : theme.text,
                   cursor: 'pointer',
@@ -251,7 +251,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                 color: theme.text,
                 cursor: 'pointer',
                 padding: '8px',
-                borderRadius: '8px'
+                borderRadius: theme.borderRadius
               }}
               title={isFullScreen ? 'Exit full screen' : 'Enter full screen'}
             >
@@ -265,7 +265,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                 color: theme.text,
                 cursor: 'pointer',
                 padding: '8px',
-                borderRadius: '8px'
+                borderRadius: theme.borderRadius
               }}
             >
               <X size={20} />
@@ -283,7 +283,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
           {clocks.map(clock => (
             <div key={clock.city} style={{
               background: 'rgba(255,255,255,0.05)',
-              borderRadius: '12px',
+              borderRadius: theme.borderRadius,
               padding: '16px',
               textAlign: 'center',
               position: 'relative'
@@ -332,7 +332,7 @@ const WorldClocks = ({ theme, onClose, weatherEffect, weatherConfig }) => {
                   style={{
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '8px',
+                    borderRadius: theme.borderRadius,
                     padding: '8px 12px',
                     color: theme.text,
                     cursor: 'pointer',

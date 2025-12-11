@@ -20,14 +20,14 @@ const IntervalPanel = ({
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
     border: `1px solid rgba(255,255,255,0.1)`,
-    borderRadius: 10,
+    borderRadius: theme.borderRadius,
     padding: 15,
     color: theme.text,
     fontSize: 14
   });
 
   return (
-    <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+    <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, margin: 0 }}>Interval Timer</h2>
         <button 
@@ -35,7 +35,7 @@ const IntervalPanel = ({
           style={{ 
             background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, 
             border: 'none', 
-            borderRadius: 10, 
+            borderRadius: theme.borderRadius, 
             padding: '10px 15px', 
             color: theme.text, 
             cursor: 'pointer', 
@@ -99,7 +99,7 @@ const IntervalPanel = ({
           width: '100%', 
           background: theme.accent, 
           border: 'none', 
-          borderRadius: 10, 
+          borderRadius: theme.borderRadius, 
           padding: 15, 
           color: 'white', 
           cursor: 'pointer', 

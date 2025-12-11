@@ -93,7 +93,7 @@ const CompositePanel = ({
     saveSequence(metadata);
   };
   return (
-    <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+    <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, margin: 0 }}>Routine Builder</h2>
         <button 
@@ -101,7 +101,7 @@ const CompositePanel = ({
           style={{ 
             background: theme.accent, 
             border: 'none', 
-            borderRadius: 8, 
+            borderRadius: theme.borderRadius, 
             padding: '8px 16px', 
             color: 'white', 
             cursor: 'pointer', 
@@ -125,7 +125,7 @@ const CompositePanel = ({
             placeholder="Sequence name" 
             value={seqName} 
             onChange={(e) => setSeqName(e.target.value)} 
-            style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))} 
+            style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1), theme.borderRadius)} 
           />
           
           {sequence.length > 0 && (
@@ -135,7 +135,7 @@ const CompositePanel = ({
                   key={idx} 
                   style={{ 
                     background: 'rgba(255,255,255,0.05)', 
-                    borderRadius: 10, 
+                    borderRadius: theme.borderRadius, 
                     padding: 15, 
                     marginBottom: 8, 
                     display: 'flex', 
@@ -180,7 +180,7 @@ const CompositePanel = ({
                     style={{ 
                       width: 4, 
                       height: 24, 
-                      borderRadius: 2, 
+                      borderRadius: theme.borderRadius, 
                       background: timer.color 
                     }} 
                   />
@@ -219,11 +219,11 @@ const CompositePanel = ({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)), resize: 'vertical' }}
+                  style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius), resize: 'vertical' }}
                 />
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <select value={sessionType} onChange={(e) => setSessionType(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)), flex: 1 }}>
+                  <select value={sessionType} onChange={(e) => setSessionType(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius), flex: 1 }}>
                     {Object.keys(SESSION_TYPES).map(key => (
                       <option key={key} value={key}>{SESSION_TYPES[key].icon} {SESSION_TYPES[key].name}</option>
                     ))}
@@ -231,13 +231,13 @@ const CompositePanel = ({
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)), flex: 1 }}>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius), flex: 1 }}>
                     {Object.keys(WORKOUT_CATEGORIES).map(key => (
                       <option key={key} value={key}>{WORKOUT_CATEGORIES[key].name}</option>
                     ))}
                   </select>
 
-                  <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)), width: 160 }}>
+                  <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius), width: 160 }}>
                     {Object.keys(WORKOUT_DIFFICULTIES).map(key => (
                       <option key={key} value={key}>{WORKOUT_DIFFICULTIES[key].name}</option>
                     ))}
@@ -245,7 +245,7 @@ const CompositePanel = ({
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input type="text" placeholder="Emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} style={{ width: 84, ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)) }} />
+                  <input type="text" placeholder="Emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} style={{ width: 84, ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius) }} />
                   <div style={{ flex: 1, position: 'relative' }}>
                     <input 
                       type="text" 
@@ -257,7 +257,7 @@ const CompositePanel = ({
                       }}
                       onFocus={() => setShowTagSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
-                      style={{ width: '100%', ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)) }} 
+                      style={{ width: '100%', ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius) }} 
                     />
                     {showTagSuggestions && getTagSuggestions().length > 0 && (
                       <div style={{
@@ -267,7 +267,7 @@ const CompositePanel = ({
                         right: 0,
                         background: theme.card,
                         border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         zIndex: 10,
                         maxHeight: 120,
                         overflowY: 'auto'
@@ -298,11 +298,11 @@ const CompositePanel = ({
                     <input type="checkbox" checked={isRoomCompatible} onChange={(e) => setIsRoomCompatible(e.target.checked)} />
                     Available for Focus Rooms
                   </label>
-                  <input type="number" min={1} value={recommendedParticipants} onChange={(e) => setRecommendedParticipants(parseInt(e.target.value || '1'))} style={{ width: 140, ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06)) }} placeholder="Recommended participants" />
+                  <input type="number" min={1} value={recommendedParticipants} onChange={(e) => setRecommendedParticipants(parseInt(e.target.value || '1'))} style={{ width: 140, ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.06), theme.borderRadius) }} placeholder="Recommended participants" />
                 </div>
 
                 {/* Preview */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, color: getTextOpacity(theme, 0.8) }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: theme.borderRadius, color: getTextOpacity(theme, 0.8) }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <div style={{ fontSize: 24 }}>{emoji}</div>
@@ -327,7 +327,7 @@ const CompositePanel = ({
                       flex: 1, 
                       background: theme.accent, 
                       border: 'none', 
-                      borderRadius: 10, 
+                      borderRadius: theme.borderRadius, 
                       padding: 15, 
                       color: 'white', 
                       cursor: 'pointer', 
@@ -345,7 +345,7 @@ const CompositePanel = ({
                       flex: 1, 
                       background: seqName && category ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', 
                       border: 'none', 
-                      borderRadius: 10, 
+                      borderRadius: theme.borderRadius, 
                       padding: 15, 
                       color: theme.text, 
                       cursor: seqName && category ? 'pointer' : 'not-allowed', 
@@ -366,7 +366,7 @@ const CompositePanel = ({
             style={{ 
               padding: 15, 
               background: 'rgba(255,255,255,0.03)', 
-              borderRadius: 10, 
+              borderRadius: theme.borderRadius, 
               fontSize: 13, 
               color: getTextOpacity(theme, 0.6) 
             }}

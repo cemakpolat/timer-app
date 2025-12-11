@@ -147,7 +147,7 @@ function AchievementsPanel({
           </div>
         )}
         {timeCapsules?.filter(c => !c.opened).length > 0 && (
-          <div style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+          <div style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
             📦 You have {timeCapsules.filter(c => !c.opened).length} unopened capsule{timeCapsules.filter(c => !c.opened).length > 1 ? 's' : ''} waiting
           </div>
         )}

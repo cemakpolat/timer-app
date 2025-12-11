@@ -72,8 +72,9 @@ const CompactTimerVisualization = ({ time, totalTime, sequence, currentStep, mod
               fontSize: 32,
               fontWeight: 500,
               color: theme.text,
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-              lineHeight: 1
+              fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+              lineHeight: 1,
+              letterSpacing: '0.5px'
             }}>
               {formatTime(time)}
             </div>
@@ -215,20 +216,24 @@ const MinimalTimerVisualization = ({ time, totalTime, sequence, currentStep, mod
           {/* Giant Time Display in Center */}
           <div style={{
             position: 'absolute',
-            inset: 0,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            textAlign: 'center'
+            textAlign: 'center',
+            width: '160px',
+            height: '80px'
           }}>
             <div style={{
-              fontSize: 72,
+              fontSize: 48,
               fontWeight: 300,
               color: theme.text,
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+              fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
               lineHeight: 1,
-              letterSpacing: '-2px'
+              letterSpacing: '0px'
             }}>
               {formatTime(time)}
             </div>
@@ -279,8 +284,9 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
           fontSize: 72,
           fontWeight: 300,
           color: 'white',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-          textAlign: 'center'
+          fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+          textAlign: 'center',
+          letterSpacing: '-1px'
         }}>
           {formatTime(time)}
         </div>
@@ -306,7 +312,7 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
         width: '100%',
         maxWidth: 320,
         background: theme.card,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius,
         padding: 24,
         boxShadow: `0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px ${theme.accent}40`,
         border: `2px solid ${theme.accent}`,
@@ -332,8 +338,9 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
           fontSize: 64,
           fontWeight: 300,
           color: theme.text,
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-          textAlign: 'center'
+          fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+          textAlign: 'center',
+          letterSpacing: '0.5px'
         }}>
           {formatTime(time)}
         </div>
@@ -343,7 +350,7 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
           width: '100%',
           height: 4,
           background: 'rgba(255,255,255,0.1)',
-          borderRadius: 2,
+          borderRadius: theme.borderRadius,
           overflow: 'hidden'
         }}>
           <div style={{
@@ -361,7 +368,7 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
           width: '100%',
           maxWidth: 320,
           background: theme.card,
-          borderRadius: 16,
+          borderRadius: theme.borderRadius,
           padding: 20,
           boxShadow: `0 4px 16px rgba(0,0,0,0.2)`,
           border: `1px solid rgba(255,255,255,0.1)`,
@@ -387,7 +394,9 @@ const CardStackTimerVisualization = ({ time, totalTime, sequence, currentStep, m
             fontSize: 24,
             fontWeight: 300,
             color: 'rgba(255,255,255,0.7)',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+            letterSpacing: '0.5px'
           }}>
             {formatTime(nextExercise.duration)}
           </div>
@@ -436,8 +445,9 @@ const TimelineTimerVisualization = ({ time, totalTime, sequence, currentStep, mo
           fontSize: 72,
           fontWeight: 300,
           color: theme.text,
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-          textAlign: 'center'
+          fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+          textAlign: 'center',
+          letterSpacing: '-1px'
         }}>
           {formatTime(time)}
         </div>
@@ -476,8 +486,9 @@ const TimelineTimerVisualization = ({ time, totalTime, sequence, currentStep, mo
           fontSize: 72,
           fontWeight: 300,
           color: theme.text,
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-          textAlign: 'center'
+          fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+          textAlign: 'center',
+          letterSpacing: '-1px'
         }}>
           {formatTime(time)}
         </div>
@@ -488,7 +499,7 @@ const TimelineTimerVisualization = ({ time, totalTime, sequence, currentStep, mo
           maxWidth: 300,
           height: 6,
           background: 'rgba(255,255,255,0.1)',
-          borderRadius: 3,
+          borderRadius: theme.borderRadius,
           overflow: 'hidden',
           marginTop: 16
         }}>
