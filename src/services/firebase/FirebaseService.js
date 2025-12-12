@@ -361,6 +361,9 @@ class FirebaseService extends IRealtimeService {
       status: isScheduled ? 'scheduled' : 'active', // 'scheduled', 'active', 'completed'
       // Optional per-room empty-room removal delay (in seconds). If provided, this overrides service/env defaults.
       emptyRoomRemovalDelaySec: typeof roomData.emptyRoomRemovalDelaySec === 'number' ? roomData.emptyRoomRemovalDelaySec : undefined,
+      // Ambient music configuration persisted from client
+      ambientSound: roomData.ambientSound || null,
+      ambientAutoStart: !!roomData.ambientAutoStart,
       participants: {},
       timerStartedAt: null,
       timerEndsAt: null,

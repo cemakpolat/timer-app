@@ -141,6 +141,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
   const [prefillTemplate, setPrefillTemplate] = useState(null);
   const [isCreating, setIsCreating] = useState(false); // Prevent double submission
+  const [selectedAmbient, setSelectedAmbient] = useState('None');
+  const [ambientAutoStart, setAmbientAutoStart] = useState(false);
 
   /**
    * Generate a unique display name by combining user input with a generated suffix
@@ -255,6 +257,10 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
       const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
       roomData.scheduledFor = scheduledDateTime.getTime();
     }
+
+    // Persist ambient music selection (if any) and whether it should auto-start
+    roomData.ambientSound = selectedAmbient && selectedAmbient !== 'None' ? selectedAmbient : null;
+    roomData.ambientAutoStart = !!ambientAutoStart;
 
     if (timerTab === 'new') {
       roomData.duration = parseInt(duration) * 60; // Convert to seconds
@@ -889,6 +895,31 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               )}
             </div>
           </div>
+          </div>
+
+          {/* Ambient music options */}
+          <div style={{ padding: '12px 0' }}>
+            <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Room Music</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                value={selectedAmbient}
+                onChange={(e) => setSelectedAmbient(e.target.value)}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: theme.borderRadius, padding: 10, color: theme.text }}
+              >
+                {/* Build options from constants at runtime */}
+                <option value="None">None</option>
+                <option value="Nature - Forest Rain">Nature - Forest Rain</option>
+                <option value="Nature - Gentle Stream">Nature - Gentle Stream</option>
+                <option value="Nature - Ocean Waves">Nature - Ocean Waves</option>
+                <option value="Deep Work - Piano Focus">Deep Work - Piano Focus</option>
+                <option value="Pomodoro - Atmospheric Focus">Pomodoro - Atmospheric Focus</option>
+              </select>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                <input type="checkbox" checked={ambientAutoStart} onChange={(e) => setAmbientAutoStart(e.target.checked)} />
+                <span style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>Start when session begins</span>
+              </label>
+            </div>
           </div>
 
           {/* Actions - Sticky at bottom */}

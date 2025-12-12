@@ -189,6 +189,9 @@ class MockRealtimeService extends IRealtimeService {
       messages: [],
       completed: false,
       isPublic: roomData.isPublic !== false,
+      // ambient sound configuration persisted from client
+      ambientSound: roomData.ambientSound || null,
+      ambientAutoStart: !!roomData.ambientAutoStart,
       timerType: roomData.timerType || 'single',
       compositeTimer: roomData.compositeTimer || null,
       currentStep: 0
