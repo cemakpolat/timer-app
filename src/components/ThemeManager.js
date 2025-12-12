@@ -1,4 +1,5 @@
 import { Palette, Plus, X } from 'lucide-react';
+import ThemePreview from './ThemePreview';
 
 /**
  * ThemeManager Component
@@ -68,7 +69,15 @@ function ThemeManager({
                 style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: theme.borderRadius, padding: 12, color: theme.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
               >
                 <div style={{ width: 20, height: 20, borderRadius: theme.borderRadius, background: t.accent }} />
-                {t.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <div style={{ flex: 1 }}>{t.name}</div>
+                  {/* show preview for themes that provide previewConfig (Aurora for now) */}
+                  {t.previewConfig && (
+                    <div style={{ width: 120, height: 70, borderRadius: 6, overflow: 'hidden', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.03)' }}>
+                      <ThemePreview theme={t} width={120} height={70} />
+                    </div>
+                  )}
+                </div>
               </button>
               {!t.isDefault && (
                 <button

@@ -395,8 +395,23 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
             ctx.lineTo(0, this.length);
             ctx.stroke();
           } else if (type === 'winter') {
+            // Draw realistic falling snow - small white specks/dots
             ctx.fillStyle = config?.color || '#FFFFFF';
-            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+            ctx.globalAlpha = this.opacity * (config?.opacity ?? 0.8);
+
+            // Simple circular snow particles (what you actually see falling)
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 2, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Add subtle soft glow for depth
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size, 0, 2 * Math.PI);
+            ctx.fill();
           } else if (type === 'autumn') {
             // Draw leaf shape
             ctx.fillStyle = this.color;

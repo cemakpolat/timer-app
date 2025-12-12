@@ -182,6 +182,7 @@ export default function TimerApp() {
 
   // Do not initialize realtime service on page load.
   // Firebase connection will be created on-demand when the user creates or joins a focus room.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, no-use-before-define
   useEffect(() => {
     // Subscribe to factory init events so we know when the realtime service becomes available
     if (RealtimeServiceFactory.getServiceSafe()) {
@@ -254,63 +255,6 @@ export default function TimerApp() {
   const [, forceUpdate] = useState(0);
   const [showRoomExpirationModal, setShowRoomExpirationModal] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
-
-  useEffect(() => {
-    if (currentRoom?.timer) {
-      const interval = setInterval(() => {
-        // Check if timer has expired
-        const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
-        if (timeRemainingSec === 0 && !timerExpired) {
-          // Handle composite timer progression
-          if (currentRoom.timerType === 'composite' && currentRoom.compositeTimer) {
-            const items = currentRoom.compositeTimer.steps || currentRoom.compositeTimer.exercises || [];
-            const currentStep = currentRoom.currentStep || 0;
-            
-            if (currentStep < items.length - 1) {
-              // Advance to next step
-              const nextStep = currentStep + 1;
-              const nextItem = items[nextStep];
-              const nextDuration = nextItem.unit === 'sec' || nextItem.unit === 'seconds' 
-                ? nextItem.duration 
-                : nextItem.duration * 60;
-              
-              console.log(`Advancing composite timer from step ${currentStep} to ${nextStep}: ${nextItem.name} (${nextDuration}s)`);
-              
-              // Start next timer step
-              startRoomTimer(nextDuration, 'composite', {
-                ...currentRoom.compositeTimer,
-                currentStep: nextStep
-              }).catch(err => {
-                console.error('Failed to advance composite timer:', err);
-                setTimerExpired(true);
-                setShowRoomExpirationModal(true);
-              });
-              
-              return; // Don't show expiration modal yet
-            } else {
-              console.log(`Composite timer completed all ${items.length} steps`);
-            }
-          }
-          
-          // Timer is complete or not composite
-          setTimerExpired(true);
-          setShowRoomExpirationModal(true);
-        }
-        forceUpdate(n => n + 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setTimerExpired(false);
-      setShowRoomExpirationModal(false);
-    }
-  }, [
-    currentRoom?.timer,
-    timerExpired,
-    startRoomTimer,
-    currentRoom?.compositeTimer,
-    currentRoom?.currentStep,
-    currentRoom?.timerType
-  ]);
 
   // Handle timer extension
   const handleExtendTimer = async (extensionMs) => {
@@ -955,6 +899,91 @@ export default function TimerApp() {
     const soundConfig = AMBIENT_SOUNDS.find(s => s.name === soundType);
     return soundConfig ? soundConfig.file : null;
   }, [getCustomMusicUrl]);
+
+  // Track which rooms have had their ambient music started to avoid re-triggering
+  const ambientStartedRoomsRef = useRef(new Set());
+
+  // Auto-start ambient music when joining a room with ambient configured (separate from timer logic)
+  useEffect(() => {
+    if (currentRoom?.id && currentRoom.ambientAutoStart && currentRoom.ambientSound) {
+      // Only start once per room to avoid repeated calls
+      if (!ambientStartedRoomsRef.current.has(currentRoom.id)) {
+        try {
+          const sf = getSoundFile(currentRoom.ambientSound);
+          if (sf) {
+            console.log(`Starting ambient for room ${currentRoom.id}:`, currentRoom.ambientSound);
+            startAmbient(sf);
+            ambientStartedRoomsRef.current.add(currentRoom.id);
+          }
+        } catch (e) {
+          console.warn('Failed to auto-start room ambient:', e);
+        }
+      }
+    } else if (currentRoom === null) {
+      // When leaving a room, stop ambient and clear the tracking set
+      try {
+        stopAmbient();
+      } catch (e) {}
+      ambientStartedRoomsRef.current.clear();
+    }
+  }, [currentRoom, getSoundFile, startAmbient, stopAmbient]);
+
+  useEffect(() => {
+    if (currentRoom?.timer) {
+      const interval = setInterval(() => {
+        // Check if timer has expired
+        const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
+        if (timeRemainingSec === 0 && !timerExpired) {
+          // Handle composite timer progression
+          if (currentRoom.timerType === 'composite' && currentRoom.compositeTimer) {
+            const items = currentRoom.compositeTimer.steps || currentRoom.compositeTimer.exercises || [];
+            const currentStep = currentRoom.currentStep || 0;
+            
+            if (currentStep < items.length - 1) {
+              // Advance to next step
+              const nextStep = currentStep + 1;
+              const nextItem = items[nextStep];
+              const nextDuration = nextItem.unit === 'sec' || nextItem.unit === 'seconds' 
+                ? nextItem.duration 
+                : nextItem.duration * 60;
+              
+              console.log(`Advancing composite timer from step ${currentStep} to ${nextStep}: ${nextItem.name} (${nextDuration}s)`);
+              
+              // Start next timer step
+              startRoomTimer(nextDuration, 'composite', {
+                ...currentRoom.compositeTimer,
+                currentStep: nextStep
+              }).catch(err => {
+                console.error('Failed to advance composite timer:', err);
+                setTimerExpired(true);
+                setShowRoomExpirationModal(true);
+              });
+              
+              return; // Don't show expiration modal yet
+            } else {
+              console.log(`Composite timer completed all ${items.length} steps`);
+            }
+          }
+          
+          // Timer is complete or not composite
+          setTimerExpired(true);
+          setShowRoomExpirationModal(true);
+        }
+        forceUpdate(n => n + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setTimerExpired(false);
+      setShowRoomExpirationModal(false);
+    }
+  }, [
+    currentRoom?.timer,
+    timerExpired,
+    startRoomTimer,
+    currentRoom?.compositeTimer,
+    currentRoom?.currentStep,
+    currentRoom?.timerType
+  ]);
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
 
