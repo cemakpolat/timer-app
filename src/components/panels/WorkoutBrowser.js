@@ -38,7 +38,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSource, setShowSource] = useState('templates'); // templates, my-routines
+  const [showSource, setShowSource] = useState('my-routines'); // templates, my-routines - default to my-routines
   const [selectedTags, setSelectedTags] = useState([]);
 
   // Convert custom timers to routine format (from timerService)
@@ -49,13 +49,20 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
     const itemCount = isSequence ? (timer.steps?.length || 0) : (timer.exercises?.length || 0);
     const itemType = isSequence ? 'steps' : 'exercises';
     
+    // Ensure duration is in seconds
+    let duration = timer.duration || (timer.exercises?.reduce((sum, ex) => sum + ex.duration, 0) || 0);
+    // If timer has unit specified as 'min', convert to seconds
+    if (timer.unit === 'min' && duration > 0) {
+      duration = duration * 60;
+    }
+    
     return {
       id: timer.id,
       name: timer.name,
       description: timer.description || `Custom routine with ${itemCount} ${itemType}`,
       category: timer.category || 'mixed',
       difficulty: timer.difficulty || 'intermediate',
-      duration: timer.duration || (timer.exercises?.reduce((sum, ex) => sum + ex.duration, 0) || 0),
+      duration: duration,
       exercises: timer.exercises || timer.steps || [],
       emoji: timer.emoji || '⭐',
       tags: timer.tags || ['custom'],

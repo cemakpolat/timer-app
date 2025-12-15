@@ -1587,29 +1587,30 @@ export default function TimerApp() {
   const resetStopwatch = () => { setIsRunning(false); setTime(0); };
 
   // Theme management: Theme UI handled in settings; setters remain for compatibility
-  const startSequence = () => {
-    if (sequence.length === 0) return;
+  const startSequence = (sequenceData = null) => {
+    const seqToUse = sequenceData || sequence;
+    if (seqToUse.length === 0) return;
 
     if (currentRoom) {
       // Start composite timer in room (pass numeric duration + timerData)
-      const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
-      startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: 0 });
+      const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
+      startRoomTimer(firstDuration, 'composite', { steps: seqToUse, currentStep: 0 });
       return;
     }
 
     setMode('sequence');
     setCurrentStep(0);
-    const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+    const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
     setTime(firstDuration);
     setIsRunning(true);
     // Apply theme for first step - commented out to prevent unwanted theme changes
-    // if (sequence[0].accent) {
-    //   setTheme(prevTheme => ({ ...prevTheme, accent: sequence[0].accent }));
+    // if (seqToUse[0].accent) {
+    //   setTheme(prevTheme => ({ ...prevTheme, accent: seqToUse[0].accent }));
     // }
     // Apply scene from first step
-    if (sequence[0].scene) {
-      setActiveScene(sequence[0].scene);
-      setCurrentTimerScene(sequence[0].scene);
+    if (seqToUse[0].scene) {
+      setActiveScene(seqToUse[0].scene);
+      setCurrentTimerScene(seqToUse[0].scene);
     }
     // Start ambient sound if configured
     if (ambientSoundType !== 'None') {
@@ -3249,7 +3250,7 @@ export default function TimerApp() {
                   {timerVisualization === 'compact' && (
                       <CompactTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -3263,7 +3264,7 @@ export default function TimerApp() {
                   {timerVisualization === 'minimal' && (
                     <MinimalTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -3789,9 +3790,9 @@ export default function TimerApp() {
                           const firstDuration = workoutSequence[0].unit === 'sec' || workoutSequence[0].unit === 'seconds' ? workoutSequence[0].duration : workoutSequence[0].duration * 60;
                           startRoomTimer(firstDuration, 'composite', { steps: workoutSequence, currentStep: 0 });
                         } else {
-                          // Switch to timer tab and start the sequence
+                          // Switch to timer tab and start the sequence (passing the sequence data directly)
                           setActiveMainTab('timer');
-                          startSequence();
+                          startSequence(workoutSequence);
                         }
                         return;
                       }
