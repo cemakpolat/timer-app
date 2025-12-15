@@ -68,7 +68,7 @@ const getContrastColor = (bgColor) => {
 
 // Get semi-transparent text color based on theme
 const getTextOpacity = (theme, opacity = 0.7) => {
-  const baseColor = theme.text;
+  const baseColor = theme.text || (isLightColor(theme.bg) ? '#000000' : '#ffffff');
   // Convert hex to rgba
   const hex = baseColor.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16);
@@ -3278,7 +3278,7 @@ export default function TimerApp() {
                   {timerVisualization === 'cardStack' && (
                     <CardStackTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -3292,7 +3292,7 @@ export default function TimerApp() {
                   {timerVisualization === 'timeline' && (
                     <TimelineTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -3702,6 +3702,7 @@ export default function TimerApp() {
                   sequence={sequence}
                   mode={mode}
                   currentStep={currentStep}
+                  customMusicFiles={customMusicFiles}
                 />
               )}
 
