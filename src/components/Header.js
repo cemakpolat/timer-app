@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock, Play, X, Repeat2 } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
@@ -1121,6 +1121,92 @@ const Header = ({
                       ))}
                     </div>
                   </div>
+
+                  {/* Music Playback Controls */}
+                  {customMusicFiles.length > 0 && (
+                    <div style={{ marginTop: 16, borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 12 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: theme.text }}>🎵 Music Playback</label>
+                      
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                        <button
+                          onClick={() => {
+                            if (selectedMusicId && customMusicFiles.find(f => f.id === selectedMusicId)) {
+                              setAmbientSound(`custom_${selectedMusicId}`);
+                            } else if (customMusicFiles.length > 0) {
+                              setAmbientSound(`custom_${customMusicFiles[0].id}`);
+                              setSelectedMusicId(customMusicFiles[0].id);
+                            }
+                          }}
+                          disabled={customMusicFiles.length === 0}
+                          title="Play music"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: ambientSound?.startsWith('custom_') ? theme.accent : 'rgba(255,255,255,0.08)',
+                            color: ambientSound?.startsWith('custom_') ? '#ffffff' : theme.text,
+                            cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
+                            fontSize: 16,
+                            opacity: customMusicFiles.length === 0 ? 0.5 : 1,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <Play size={16} />
+                        </button>
+
+                        <button
+                          onClick={() => setAmbientSound('None')}
+                          title="Stop music"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: ambientSound === 'None' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
+                            color: ambientSound === 'None' ? '#ef4444' : getTextOpacity(theme, 0.7),
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <X size={16} />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            // Simple repeat toggle - could cycle through modes if needed
+                            // For now, just show it's a repeat button
+                          }}
+                          disabled={customMusicFiles.length === 0}
+                          title="Repeat options"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: getTextOpacity(theme, 0.7),
+                            cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
+                            fontSize: 16,
+                            opacity: customMusicFiles.length === 0 ? 0.5 : 1,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <Repeat2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
