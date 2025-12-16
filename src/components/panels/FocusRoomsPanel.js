@@ -102,7 +102,8 @@ function FocusRoomsPanel({
   sequence: externalSequence = [],
   mode,
   currentStep,
-  customMusicFiles = []
+  customMusicFiles = [],
+  AMBIENT_SOUNDS = []
 }) {
   // Use sequence from props (from App.js state when routine is started)
   const sequence = React.useMemo(() => 
@@ -1022,6 +1023,7 @@ function FocusRoomsPanel({
           onClose={() => setShowRoomSettings(false)}
           onSave={handleSaveRoomSettings}
           customMusicFiles={customMusicFiles}
+          AMBIENT_SOUNDS={AMBIENT_SOUNDS}
         />
       )}
     </>
