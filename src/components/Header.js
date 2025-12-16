@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock, Play, X, Repeat2 } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
@@ -36,7 +36,11 @@ const Header = ({
   uploadCustomMusic,
   deleteCustomMusic,
   getCustomMusicUrl,
+  ensureCustomMusicUrl,
+  getSoundFile,
   renameCustomMusic,
+  startAmbient,
+  stopAmbient,
   // Background images
   selectedBackgroundId,
   setSelectedBackgroundId,
@@ -76,6 +80,9 @@ const Header = ({
   const [showOpacityModal, setShowOpacityModal] = useState(false);
   const [showBorderRadiusModal, setShowBorderRadiusModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [isHeaderMusicPlaying, setIsHeaderMusicPlaying] = useState(false);
+  const [headerMusicRepeatMode, setHeaderMusicRepeatMode] = useState('sequential'); // sequential, random
+  const audioRef = useRef(null);
 
   const truncate = (s, n = 28) => {
     if (!s) return '';
@@ -1123,22 +1130,77 @@ const Header = ({
                   </div>
 
                   {/* Music Playback Controls */}
-                  {customMusicFiles.length > 0 && (
+                  {(customMusicFiles.length > 0 || AMBIENT_SOUNDS.filter(s => s.name !== 'None').length > 0) && (
                     <div style={{ marginTop: 16, borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 12 }}>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: theme.text }}>🎵 Music Playback</label>
                       
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 8 }}>
                         <button
-                          onClick={() => {
-                            if (selectedMusicId && customMusicFiles.find(f => f.id === selectedMusicId)) {
-                              setAmbientSound(`custom_${selectedMusicId}`);
-                            } else if (customMusicFiles.length > 0) {
-                              setAmbientSound(`custom_${customMusicFiles[0].id}`);
-                              setSelectedMusicId(customMusicFiles[0].id);
+                          onClick={async () => {
+                            // Play/pause based on currently selected ambientSound (supports built-in and custom)
+                            const active = ambientSound;
+                            console.log('[DEBUG] Play clicked. active=', active, 'selectedMusicId=', selectedMusicId, 'customFiles ids=', customMusicFiles.map(f => f.id));
+
+                            // If currently playing and it's a built-in ambient, just toggle via stopAmbient
+                            if (isHeaderMusicPlaying && active && !active.startsWith('custom_')) {
+                              stopAmbient();
+                              setIsHeaderMusicPlaying(false);
+                              return;
+                            }
+
+                            // If currently playing and it's a custom track matching selectedMusicId, pause
+                            if (isHeaderMusicPlaying && active && active.startsWith('custom_')) {
+                              const playingId = active.replace('custom_', '');
+                              if (playingId === selectedMusicId && audioRef.current) {
+                                audioRef.current.pause();
+                                stopAmbient();
+                                setIsHeaderMusicPlaying(false);
+                                return;
+                              }
+                            }
+
+                            // Otherwise start playback for the active selection (or fallback to first available)
+                            let played = false;
+
+                            if (active && active.startsWith('custom_')) {
+                              const id = active.replace('custom_', '');
+                              console.log('[DEBUG] Playing custom music id=', id);
+                              const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
+                              console.log('[DEBUG] ensureCustomMusicUrl result:', url);
+                              if (url && audioRef.current) {
+                                if (audioRef.current) audioRef.current.pause();
+                                stopAmbient();
+                                audioRef.current.src = url;
+                                audioRef.current.currentTime = 0;
+                                console.log('[DEBUG] Playing audio from URL:', url);
+                                await audioRef.current.play().catch(e => console.error('Play error:', e));
+                                setIsHeaderMusicPlaying(true);
+                                setSelectedMusicId(id);
+                                startAmbient(getSoundFile(`custom_${id}`));
+                                played = true;
+                              }
+                            }
+
+                            // If not played yet, try built-in ambient sounds
+                            if (!played) {
+                              const builtins = AMBIENT_SOUNDS.filter(s => s.name !== 'None');
+                              const toPlay = active && !active.startsWith('custom_') && active !== 'None' ? active : (builtins.length > 0 ? builtins[0].name : null);
+                              if (toPlay) {
+                                // stop any local audio element
+                                if (audioRef.current) {
+                                  audioRef.current.pause();
+                                  audioRef.current.currentTime = 0;
+                                }
+                                stopAmbient();
+                                startAmbient(getSoundFile(toPlay));
+                                setAmbientSound(toPlay);
+                                setIsHeaderMusicPlaying(true);
+                                played = true;
+                              }
                             }
                           }}
                           disabled={customMusicFiles.length === 0}
-                          title="Play music"
+                          title={isHeaderMusicPlaying ? 'Pause music' : 'Play music'}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1147,19 +1209,27 @@ const Header = ({
                             height: 40,
                             borderRadius: '50%',
                             border: 'none',
-                            background: ambientSound?.startsWith('custom_') ? theme.accent : 'rgba(255,255,255,0.08)',
-                            color: ambientSound?.startsWith('custom_') ? '#ffffff' : theme.text,
+                            background: isHeaderMusicPlaying ? theme.accent : 'rgba(255,255,255,0.08)',
+                            color: isHeaderMusicPlaying ? '#ffffff' : theme.text,
                             cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
                             fontSize: 16,
                             opacity: customMusicFiles.length === 0 ? 0.5 : 1,
                             transition: 'all 0.2s'
                           }}
                         >
-                          <Play size={16} />
+                          {isHeaderMusicPlaying ? <Pause size={16} /> : <Play size={16} />}
                         </button>
 
                         <button
-                          onClick={() => setAmbientSound('None')}
+                          onClick={() => {
+                            if (audioRef.current) {
+                              audioRef.current.pause();
+                              audioRef.current.currentTime = 0;
+                              setIsHeaderMusicPlaying(false);
+                            }
+                            setAmbientSound('None');
+                            stopAmbient();
+                          }}
                           title="Stop music"
                           style={{
                             display: 'flex',
@@ -1169,8 +1239,8 @@ const Header = ({
                             height: 40,
                             borderRadius: '50%',
                             border: 'none',
-                            background: ambientSound === 'None' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
-                            color: ambientSound === 'None' ? '#ef4444' : getTextOpacity(theme, 0.7),
+                            background: !isHeaderMusicPlaying ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
+                            color: !isHeaderMusicPlaying ? '#ef4444' : getTextOpacity(theme, 0.7),
                             cursor: 'pointer',
                             fontSize: 16,
                             transition: 'all 0.2s'
@@ -1181,11 +1251,13 @@ const Header = ({
 
                         <button
                           onClick={() => {
-                            // Simple repeat toggle - could cycle through modes if needed
-                            // For now, just show it's a repeat button
+                            const modes = ['sequential', 'random'];
+                            const currentIndex = modes.indexOf(headerMusicRepeatMode);
+                            const nextMode = modes[(currentIndex + 1) % modes.length];
+                            setHeaderMusicRepeatMode(nextMode);
                           }}
                           disabled={customMusicFiles.length === 0}
-                          title="Repeat options"
+                          title={`Repeat mode: ${headerMusicRepeatMode}`}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1194,17 +1266,27 @@ const Header = ({
                             height: 40,
                             borderRadius: '50%',
                             border: 'none',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: getTextOpacity(theme, 0.7),
+                            background: headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.05)',
+                            color: headerMusicRepeatMode !== 'sequential' ? theme.accent : getTextOpacity(theme, 0.7),
                             cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
                             fontSize: 16,
                             opacity: customMusicFiles.length === 0 ? 0.5 : 1,
                             transition: 'all 0.2s'
                           }}
                         >
-                          <Repeat2 size={16} />
+                          {headerMusicRepeatMode === 'random' ? <Shuffle size={16} /> : <Repeat2 size={16} />}
                         </button>
                       </div>
+                      <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), textAlign: 'center' }}>
+                        {headerMusicRepeatMode === 'sequential' && '▶️ Sequential'}
+                        {headerMusicRepeatMode === 'random' && '🔀 Random'}
+                      </div>
+                      
+                      {/* Hidden Audio Element */}
+                      <audio
+                        ref={audioRef}
+                        style={{ display: 'none' }}
+                      />
                     </div>
                   )}
                 </>

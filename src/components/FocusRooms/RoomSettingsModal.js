@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useModal } from '../../context/ModalContext';
 import { Play, Pause, X, Repeat2, Shuffle } from 'lucide-react';
 
-const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = [] }) => {
+const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = [], AMBIENT_SOUNDS = [] }) => {
   const initialMinutes = room && typeof room.emptyRoomRemovalDelaySec === 'number' ? Math.round(room.emptyRoomRemovalDelaySec / 60) : 2;
   const [emptyRoomDelay, setEmptyRoomDelay] = useState(initialMinutes);
   const [roomName, setRoomName] = useState(room?.name || '');
@@ -26,12 +26,24 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
   };
 
   const selectedMusic = customMusicFiles.find(f => f.id === selectedMusicId);
-  const firstMusic = customMusicFiles.length > 0 ? customMusicFiles[0] : null;
+  
+  // Combine custom music files and built-in ambient sounds
+  const allAvailableMusic = [
+    ...customMusicFiles.map(file => ({ ...file, type: 'custom' })),
+    ...AMBIENT_SOUNDS.filter(sound => sound.name !== 'None').map(sound => ({ 
+      id: `builtin_${sound.name}`, 
+      name: sound.name, 
+      file: sound.file,
+      type: 'builtin'
+    }))
+  ];
+  
+  const firstAvailableMusic = allAvailableMusic.length > 0 ? allAvailableMusic[0] : null;
 
   const handlePlayClick = () => {
     if (!audioRef.current) return;
 
-    const music = selectedMusic || firstMusic;
+    const music = selectedMusic || firstAvailableMusic;
     if (!music) {
       alert('No music files available');
       return;
@@ -45,7 +57,8 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
       // Play the selected (or first) track
       if (!selectedMusicId || selectedMusicId !== music.id) {
         setSelectedMusicId(music.id);
-        const url = music.url || URL.createObjectURL(music.blob);
+        // Handle both custom music (with url/blob) and built-in sounds (with file)
+        const url = music.url || (music.blob ? URL.createObjectURL(music.blob) : music.file);
         audioRef.current.src = url;
       }
       audioRef.current.play();
@@ -205,10 +218,10 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
           <div style={{ marginBottom: 16, borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 16 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>🎵 Session Music Control</label>
             
-            {customMusicFiles.length === 0 ? (
+            {allAvailableMusic.length === 0 ? (
               <div style={{ fontSize: 12, color: getTextOpacity(0.6), padding: 12, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, textAlign: 'center' }}>
-                No music files uploaded yet.<br/>
-                Upload music files in Settings → Music to use them here.
+                No music available.<br/>
+                Upload custom music files in Settings → Music or check if built-in sounds are configured.
               </div>
             ) : (
               <>
@@ -230,13 +243,26 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                   }}
                 >
                   <option value="">
-                    {firstMusic ? `Default: ${firstMusic.name}` : 'Select music...'}
+                    {firstAvailableMusic ? `Default: ${firstAvailableMusic.name}` : 'Select music...'}
                   </option>
-                  {customMusicFiles.map(music => (
-                    <option key={music.id} value={music.id}>
-                      {music.name}
-                    </option>
-                  ))}
+                  {customMusicFiles.length > 0 && (
+                    <optgroup label="🎵 Your Music">
+                      {customMusicFiles.map(music => (
+                        <option key={music.id} value={music.id}>
+                          {music.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {AMBIENT_SOUNDS.filter(sound => sound.name !== 'None').length > 0 && (
+                    <optgroup label="🎼 Built-in Sounds">
+                      {AMBIENT_SOUNDS.filter(sound => sound.name !== 'None').map(sound => (
+                        <option key={`builtin_${sound.name}`} value={`builtin_${sound.name}`}>
+                          {sound.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 
                 {/* Progress Bar */}
@@ -277,7 +303,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                 <button
                   type="button"
                   onClick={handlePlayClick}
-                  disabled={customMusicFiles.length === 0}
+                  disabled={allAvailableMusic.length === 0}
                   title={isPlaying ? 'Pause' : 'Play'}
                   style={{
                     flex: 1,
@@ -290,10 +316,10 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                     border: 'none',
                     background: isPlaying ? theme.accent : 'rgba(255,255,255,0.08)',
                     color: isPlaying ? '#ffffff' : theme.text,
-                    cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
+                    cursor: allAvailableMusic.length === 0 ? 'not-allowed' : 'pointer',
                     fontSize: 13,
                     fontWeight: 600,
-                    opacity: customMusicFiles.length === 0 ? 0.5 : 1,
+                    opacity: allAvailableMusic.length === 0 ? 0.5 : 1,
                     transition: 'all 0.2s'
                   }}
                 >
@@ -331,7 +357,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                 <button
                   type="button"
                   onClick={handleRepeatClick}
-                  disabled={customMusicFiles.length === 0}
+                  disabled={allAvailableMusic.length === 0}
                   title={`Repeat mode: ${repeatMode}`}
                   style={{
                     flex: 1,
@@ -344,10 +370,10 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                     border: 'none',
                     background: repeatMode !== 'orderly' ? `${theme.accent}30` : 'rgba(255,255,255,0.05)',
                     color: repeatMode !== 'orderly' ? theme.accent : getTextOpacity(0.7),
-                    cursor: customMusicFiles.length === 0 ? 'not-allowed' : 'pointer',
+                    cursor: allAvailableMusic.length === 0 ? 'not-allowed' : 'pointer',
                     fontSize: 13,
                     fontWeight: 600,
-                    opacity: customMusicFiles.length === 0 ? 0.5 : 1,
+                    opacity: allAvailableMusic.length === 0 ? 0.5 : 1,
                     transition: 'all 0.2s'
                   }}
                 >

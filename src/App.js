@@ -823,7 +823,8 @@ export default function TimerApp() {
     uploadCustomMusic,
     deleteCustomMusic,
     renameCustomMusic,
-    getCustomMusicUrl
+    getCustomMusicUrl,
+    ensureCustomMusicUrl
   } = useSettings();
 
   // Use background images hook
@@ -3053,7 +3054,11 @@ export default function TimerApp() {
           uploadCustomMusic={uploadCustomMusic}
           deleteCustomMusic={deleteCustomMusic}
           getCustomMusicUrl={getCustomMusicUrl}
+          ensureCustomMusicUrl={ensureCustomMusicUrl}
+          getSoundFile={getSoundFile}
           renameCustomMusic={renameCustomMusic}
+          startAmbient={startAmbient}
+          stopAmbient={stopAmbient}
           // Background images props
           selectedBackgroundId={selectedBackgroundId}
           setSelectedBackgroundId={setSelectedBackgroundId}
@@ -3703,6 +3708,7 @@ export default function TimerApp() {
                   mode={mode}
                   currentStep={currentStep}
                   customMusicFiles={customMusicFiles}
+                  AMBIENT_SOUNDS={AMBIENT_SOUNDS}
                 />
               )}
 
