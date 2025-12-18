@@ -878,7 +878,8 @@ export default function TimerApp() {
   const {
     playAlarm,
     startAmbient,
-    stopAmbient
+    stopAmbient,
+    ambientAudioRef
   } = useSound({
     alarmType: alarmSoundType,
     alarmVolume,
@@ -898,6 +899,7 @@ export default function TimerApp() {
     
     // Check built-in ambient sounds
     const soundConfig = AMBIENT_SOUNDS.find(s => s.name === soundType);
+    console.log('[getSoundFile] Looking for:', soundType, '-> Found:', soundConfig ? soundConfig.file : null, 'in list:', AMBIENT_SOUNDS.map(s => s.name));
     return soundConfig ? soundConfig.file : null;
   }, [getCustomMusicUrl]);
 
@@ -3059,6 +3061,7 @@ export default function TimerApp() {
           renameCustomMusic={renameCustomMusic}
           startAmbient={startAmbient}
           stopAmbient={stopAmbient}
+          ambientAudioRef={ambientAudioRef}
           // Background images props
           selectedBackgroundId={selectedBackgroundId}
           setSelectedBackgroundId={setSelectedBackgroundId}
