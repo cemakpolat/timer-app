@@ -36,12 +36,16 @@ import {
 import { getLuminance, isLightColor, getContrastColor, getTextOpacity } from './utils/colorUtils';
 import { SCENES } from './utils/scenes';
 import { inputStyle } from './utils/styleHelpers';
+import { createLogger } from './utils/logger';
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
 const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
 const RoutinesPanel = lazy(() => import('./components/panels/RoutinesPanel'));
+
+// Create logger instance for App component
+const logger = createLogger('TimerApp');
 
 // Use themes from constants with isDefault flag
 const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
@@ -162,7 +166,7 @@ export default function TimerApp() {
       setShowRoomExpirationModal(false);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Timer extended successfully', type: 'success', ttl: 3000 } }));
     } catch (err) {
-      console.error('Failed to extend timer:', err);
+      logger.error('Failed to extend timer:', err);
       showRealtimeErrorToast(err, 'Extend timer');
     }
   };
@@ -174,7 +178,7 @@ export default function TimerApp() {
       await leaveRoom();
       setTimerExpired(false);
     } catch (err) {
-      console.error('Failed to close room:', err);
+      logger.error('Failed to close room:', err);
       showRealtimeErrorToast(err, 'Close room');
     }
   };
@@ -185,7 +189,7 @@ export default function TimerApp() {
       const stored = localStorage.getItem('deletedDefaultThemes');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error("Failed to load deleted default themes:", error);
+      logger.error('Failed to load deleted default themes:', error);
       return [];
     }
   });
@@ -198,7 +202,7 @@ export default function TimerApp() {
       const availableDefaultThemes = DEFAULT_THEMES.filter(t => !deletedDefaultThemes.includes(t.name));
       return [...availableDefaultThemes, ...customThemes];
     } catch (error) {
-      console.error("Failed to load custom themes:", error);
+      logger.error('Failed to load custom themes:', error);
       return DEFAULT_THEMES;
     }
   });
@@ -209,7 +213,7 @@ export default function TimerApp() {
       const storedThemeName = localStorage.getItem('selectedThemeName');
       return storedThemeName ? themes.find(t => t.name === storedThemeName) || themes[0] : themes[0];
     } catch (error) {
-      console.error("Failed to load theme from localStorage:", error);
+      logger.error('Failed to load theme from localStorage:', error);
       return themes[0];
     }
   });
@@ -219,7 +223,7 @@ export default function TimerApp() {
     try {
       return parseFloat(localStorage.getItem('themeOpacity')) || 1;
     } catch (error) {
-      console.error('Failed to load themeOpacity:', error);
+      logger.error('Failed to load themeOpacity:', error);
       return 1;
     }
   });
@@ -303,7 +307,7 @@ export default function TimerApp() {
       setShowColorPicker(false);
       setEditingTheme(null);
     } catch (error) {
-      console.error('Error saving custom theme:', error);
+      logger.error('Error saving custom theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
     }
   };
@@ -342,7 +346,7 @@ export default function TimerApp() {
       setThemeToDelete(null);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme deleted!', type: 'success', ttl: 3000 } }));
     } catch (error) {
-      console.error('Error deleting theme:', error);
+      logger.error('Error deleting theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to delete theme', type: 'error', ttl: 3000 } }));
     }
   };
@@ -404,7 +408,7 @@ export default function TimerApp() {
       const storedSaved = localStorage.getItem('savedTimers');
       return storedSaved ? JSON.parse(storedSaved) : defaultSavedTimers;
     } catch (error) {
-      console.error("Failed to load saved timers from localStorage:", error);
+      logger.error("Failed to load saved timers from localStorage:", error);
       return defaultSavedTimers;
     }
   });
@@ -415,7 +419,7 @@ export default function TimerApp() {
           const storedHistory = localStorage.getItem('timerHistory');
           return storedHistory ? JSON.parse(storedHistory) : [];
       } catch (error) {
-          console.error("Failed to load history from localStorage:", error);
+          logger.error("Failed to load history from localStorage:", error);
           return [];
       }
   });
@@ -454,7 +458,7 @@ export default function TimerApp() {
       if (legacySavedSequences.length > 0) {
         const result = performMigration(legacySavedSequences);
         if (result.success) {
-          console.log(`✓ Migration successful: ${result.migratedCount} sequences migrated to customTimers`);
+          logger.info(`Migration successful: ${result.migratedCount} sequences migrated to customTimers`);
         }
       }
 
@@ -464,14 +468,14 @@ export default function TimerApp() {
         try {
           const res2 = migrateLegacySavedTimers(legacySimple);
           if (res2.migrated && res2.migrated > 0) {
-            console.log(`✓ Migrated ${res2.migrated} legacy simple timers into customTimers`);
+            logger.info(`Migrated ${res2.migrated} legacy simple timers into customTimers`);
           }
         } catch (err) {
-          console.warn('Legacy simple timers migration failed:', err);
+          logger.warn('Legacy simple timers migration failed:', err);
         }
       }
     } catch (err) {
-      console.error('Error during migration:', err);
+      logger.error('Error during migration:', err);
     }
   }, []); // Only run once on mount
 
@@ -511,12 +515,12 @@ export default function TimerApp() {
       
       await joinRoom(roomId, { displayName });
     } catch (err) {
-      console.error('Join room error (UI):', err);
+      logger.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');
     }
   }, [joinRoom]);
 
-  const handleCreateRoom = async (roomData) => {
+  const handleCreateRoom = useCallback(async (roomData) => {
     // Validate unique room name (case-insensitive)
     if (rooms.some(r => r.name && roomData.name && r.name.trim().toLowerCase() === roomData.name.trim().toLowerCase())) {
       const msg = 'Room name already in use. Please choose a different name.';
@@ -529,58 +533,58 @@ export default function TimerApp() {
       // Feedback on success
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room created', type: 'success', ttl: 3000 } }));
     } catch (err) {
-      console.error('Create room error (UI):', err);
+      logger.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
       throw err; // rethrow if callers expect it
     }
-  };
+  }, [rooms, createRoom]);
 
   // Task 5: Calendar export handlers
-  const handleExportToICS = (room) => {
-    console.log('handleExportToICS called with room:', room?.name);
+  const handleExportToICS = useCallback((room) => {
+    logger.debug('handleExportToICS called with room:', room?.name);
     try {
       downloadICSFile(room);
-      console.log('downloadICSFile completed successfully');
+      logger.debug('downloadICSFile completed successfully');
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Calendar file downloaded', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error exporting to ICS:', err);
+      logger.error('Error exporting to ICS:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to export calendar file: ' + err.message, type: 'error', ttl: 5000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
-  const handleExportToGoogleCalendar = (room) => {
+  const handleExportToGoogleCalendar = useCallback((room) => {
     try {
       const url = generateGoogleCalendarURL(room);
       window.open(url, '_blank');
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Opening Google Calendar', type: 'info', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error exporting to Google Calendar:', err);
+      logger.error('Error exporting to Google Calendar:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to open Google Calendar', type: 'error', ttl: 3000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
-  const handleShareRoomLink = (room) => {
+  const handleShareRoomLink = useCallback((room) => {
     try {
       const link = shareService.generateRoomShareLink(room.id);
       navigator.clipboard.writeText(link);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room link copied to clipboard', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error sharing room link:', err);
+      logger.error('Error sharing room link:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to copy link', type: 'error', ttl: 3000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
   // Room template handlers
-  const handleSelectTemplate = (template) => {
+  const handleSelectTemplate = useCallback((template) => {
     setSelectedTemplate(template);
     setShowTemplateSelector(false);
     window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Selected template: ${template.name}`, type: 'info', ttl: 2000 } }));
-  };
+  }, [setSelectedTemplate, setShowTemplateSelector]);
 
-  const handleCreateRoomFromTemplate = async () => {
+  const handleCreateRoomFromTemplate = useCallback(async () => {
     if (!selectedTemplate) return;
 
     try {
@@ -601,17 +605,17 @@ export default function TimerApp() {
       setShowTemplateSelector(false);
       setSelectedTemplate(null);
     } catch (err) {
-      console.error('Template room creation error:', err);
+      logger.error('Template room creation error:', err);
       // Error handling is done in handleCreateRoom
     }
-  };
+  }, [selectedTemplate, handleCreateRoom, setShowTemplateSelector, setSelectedTemplate]);
 
   // Load repeat preference from localStorage
   const [repeatEnabled, setRepeatEnabled] = useState(() => {
       try {
           return localStorage.getItem('repeatEnabled') === 'true';
       } catch (error) {
-          console.error("Failed to load repeatEnabled from localStorage:", error);
+          logger.error("Failed to load repeatEnabled from localStorage:", error);
           return false;
       }
   });
@@ -621,7 +625,7 @@ export default function TimerApp() {
       try {
           return localStorage.getItem('timerVisualization') || 'default';
       } catch (error) {
-          console.error("Failed to load timerVisualization from localStorage:", error);
+          logger.error("Failed to load timerVisualization from localStorage:", error);
           return 'default';
       }
   });
@@ -670,7 +674,7 @@ export default function TimerApp() {
           const url = await getBackgroundImageUrl(selectedBackgroundId);
           setBackgroundImageUrl(url);
         } catch (error) {
-          console.error('Failed to load background image:', error);
+          logger.error('Failed to load background image:', error);
           setBackgroundImageUrl(null);
         }
       }
@@ -782,11 +786,21 @@ export default function TimerApp() {
   const [, setCurrentTimerScene] = useState('none');
 
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
-  const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
-  // When creating new timers, exclude "Sequences" from the dropdown since sequences are special
-  const filteredGroups = groups
-    .filter(g => g !== 'Sequences')
-    .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
+  
+  // Memoize groups computation to avoid recalculating on every render
+  const groups = React.useMemo(() => 
+    [...new Set(saved.map(t => t.group).filter(Boolean))], 
+    [saved]
+  );
+  
+  // Memoize filtered groups for dropdown
+  const filteredGroups = React.useMemo(() => 
+    groups
+      .filter(g => g !== 'Sequences')
+      .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase())),
+    [groups, newTimerGroup]
+  );
+  
   const intervalRef = useRef(null);
   const lastActiveTimeRef = useRef(null);
   const handleCompleteRef = useRef(null);
@@ -858,7 +872,7 @@ export default function TimerApp() {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (error) {
-        console.error('Failed to parse shared timer:', error);
+        logger.error('Failed to parse shared timer:', error);
       }
     }
 
@@ -871,7 +885,7 @@ export default function TimerApp() {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (error) {
-        console.error('Failed to join room from URL:', error);
+        logger.error('Failed to join room from URL:', error);
       }
     }
   }, [handleJoinRoom]);
@@ -1596,7 +1610,7 @@ export default function TimerApp() {
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Cache cleared! App reset to initial state.', type: 'success', ttl: 3000 } }));
       setShowClearCacheModal(false);
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      logger.error('Failed to clear cache:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '❌ Failed to clear cache', type: 'error', ttl: 3000 } }));
     }
   };
@@ -3447,7 +3461,7 @@ export default function TimerApp() {
                         setShowEditTimerModal(true);
                         return newTimer;
                       } catch (err) {
-                        console.error('Failed to clone template:', err);
+                        logger.error('Failed to clone template:', err);
                         throw err;
                       }
                     }}
@@ -3557,7 +3571,7 @@ export default function TimerApp() {
               window.dispatchEvent(new CustomEvent('timers-updated'));
               window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Workout updated', type: 'success', ttl: 3000 } }));
             } catch (err) {
-              console.error('Failed to save edited timer:', err);
+              logger.error('Failed to save edited timer:', err);
               window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save workout', type: 'error', ttl: 3000 } }));
             } finally {
               setShowEditTimerModal(false);

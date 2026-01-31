@@ -85,7 +85,7 @@ export const migrateAllSequences = (savedSequences = []) => {
         migratedTimers.push(newTimer);
       }
     } catch (err) {
-      console.error('Error migrating sequence:', sequence, err);
+      logger.error('Error migrating sequence:', sequence, err);
     }
   }
 
@@ -133,7 +133,7 @@ export const performMigration = (savedSequences = []) => {
 
     localStorage.setItem('customTimers', JSON.stringify(combinedTimers));
 
-    console.log(`Migration complete: ${migratedTimers.length} sequences migrated to customTimers`);
+    logger.info(`Migration complete: ${migratedTimers.length} sequences migrated to customTimers`);
 
     return {
       success: true,
@@ -142,7 +142,7 @@ export const performMigration = (savedSequences = []) => {
       migratedTimers
     };
   } catch (err) {
-    console.error('Migration failed:', err);
+    logger.error('Migration failed:', err);
     return {
       success: false,
       message: `Migration failed: ${err.message}`,

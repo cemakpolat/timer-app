@@ -11,7 +11,7 @@ import shareService from '../shareService';
  */
 export function generateICSContent(room) {
   if (!room || !room.scheduledFor) {
-    console.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
+    logger.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
     throw new Error('Room must have a scheduledFor timestamp to export. Please ensure the room has a scheduled date/time.');
   }
 
@@ -68,15 +68,15 @@ END:VCALENDAR`;
  */
 export function downloadICSFile(room) {
   try {
-    console.log('Starting ICS download for room:', room.name);
+    logger.info('Starting ICS download for room:', room.name);
     const icsContent = generateICSContent(room);
-    console.log('ICS content generated, length:', icsContent.length);
+    logger.info('ICS content generated, length:', icsContent.length);
     
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    console.log('Blob created, size:', blob.size);
+    logger.info('Blob created, size:', blob.size);
     
     const url = URL.createObjectURL(blob);
-    console.log('Object URL created:', url);
+    logger.info('Object URL created:', url);
     
     const link = document.createElement('a');
     link.href = url;
@@ -84,19 +84,19 @@ export function downloadICSFile(room) {
     
     // Important: append to DOM before clicking for broader browser compatibility
     document.body.appendChild(link);
-    console.log('Link added to DOM, downloading as:', link.download);
+    logger.info('Link added to DOM, downloading as:', link.download);
     
     link.click();
-    console.log('Link clicked');
+    logger.info('Link clicked');
     
     // Clean up
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.log('Cleanup complete');
+      logger.info('Cleanup complete');
     }, 100);
   } catch (error) {
-    console.error('Error downloading ICS file:', error);
+    logger.error('Error downloading ICS file:', error);
     throw error;
   }
 }
@@ -108,7 +108,7 @@ export function downloadICSFile(room) {
  */
 export function generateGoogleCalendarURL(room) {
   if (!room || !room.scheduledFor) {
-    console.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
+    logger.error('Room export error:', { room, hasScheduledFor: room?.scheduledFor });
     throw new Error('Room must have a scheduledFor timestamp to export. Please ensure the room has a scheduled date/time.');
   }
 
@@ -274,7 +274,7 @@ export function downloadTimerAsICS(timer, scheduledDate) {
     link.click();
     URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Error downloading timer ICS file:', error);
+    logger.error('Error downloading timer ICS file:', error);
     throw error;
   }
 }

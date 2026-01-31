@@ -52,13 +52,13 @@ class RealtimeServiceFactory {
           service = new FirebaseService();
           await service.initialize(config);
         } catch (err) {
-          console.error('Firebase init failed:', err);
+          logger.error('Firebase init failed:', err);
           // Notify error listeners
           try {
-            this.errorListeners.forEach(cb => { try { cb(err); } catch (e) { console.error('errorListener error', e); } });
+            this.errorListeners.forEach(cb => { try { cb(err); } catch (e) { logger.error('errorListener error', e); } });
           } catch (e) {}
           if (options && options.allowFallback) {
-            console.warn('Falling back to MockRealtimeService because allowFallback=true');
+            logger.warn('Falling back to MockRealtimeService because allowFallback=true');
             service = new MockRealtimeService();
             await service.initialize({});
           } else {
@@ -86,7 +86,7 @@ class RealtimeServiceFactory {
     // Notify listeners that a service has been initialized
     try {
       this.initListeners.forEach((cb) => {
-        try { cb(this.currentService); } catch (e) { console.error('initListener error', e); }
+        try { cb(this.currentService); } catch (e) { logger.error('initListener error', e); }
       });
     } catch (e) {
       // ignore

@@ -142,7 +142,7 @@ const Header = ({
       a.click();
       document.body.removeChild(a);
     } catch (err) {
-      console.warn('Download failed', err);
+      logger.warn('Download failed', err);
       modal.alert('Download failed.', 'Error');
     }
   };
@@ -162,7 +162,7 @@ const Header = ({
       }
       setIsFullscreen(!!document.fullscreenElement);
     } catch (err) {
-      console.warn('Fullscreen toggle failed', err);
+      logger.warn('Fullscreen toggle failed', err);
     }
   };
 

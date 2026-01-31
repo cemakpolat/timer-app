@@ -25,7 +25,7 @@ class StorageService {
         localStorage.setItem(STORAGE_KEYS.STORAGE_VERSION, this.version);
       }
     } catch (error) {
-      console.error('Error initializing storage:', error);
+      logger.error('Error initializing storage:', error);
     }
   }
 
@@ -35,7 +35,7 @@ class StorageService {
    * @param {string} to - New version
    */
   migrate(from, to) {
-    console.log(`Migrating storage from ${from} to ${to}`);
+    logger.info(`Migrating storage from ${from} to ${to}`);
 
     // Add migration logic here for future versions
     // Example:
@@ -55,7 +55,7 @@ class StorageService {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue;
     } catch (error) {
-      console.error(`Error reading ${key} from storage:`, error);
+      logger.error(`Error reading ${key} from storage:`, error);
       return defaultValue;
     }
   }
@@ -72,10 +72,10 @@ class StorageService {
       return true;
     } catch (error) {
       if (error.name === 'QuotaExceededError') {
-        console.error('localStorage quota exceeded');
+        logger.error('localStorage quota exceeded');
         this.handleQuotaExceeded();
       } else {
-        console.error(`Error saving ${key} to storage:`, error);
+        logger.error(`Error saving ${key} to storage:`, error);
       }
       return false;
     }
@@ -89,7 +89,7 @@ class StorageService {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.error(`Error removing ${key} from storage:`, error);
+      logger.error(`Error removing ${key} from storage:`, error);
     }
   }
 
@@ -102,7 +102,7 @@ class StorageService {
         localStorage.removeItem(key);
       });
     } catch (error) {
-      console.error('Error clearing storage:', error);
+      logger.error('Error clearing storage:', error);
     }
   }
 
@@ -115,10 +115,10 @@ class StorageService {
       const history = this.get(STORAGE_KEYS.HISTORY, []);
       if (history.length > 5) {
         this.set(STORAGE_KEYS.HISTORY, history.slice(0, 5));
-        console.log('Cleared old history to free up space');
+        logger.info('Cleared old history to free up space');
       }
     } catch (error) {
-      console.error('Error handling quota exceeded:', error);
+      logger.error('Error handling quota exceeded:', error);
     }
   }
 
@@ -139,7 +139,7 @@ class StorageService {
       data.exportDate = new Date().toISOString();
       return data;
     } catch (error) {
-      console.error('Error exporting data:', error);
+      logger.error('Error exporting data:', error);
       return null;
     }
   }
@@ -168,7 +168,7 @@ class StorageService {
         return true;
       } catch (error) {
         // Restore backup on failure
-        console.error('Import failed, restoring backup:', error);
+        logger.error('Import failed, restoring backup:', error);
         Object.entries(backup).forEach(([name, value]) => {
           const key = STORAGE_KEYS[name];
           if (key && name !== 'version' && name !== 'exportDate') {
@@ -178,7 +178,7 @@ class StorageService {
         return false;
       }
     } catch (error) {
-      console.error('Error importing data:', error);
+      logger.error('Error importing data:', error);
       return false;
     }
   }
@@ -208,7 +208,7 @@ class StorageService {
         itemCount: Object.keys(sizes).length
       };
     } catch (error) {
-      console.error('Error calculating storage stats:', error);
+      logger.error('Error calculating storage stats:', error);
       return null;
     }
   }

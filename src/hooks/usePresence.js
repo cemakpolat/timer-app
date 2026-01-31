@@ -27,7 +27,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       setActiveUsers(count);
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch active users:', err);
+      logger.error('Failed to fetch active users:', err);
       setError(err.message);
     }
   }, []);
@@ -42,7 +42,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       setIsOnline(true);
       setError(null);
     } catch (err) {
-      console.error('Failed to update presence:', err);
+      logger.error('Failed to update presence:', err);
       setError(err.message);
       setIsOnline(false);
     }
@@ -57,7 +57,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       await service.removePresence();
       setIsOnline(false);
     } catch (err) {
-      console.error('Failed to remove presence:', err);
+      logger.error('Failed to remove presence:', err);
     }
   }, []);
 
@@ -89,7 +89,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
         pollIntervalId = setInterval(fetchActiveUsers, pollInterval);
 
       } catch (err) {
-        console.error('Failed to initialize presence:', err);
+        logger.error('Failed to initialize presence:', err);
         setError(err.message);
       }
     };
@@ -98,7 +98,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
 
     // If the factory initializes later, run initialize again
     const onInit = () => {
-      initialize().catch(console.error);
+      initialize().catch(logger.error);
     };
     RealtimeServiceFactory.onInit(onInit);
 
@@ -111,7 +111,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       try {
         const service = RealtimeServiceFactory.getService();
         service.stopPresenceHeartbeat();
-        service.removePresence().catch(console.error);
+        service.removePresence().catch(logger.error);
       } catch (err) {
         // Service already cleaned up
       }

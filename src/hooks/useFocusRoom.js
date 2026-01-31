@@ -40,7 +40,7 @@ const useFocusRoom = () => {
           await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: true });
           service = RealtimeServiceFactory.getService();
         } catch (e) {
-          console.error('Failed to initialize realtime service for fetching rooms:', e);
+          logger.error('Failed to initialize realtime service for fetching rooms:', e);
           setLoading(false);
           return;
         }
@@ -133,7 +133,7 @@ const useFocusRoom = () => {
                       presenceMap = await service.getPresenceForUserIds(participantIds);
                     } catch (e) {
                       // If presence lookup fails, keep the room (safer)
-                      console.warn('Presence lookup failed for', candidate.id, e);
+                      logger.warn('Presence lookup failed for', candidate.id, e);
                       return;
                     }
 
@@ -154,7 +154,7 @@ const useFocusRoom = () => {
                 });
               } catch (err) {
                 // If subscribe fails, do nothing — safer to keep room in UI than to remove it wrongly
-                console.warn('One-time room existence/presence check failed for', candidate.id, err);
+                logger.warn('One-time room existence/presence check failed for', candidate.id, err);
               }
             });
 
@@ -166,7 +166,7 @@ const useFocusRoom = () => {
       })();
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch rooms:', err);
+      logger.error('Failed to fetch rooms:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -243,7 +243,7 @@ const useFocusRoom = () => {
 
       return room;
     } catch (err) {
-      console.error('Failed to join room:', err);
+      logger.error('Failed to join room:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -274,7 +274,7 @@ const useFocusRoom = () => {
         }
       } catch (err) {
         // Service not initialized yet
-        console.error('Service initialization error:', err);
+        logger.error('Service initialization error:', err);
         setError('Service not ready. Please wait a moment and try again.');
         setLoading(false);
         throw err;
@@ -297,12 +297,12 @@ const useFocusRoom = () => {
       }
 
       // Refresh the room list to include the newly created room
-      fetchRooms().catch(err => console.error('Failed to refresh rooms after creation:', err));
+      fetchRooms().catch(err => logger.error('Failed to refresh rooms after creation:', err));
 
       setError(null);
       return room;
     } catch (err) {
-      console.error('Failed to create room:', err);
+      logger.error('Failed to create room:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -341,7 +341,7 @@ const useFocusRoom = () => {
       setRoomTimer(null);
       setError(null);
     } catch (err) {
-      console.error('Failed to leave room:', err);
+      logger.error('Failed to leave room:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -352,7 +352,7 @@ const useFocusRoom = () => {
       const result = await service.deleteFocusRoom(roomId, service.currentUserId);
       return result;
     } catch (err) {
-      console.error('Failed to delete room:', err);
+      logger.error('Failed to delete room:', err);
       setError(err.message);
       throw err;
     }
@@ -372,7 +372,7 @@ const useFocusRoom = () => {
       setError(null);
       return true;
     } catch (err) {
-      console.error('Failed to update room settings:', err);
+      logger.error('Failed to update room settings:', err);
       setError(err.message);
       throw err;
     }
@@ -389,7 +389,7 @@ const useFocusRoom = () => {
       await service.sendMessage(currentRoom.id, undefined, text);
       setError(null);
     } catch (err) {
-      console.error('Failed to send message:', err);
+      logger.error('Failed to send message:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -405,7 +405,7 @@ const useFocusRoom = () => {
       await service.startRoomTimer(currentRoom.id, duration);
       setError(null);
     } catch (err) {
-      console.error('Failed to start timer:', err);
+      logger.error('Failed to start timer:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -421,7 +421,7 @@ const useFocusRoom = () => {
       await service.extendRoomTimer(currentRoom.id, extensionMs);
       setError(null);
     } catch (err) {
-      console.error('Failed to extend timer:', err);
+      logger.error('Failed to extend timer:', err);
       setError(err.message);
       throw err;
     }
@@ -494,7 +494,7 @@ const useFocusRoom = () => {
         subscribedRoomIdsRef.current.add(roomId);
         subscriptionsRef.current.set(roomId, unsub);
       } catch (err) {
-        console.warn('Failed to subscribe to room', roomId, err);
+        logger.warn('Failed to subscribe to room', roomId, err);
       }
     };
 

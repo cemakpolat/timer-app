@@ -31,7 +31,7 @@ const getSafeLocalStorage = (key, defaultValue, parser = (v) => v) => {
     const value = localStorage.getItem(key);
     return value !== null ? parser(value) : defaultValue;
   } catch (error) {
-    console.error(`Failed to load ${key}:`, error);
+    logger.error(`Failed to load ${key}:`, error);
     return defaultValue;
   }
 };
@@ -72,7 +72,7 @@ const useSettings = () => {
       }
       return DEFAULT_WEATHER_CONFIG;
     } catch (error) {
-      console.error('Failed to load weatherConfig:', error);
+      logger.error('Failed to load weatherConfig:', error);
       return DEFAULT_WEATHER_CONFIG;
     }
   });
@@ -110,11 +110,11 @@ const useSettings = () => {
               fileStorageRef.current.set(f.id, { blob, url });
             }
           } catch (err) {
-            console.warn('Failed to restore blob for', f.id, err);
+            logger.warn('Failed to restore blob for', f.id, err);
           }
         }
       } catch (err) {
-        console.error('Error restoring custom music files from IndexedDB', err);
+        logger.error('Error restoring custom music files from IndexedDB', err);
       }
     })();
     return () => { mounted = false; };
@@ -129,7 +129,7 @@ const useSettings = () => {
       try {
         localStorage.setItem(key, value);
       } catch (error) {
-        console.error(`Failed to save ${key}:`, error);
+        logger.error(`Failed to save ${key}:`, error);
       }
     }, 100); // 100ms debounce
   }, []);
@@ -240,7 +240,7 @@ const useSettings = () => {
           throw new Error('Invalid backup file');
         }
       } catch (error) {
-        console.error('Import error:', error);
+        logger.error('Import error:', error);
         window.dispatchEvent(new CustomEvent('app-toast', {
           detail: { message: '❌ Failed to import data', type: 'error', ttl: 3000 }
         }));
@@ -309,7 +309,7 @@ const useSettings = () => {
     }
     fileStorageRef.current.delete(fileId);
     // Remove blob from IndexedDB
-    deleteFileBlob(fileId).catch(err => console.warn('Failed to delete blob from IDB', err));
+    deleteFileBlob(fileId).catch(err => logger.warn('Failed to delete blob from IDB', err));
   }, []);
 
   const renameCustomMusic = useCallback((fileId, newName) => {
@@ -330,7 +330,7 @@ const useSettings = () => {
     }
     fileStorageRef.current.clear();
     // Clear IndexedDB store
-    clearAllFileBlobs().catch(err => console.warn('Failed to clear IDB store', err));
+    clearAllFileBlobs().catch(err => logger.warn('Failed to clear IDB store', err));
   }, []);
 
   return {
