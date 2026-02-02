@@ -26,12 +26,20 @@ const STALE_THRESHOLD_MS = parseInt(process.env.STALE_THRESHOLD_MS || '300000', 
 const PRESENCE_INACTIVE_THRESHOLD_MS = parseInt(process.env.PRESENCE_INACTIVE_THRESHOLD_MS || '120000', 10); // 2 minutes
 const EMPTY_ROOM_REMOVAL_DELAY_SEC = parseInt(process.env.EMPTY_ROOM_REMOVAL_DELAY_SEC || '120', 10); // 2 minutes
 
+// User and session management
+const MAX_SESSION_DURATION_SEC = parseInt(process.env.MAX_SESSION_DURATION_SEC || '43200', 10); // 12 hours max
+const USER_CLEANUP_AGE_MS = parseInt(process.env.USER_CLEANUP_AGE_MS || '86400000', 10); // 24 hours
+const USER_CLEANUP_SCHEDULE = process.env.USER_CLEANUP_SCHEDULE || 'every 6 hours';
+
 // Log configuration on function load (useful for debugging)
 console.log('Cloud Function Configuration:');
 console.log(`  CLEANUP_SCHEDULE: ${CLEANUP_SCHEDULE}`);
 console.log(`  STALE_THRESHOLD_MS: ${STALE_THRESHOLD_MS}ms (${(STALE_THRESHOLD_MS / 60000).toFixed(1)} min)`);
 console.log(`  PRESENCE_INACTIVE_THRESHOLD_MS: ${PRESENCE_INACTIVE_THRESHOLD_MS}ms (${(PRESENCE_INACTIVE_THRESHOLD_MS / 60000).toFixed(1)} min)`);
 console.log(`  EMPTY_ROOM_REMOVAL_DELAY_SEC: ${EMPTY_ROOM_REMOVAL_DELAY_SEC}s`);
+console.log(`  MAX_SESSION_DURATION_SEC: ${MAX_SESSION_DURATION_SEC}s (${(MAX_SESSION_DURATION_SEC / 3600).toFixed(1)} hours)`);
+console.log(`  USER_CLEANUP_AGE_MS: ${USER_CLEANUP_AGE_MS}ms (${(USER_CLEANUP_AGE_MS / 3600000).toFixed(1)} hours)`);
+console.log(`  USER_CLEANUP_SCHEDULE: ${USER_CLEANUP_SCHEDULE}`);
 
 /**
  * Retry helper with exponential backoff
@@ -360,6 +368,108 @@ exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun
   } catch (error) {
     console.error('Fatal error in scheduledRoomCleanup:', error);
     // Rethrow so Cloud Functions knows this invocation failed
+    throw error;
+  }
+});
+
+/**
+ * Scheduled job to clean up old user profiles and presence data.
+ * Removes users and their presence entries that are older than USER_CLEANUP_AGE_MS (default: 24 hours).
+ * This prevents database bloat from accumulating user data that's only needed during active sessions.
+ *
+ * Runs on a configurable schedule (default: every 6 hours).
+ */
+exports.scheduledUserCleanup = functions.pubsub.schedule(USER_CLEANUP_SCHEDULE).onRun(async (context) => {
+  console.log(`Starting scheduled user cleanup on schedule: ${USER_CLEANUP_SCHEDULE}`);
+  
+  try {
+    const db = getDatabase();
+    const now = Date.now();
+    const cutoffTime = now - USER_CLEANUP_AGE_MS;
+    
+    console.log(`Cleaning up users and presence data older than ${new Date(cutoffTime).toISOString()} (${(USER_CLEANUP_AGE_MS / 3600000).toFixed(1)} hours ago)`);
+    
+    // Clean up user profiles
+    const usersSnapshot = await retryWithBackoff(
+      () => db.ref('users').get(),
+      3,
+      200
+    );
+    
+    const userDeletions = {};
+    let userCleanupCount = 0;
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      
+      for (const [userId, userData] of Object.entries(users)) {
+        try {
+          if (!userData) continue;
+          
+          const createdAt = userData.createdAt || 0;
+          
+          // Remove users older than the cutoff
+          if (createdAt < cutoffTime) {
+            userDeletions[`users/${userId}`] = null;
+            userCleanupCount++;
+            console.log(`Marked user ${userId} for deletion (created: ${new Date(createdAt).toISOString()})`);
+          }
+        } catch (e) {
+          console.error(`Error processing user ${userId}:`, e);
+        }
+      }
+    }
+    
+    // Clean up presence data for old users
+    const presenceSnapshot = await retryWithBackoff(
+      () => db.ref('presence').get(),
+      3,
+      200
+    );
+    
+    let presenceCleanupCount = 0;
+    
+    if (presenceSnapshot.exists()) {
+      const presence = presenceSnapshot.val();
+      
+      for (const [userId, presenceData] of Object.entries(presence)) {
+        try {
+          if (!presenceData) continue;
+          
+          const lastSeen = presenceData.lastSeen || 0;
+          
+          // Remove presence data older than the cutoff
+          if (lastSeen < cutoffTime) {
+            userDeletions[`presence/${userId}`] = null;
+            presenceCleanupCount++;
+            console.log(`Marked presence data for user ${userId} for deletion (lastSeen: ${new Date(lastSeen).toISOString()})`);
+          }
+        } catch (e) {
+          console.error(`Error processing presence for user ${userId}:`, e);
+        }
+      }
+    }
+    
+    // Apply all deletions at once
+    if (Object.keys(userDeletions).length > 0) {
+      await retryWithBackoff(
+        () => db.ref('/').update(userDeletions),
+        3,
+        200
+      );
+      
+      console.log(`Successfully cleaned up ${userCleanupCount} users and ${presenceCleanupCount} presence entries`);
+    } else {
+      console.log('No old users or presence data found for cleanup');
+    }
+    
+    return { 
+      usersCleaned: userCleanupCount, 
+      presenceCleaned: presenceCleanupCount,
+      totalCleaned: userCleanupCount + presenceCleanupCount
+    };
+  } catch (error) {
+    console.error('Fatal error in scheduledUserCleanup:', error);
     throw error;
   }
 });

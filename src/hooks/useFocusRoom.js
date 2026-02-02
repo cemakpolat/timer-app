@@ -27,6 +27,8 @@ const useFocusRoom = () => {
   const subscribedRoomIdsRef = useRef(new Set());
   // Track unsub functions per room so we can clean them up
   const subscriptionsRef = useRef(new Map());
+  // Track room IDs that the user has explicitly left (to prevent re-subscription)
+  const leftRoomIdsRef = useRef(new Set());
 
   /**
    * Initial fetch to get room list, then subscribe to each room for real-time updates
@@ -203,6 +205,9 @@ const useFocusRoom = () => {
       }
       const room = await service.joinFocusRoom(roomId, undefined, userInfo);
 
+      // Clear from leftRoomIds if user is re-joining a previously left room
+      leftRoomIdsRef.current.delete(roomId);
+
       setCurrentRoom(room);
       setError(null);
 
@@ -289,10 +294,15 @@ const useFocusRoom = () => {
       if (room.status !== 'scheduled') {
         // Get or generate display name for the creator
         let displayName = localStorage.getItem('userDisplayName');
-        if (!displayName) {
-          const service = RealtimeServiceFactory.getServiceSafe();
-          const userId = service?.currentUserId || 'anonymous';
-          displayName = roomData.creatorName || `User ${userId.substring(0, 5)}`;
+        if (!displayName || roomData.creatorName) {
+          // Use the creatorName from roomData if provided, otherwise generate one
+          if (roomData.creatorName) {
+            displayName = roomData.creatorName;
+          } else {
+            const service = RealtimeServiceFactory.getServiceSafe();
+            const userId = service?.currentUserId || 'anonymous';
+            displayName = `User ${userId.substring(0, 5)}`;
+          }
           localStorage.setItem('userDisplayName', displayName);
         }
         
@@ -334,10 +344,25 @@ const useFocusRoom = () => {
       } catch (e) {
         // ignore
       }
-      // Unsubscribe from updates
-      if (currentRoom._unsubscribe) {
-        currentRoom._unsubscribe();
+
+      // Mark this room as left to prevent automatic re-subscription
+      leftRoomIdsRef.current.add(currentRoom.id);
+
+      // Unsubscribe from the specific room's subscriptions
+      const roomSubscription = subscriptionsRef.current.get(currentRoom.id);
+      if (roomSubscription) {
+        try { roomSubscription(); } catch (e) {}
+        subscriptionsRef.current.delete(currentRoom.id);
       }
+      subscribedRoomIdsRef.current.delete(currentRoom.id);
+
+      // Also call currentRoom._unsubscribe if present (legacy - for room, messages, timer)
+      if (currentRoom._unsubscribe) {
+        try { currentRoom._unsubscribe(); } catch (e) {}
+      }
+
+      // Remove the left room from rooms list to prevent re-subscription and ghost updates
+      setRooms((cur) => cur.filter(r => r.id !== currentRoom.id));
 
       setCurrentRoom(null);
       setMessages([]);
@@ -400,12 +425,12 @@ const useFocusRoom = () => {
   /**
    * Start timer in current room
    */
-  const startTimer = useCallback(async (duration) => {
+  const startTimer = useCallback(async (duration, timerType = 'timer', timerData = null) => {
     if (!currentRoom) return;
 
     try {
       const service = RealtimeServiceFactory.getService();
-      await service.startRoomTimer(currentRoom.id, duration);
+      await service.startRoomTimer(currentRoom.id, duration, timerType, timerData);
       setError(null);
     } catch (err) {
       logger.error('Failed to start timer:', err);
@@ -456,6 +481,11 @@ const useFocusRoom = () => {
     const subscribeToRoom = async (roomId) => {
       // Skip if already subscribed
       if (subscribedRoomIdsRef.current.has(roomId)) {
+        return;
+      }
+
+      // Skip if user has explicitly left this room
+      if (leftRoomIdsRef.current.has(roomId)) {
         return;
       }
 

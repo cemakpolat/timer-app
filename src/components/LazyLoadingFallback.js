@@ -18,7 +18,7 @@ const LazyLoadingFallback = ({ theme }) => {
       justifyContent: 'center',
       padding: '15px',
       background: theme?.card || 'rgba(255,255,255,0.05)',
-      borderRadius: 10,
+      borderRadius: theme.borderRadius,
       minHeight: 200
     }}>
       <div style={{ textAlign: 'center' }}>

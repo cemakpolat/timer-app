@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, Clock } from 'lucide-react';
-import { useModal } from '../../context/ModalContext';
+// import { useModal } from '../../context/ModalContext';
+import { useToast } from '../../context/ToastContext';
 import { useTimers } from '../../hooks/useTimers';
 
 // Utility function to get contrasting text color
@@ -30,18 +31,21 @@ const getTextOpacity = (theme, opacity = 0.7) => {
  * Helper component to render a timer button
  */
 const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
-  const isComposite = timer.isSequence || timer.group === 'Sequences';
+  const isComposite = timer.isSequence || timer.exercises || timer.group === 'Sequences';
   let displayDuration = `${timer.duration} ${timer.unit || 'min'}`;
 
-  if (isComposite && timer.steps) {
-    const totalSec = timer.steps.reduce((sum, step) => {
-      return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
-    }, 0);
-    displayDuration = `${Math.floor(totalSec / 60)}m`;
-  } else if (timer.exercises && !isComposite) {
-    // Handle template with exercises
-    const totalSec = timer.exercises.reduce((sum, ex) => sum + (ex.duration || 0), 0);
-    displayDuration = `${Math.floor(totalSec / 60)}m`;
+  if (isComposite) {
+    if (timer.steps) {
+      const totalSec = timer.steps.reduce((sum, step) => {
+        return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+      }, 0);
+      displayDuration = `${Math.floor(totalSec / 60)}m`;
+    } else if (timer.exercises) {
+      const totalSec = timer.exercises.reduce((sum, ex) => {
+        return sum + (ex.unit === 'sec' || ex.unit === 'seconds' ? ex.duration : ex.duration * 60);
+      }, 0);
+      displayDuration = `${Math.floor(totalSec / 60)}m`;
+    }
   }
 
   return (
@@ -51,7 +55,7 @@ const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
       style={{
         background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
         border: `1px solid ${isSelected ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-        borderRadius: 8,
+        borderRadius: theme.borderRadius,
         padding: '8px 10px',
         color: isSelected ? getContrastColor(theme.accent) : theme.text,
         cursor: 'pointer',
@@ -74,12 +78,12 @@ const TimerButton = ({ timer, isSelected, onSelect, theme }) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {isComposite && (
-          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: theme.borderRadius, whiteSpace: 'nowrap' }}>
             Composite
           </span>
         )}
         {timer.exercises && (
-          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: theme.borderRadius, whiteSpace: 'nowrap' }}>
             Template
           </span>
         )}
@@ -136,6 +140,33 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
   const [scheduledTime, setScheduledTime] = useState(''); // Time in HH:mm format
   const [selectedTag, setSelectedTag] = useState('other'); // Tag for room categorization
   const [prefillTemplate, setPrefillTemplate] = useState(null);
+  const [isCreating, setIsCreating] = useState(false); // Prevent double submission
+  const [selectedAmbient, setSelectedAmbient] = useState('None');
+  const [ambientAutoStart, setAmbientAutoStart] = useState(false);
+
+  /**
+   * Generate a unique display name by combining user input with a generated suffix
+   */
+  const generateUniqueDisplayName = (userInput) => {
+    if (!userInput || userInput.trim() === '') {
+      // Generate a random name if no input
+      const adjectives = ['Swift', 'Bright', 'Calm', 'Bold', 'Wise', 'Quick', 'Gentle', 'Sharp'];
+      const nouns = ['Eagle', 'Wolf', 'Bear', 'Fox', 'Owl', 'Lion', 'Tiger', 'Hawk'];
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const suffix = Math.random().toString(36).substring(2, 5);
+      return `${adj}${noun}${suffix}`;
+    }
+
+    // Clean the user input
+    const cleanInput = userInput.trim();
+    
+    // Generate a short unique suffix (3 characters)
+    const suffix = Math.random().toString(36).substring(2, 5);
+    
+    // Combine user input with suffix
+    return `${cleanInput}${suffix}`;
+  };
 
   // Get all available timers (including composite timers)
   // const availableTimers = savedTimers.filter(t => t !== null && t !== undefined);
@@ -151,7 +182,8 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     { value: 'other', label: 'Other', color: '#6b7280' }
   ];
 
-  const { alert } = useModal();
+  // const { alert } = useModal();
+  const { showToast } = useToast();
 
   // Load prefill template on mount or when prefillTemplateId changes
   React.useEffect(() => {
@@ -170,42 +202,48 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     e.preventDefault();
 
     if (!roomName.trim()) {
-      await alert('Please enter a room name');
+      showToast('Please enter a room name', 'error', 4000);
       return;
     }
 
     if (!displayName.trim()) {
-      await alert('Please enter your display name');
-      return;
+      // Generate a unique name if none provided
+      const generatedName = generateUniqueDisplayName('');
+      setDisplayName(generatedName);
     }
 
     if (timerTab === 'available' && !selectedTimer) {
-      await alert('Please select a timer');
+      showToast('Please select a timer', 'error', 4000);
       return;
     }
 
     // Phase 2a: Validate scheduling inputs if enabled
     if (scheduleRoom) {
       if (!scheduledDate || !scheduledTime) {
-        await alert('Please select both date and time for scheduling');
+        showToast('Please select both date and time for scheduling', 'error', 4000);
         return;
       }
       // Parse date and time into a timestamp
       const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
       if (isNaN(scheduledDateTime.getTime())) {
-        await alert('Invalid date or time');
+        showToast('Invalid date or time', 'error', 4000);
         return;
       }
       if (scheduledDateTime.getTime() <= Date.now()) {
-        await alert('Scheduled time must be in the future');
+        showToast('Scheduled time must be in the future', 'error', 4000);
         return;
       }
     }
 
+    const finalDisplayName = displayName.trim() || generateUniqueDisplayName('');
+    if (!displayName.trim()) {
+      setDisplayName(finalDisplayName);
+    }
+    
     const roomData = {
       name: roomName.trim(),
       maxParticipants: parseInt(maxParticipants),
-      creatorName: displayName.trim(),
+      creatorName: finalDisplayName,
       tag: selectedTag // Add tag to room data
     };
 
@@ -220,16 +258,37 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
       roomData.scheduledFor = scheduledDateTime.getTime();
     }
 
+    // Persist ambient music selection (if any) and whether it should auto-start
+    roomData.ambientSound = selectedAmbient && selectedAmbient !== 'None' ? selectedAmbient : null;
+    roomData.ambientAutoStart = !!ambientAutoStart;
+
     if (timerTab === 'new') {
       roomData.duration = parseInt(duration) * 60; // Convert to seconds
       roomData.timerType = 'single';
     } else {
       // Using an available timer
-      roomData.timerType = selectedTimer.isSequence ? 'composite' : 'single';
+      const isComposite = selectedTimer.isSequence || selectedTimer.exercises;
+      roomData.timerType = isComposite ? 'composite' : 'single';
       if (selectedTimer.isSequence) {
         roomData.compositeTimer = selectedTimer;
         const totalSeconds = selectedTimer.steps.reduce((sum, step) => {
           return sum + (step.unit === 'sec' ? step.duration : step.duration * 60);
+        }, 0);
+        roomData.duration = totalSeconds;
+      } else if (selectedTimer.exercises) {
+        // Normalize exercises -> steps so room storage uses a consistent composite shape
+        const steps = selectedTimer.exercises.map(ex => ({
+          name: ex.name || 'Unnamed Exercise',
+          duration: ex.duration || 60,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+          type: ex.type || 'work',
+          color: ex.color || '#3b82f6',
+          accent: ex.accent || ex.color || '#3b82f6'
+        }));
+        roomData.compositeTimer = { ...selectedTimer, steps };
+        roomData.timerType = 'composite';
+        const totalSeconds = steps.reduce((sum, ex) => {
+          return sum + (ex.unit === 'sec' ? ex.duration : ex.duration * 60);
         }, 0);
         roomData.duration = totalSeconds;
       } else {
@@ -239,12 +298,15 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
     }
 
     try {
+      setIsCreating(true);
       await onCreateRoom(roomData);
       onClose();
     } catch (err) {
       // Show inline feedback if creation failed (e.g., duplicate name or permission error)
       const msg = err?.message || 'Failed to create room';
-      await alert(msg);
+      showToast(msg, 'error', 5000);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -288,7 +350,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
         style={{
           background: theme.card,
           position: 'relative',
-          borderRadius: 10,
+          borderRadius: theme.borderRadius,
           padding: 15,
           maxWidth: 500,
           width: '100%',
@@ -311,7 +373,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               color: getTextOpacity(theme, 0.6),
               cursor: 'pointer',
               padding: 8,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               display: 'flex',
               alignItems: 'center',
               transition: 'all 0.2s'
@@ -329,7 +391,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
             <div style={{
               background: `rgba(${parseInt(theme.accent.slice(1,3),16)},${parseInt(theme.accent.slice(3,5),16)},${parseInt(theme.accent.slice(5,7),16)},0.1)`,
               border: `1px solid ${theme.accent}`,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               padding: 12,
               marginBottom: 16,
               display: 'flex',
@@ -369,7 +431,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${roomName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 12,
                 color: theme.text,
                 fontSize: 14,
@@ -390,12 +452,18 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="How others will see you..."
+              onBlur={(e) => {
+                // Generate unique name when user finishes typing
+                if (e.target.value.trim()) {
+                  setDisplayName(generateUniqueDisplayName(e.target.value));
+                }
+              }}
+              placeholder="Enter your name (we'll make it unique)..."
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${displayName ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 12,
                 color: theme.text,
                 fontSize: 14,
@@ -404,6 +472,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 boxSizing: 'border-box'
               }}
             />
+            <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.6), marginTop: 4 }}>
+              A unique suffix will be added to ensure your name is unique
+            </div>
           </div>
 
           {/* Room Tag */}
@@ -489,7 +560,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                         style={{
                           background: duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.06)`,
                           border: `1px solid ${duration === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.08)`}`,
-                          borderRadius: 10,
+                          borderRadius: theme.borderRadius,
                           padding: '10px 6px',
                           minHeight: 44,
                           display: 'flex',
@@ -514,7 +585,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       style={{
                         background: !presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.05)',
                         border: `1px solid ${!presetDurations.some(p => p.value === duration) ? 'rgba(59,130,246,0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                        borderRadius: 10,
+                        borderRadius: theme.borderRadius,
                         padding: '10px 6px',
                         minHeight: 44,
                         display: 'flex',
@@ -537,7 +608,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   <div style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     textAlign: 'center',
                     color: getTextOpacity(theme, 0.6),
@@ -648,7 +719,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   style={{
                       background: maxParticipants === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
                       border: `2px solid ${maxParticipants === preset.value ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                      borderRadius: 10,
+                      borderRadius: theme.borderRadius,
                       padding: '10px 6px',
                       minHeight: 44,
                       display: 'flex',
@@ -673,7 +744,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 style={{
                   background: !presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.18)' : 'rgba(255,255,255,0.05)',
                   border: `2px solid ${!presetParticipants.some(p => p.value === maxParticipants) ? 'rgba(59, 130, 246, 0.5)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '10px 6px',
                   minHeight: 44,
                   display: 'flex',
@@ -699,7 +770,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 width: '100%',
                 background: scheduleRoom ? theme.accent : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${scheduleRoom ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`}`,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 cursor: 'pointer',
@@ -726,7 +797,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
                       border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: 10,
                       color: theme.text,
                       fontSize: 14,
@@ -746,7 +817,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                       width: '100%',
                       background: 'rgba(255,255,255,0.05)',
                       border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: 10,
                       color: theme.text,
                       fontSize: 14,
@@ -774,7 +845,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                   width: 120,
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 10,
                   color: theme.text,
                   fontSize: 14,
@@ -787,7 +858,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
           </div>
           <div style={{
             background: 'rgba(255,255,255,0.05)',
-            borderRadius: 12,
+            borderRadius: theme.borderRadius,
             padding: 16,
             marginBottom: 24,
             border: `1px solid ${theme.accent}40`
@@ -803,9 +874,9 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               ) : selectedTimer ? (
                 <>
                   <div>Timer: {selectedTimer.name}</div>
-                  {selectedTimer.isSequence || selectedTimer.group === 'Sequences' ? (
+                  {selectedTimer.isSequence || selectedTimer.exercises || selectedTimer.group === 'Sequences' ? (
                     <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
-                      Composite • {selectedTimer.steps?.length} steps
+                      {selectedTimer.isSequence ? `Composite • ${selectedTimer.steps?.length} steps` : `Routine • ${selectedTimer.exercises?.length} exercises`}
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
@@ -818,12 +889,37 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
               )}
               <div>Capacity: Up to {maxParticipants} people</div>
               {scheduleRoom && scheduledDate && scheduledTime && (
-                <div style={{ marginTop: 8, padding: 8, background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, borderRadius: 6, fontSize: 13 }}>
+                <div style={{ marginTop: 8, padding: 8, background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, borderRadius: theme.borderRadius, fontSize: 13 }}>
                   📅 Scheduled: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
                 </div>
               )}
             </div>
           </div>
+          </div>
+
+          {/* Ambient music options */}
+          <div style={{ padding: '12px 0' }}>
+            <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Room Music</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                value={selectedAmbient}
+                onChange={(e) => setSelectedAmbient(e.target.value)}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: theme.borderRadius, padding: 10, color: theme.text }}
+              >
+                {/* Build options from constants at runtime */}
+                <option value="None">None</option>
+                <option value="Nature - Forest Rain">Nature - Forest Rain</option>
+                <option value="Nature - Gentle Stream">Nature - Gentle Stream</option>
+                <option value="Nature - Ocean Waves">Nature - Ocean Waves</option>
+                <option value="Deep Work - Piano Focus">Deep Work - Piano Focus</option>
+                <option value="Pomodoro - Atmospheric Focus">Pomodoro - Atmospheric Focus</option>
+              </select>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                <input type="checkbox" checked={ambientAutoStart} onChange={(e) => setAmbientAutoStart(e.target.checked)} />
+                <span style={{ fontSize: 12, color: getTextOpacity(theme, 0.7) }}>Start when session begins</span>
+              </label>
+            </div>
           </div>
 
           {/* Actions - Sticky at bottom */}
@@ -843,7 +939,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                 flex: 1,
                 background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 16,
                 color: theme.text,
                 cursor: 'pointer',
@@ -858,23 +954,24 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
             </button>
             <button
               type="submit"
+              disabled={isCreating}
               style={{
                 flex: 1,
-                background: theme.accent,
+                background: isCreating ? 'rgba(255,255,255,0.3)' : theme.accent,
                 border: 'none',
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: 16,
-                color: getContrastColor(theme.accent),
-                cursor: 'pointer',
+                color: isCreating ? 'rgba(255,255,255,0.5)' : getContrastColor(theme.accent),
+                cursor: isCreating ? 'not-allowed' : 'pointer',
                 fontSize: 15,
                 fontWeight: 600,
                 transition: 'all 0.2s',
-                boxShadow: `0 4px 12px ${theme.accent}40`
+                boxShadow: isCreating ? 'none' : `0 4px 12px ${theme.accent}40`
               }}
-              onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
-              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => !isCreating && (e.target.style.transform = 'translateY(-1px)')}
+              onMouseLeave={(e) => !isCreating && (e.target.style.transform = 'translateY(0)')}
             >
-              Create Room
+              {isCreating ? 'Creating...' : 'Create Room'}
             </button>
           </div>
         </form>
@@ -882,27 +979,27 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
         {/* In-modal editors (rendered inside modal content) */}
         {showDurationEditor && (
           <div style={{ position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
-            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Session Length</div>
-              <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter duration in minutes (max 180)</div>
+              <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter duration in minutes (max 720)</div>
               <input
                 type="number"
                 value={tempDuration}
-                onChange={(e) => setTempDuration(Math.max(1, Math.min(180, parseInt(e.target.value || 0))))}
+                onChange={(e) => setTempDuration(Math.max(1, Math.min(720, parseInt(e.target.value || 0))))}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') setShowDurationEditor(false);
                   if (e.key === 'Enter') {
                     const val = parseInt(tempDuration, 10);
-                    if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val));
+                    if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val));
                     setShowDurationEditor(false);
                   }
                 }}
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
+                style={{ width: '100%', padding: 10, borderRadius: theme.borderRadius, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
               />
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
-                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(180, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
+                <button type="button" onClick={() => setShowDurationEditor(false)} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempDuration, 10); if (!Number.isNaN(val) && val > 0) setDuration(Math.min(720, val)); setShowDurationEditor(false); }} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
               </div>
             </div>
           </div>
@@ -910,7 +1007,7 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
 
         {showParticipantsEditor && (
           <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1100, minWidth: 280 }}>
-            <div style={{ background: theme.card, borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Custom Max Participants</div>
               <div style={{ fontSize: 13, color: getTextOpacity(theme, 0.8), marginBottom: 8 }}>Enter a number between 2 and 100</div>
               <input
@@ -926,11 +1023,11 @@ const CreateRoomModal = ({ theme, onClose, onCreateRoom, savedTimers = [], prefi
                     setShowParticipantsEditor(false);
                   }
                 }}
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
+                style={{ width: '100%', padding: 10, borderRadius: theme.borderRadius, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', color: theme.text, boxSizing: 'border-box', marginBottom: 12 }}
               />
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowParticipantsEditor(false)} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
-                <button type="button" onClick={() => { const val = parseInt(tempParticipants, 10); if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val)); setShowParticipantsEditor(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
+                <button type="button" onClick={() => setShowParticipantsEditor(false)} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: theme.text }}>Cancel</button>
+                <button type="button" onClick={() => { const val = parseInt(tempParticipants, 10); if (!Number.isNaN(val) && val >= 2) setMaxParticipants(Math.min(100, val)); setShowParticipantsEditor(false); }} style={{ padding: '8px 12px', borderRadius: theme.borderRadius, background: theme.accent, border: 'none', color: getContrastColor(theme.accent) }}>Save</button>
               </div>
             </div>
           </div>

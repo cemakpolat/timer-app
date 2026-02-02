@@ -23,7 +23,11 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
    */
   const fetchActiveUsers = useCallback(async () => {
     try {
-      const service = RealtimeServiceFactory.getService();
+      const service = RealtimeServiceFactory.getServiceSafe();
+      if (!service) {
+        // Service not initialized yet, skip
+        return;
+      }
       const count = await service.getActiveUsersCount();
       setActiveUsers(count);
       setError(null);
@@ -38,7 +42,8 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
    */
   const updatePresence = useCallback(async (metadata = {}) => {
     try {
-      const service = RealtimeServiceFactory.getService();
+      const service = RealtimeServiceFactory.getServiceSafe();
+      if (!service) return;
       await service.updatePresence(undefined, metadata);
       setIsOnline(true);
       setError(null);
@@ -54,7 +59,8 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
    */
   const removePresence = useCallback(async () => {
     try {
-      const service = RealtimeServiceFactory.getService();
+      const service = RealtimeServiceFactory.getServiceSafe();
+      if (!service) return;
       await service.removePresence();
       setIsOnline(false);
     } catch (err) {
@@ -110,9 +116,12 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
 
       // Remove presence when component unmounts
       try {
-        const service = RealtimeServiceFactory.getService();
-        service.stopPresenceHeartbeat();
-        service.removePresence().catch(logger.error);
+        const service = RealtimeServiceFactory.getServiceSafe();
+        if (service) {
+          service.stopPresenceHeartbeat();
+          service.removePresence().catch(console.error);
+        }
+      } catch (err) {
       } catch (err) {
         // Service already cleaned up
       }

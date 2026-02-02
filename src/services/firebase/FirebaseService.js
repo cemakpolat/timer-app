@@ -259,7 +259,32 @@ class FirebaseService extends IRealtimeService {
     const userRoomsRef = ref(this.db, `userRooms/${this.currentUserId}`);
     const userRoomsSnapshot = await get(userRoomsRef);
     if (userRoomsSnapshot.exists()) {
-      throw new Error('You already have an active room. Leave your current room before creating a new one.');
+      // Defensive: check if the referenced room actually exists and is active
+      const staleRoomId = userRoomsSnapshot.val();
+      if (staleRoomId) {
+        const staleRoomRef = ref(this.db, `focusRooms/${staleRoomId}`);
+        const staleRoomSnap = await get(staleRoomRef);
+        if (!staleRoomSnap.exists()) {
+          // Room doesn't exist: clean up userRooms
+          await set(userRoomsRef, null);
+        } else {
+          const roomData = staleRoomSnap.val();
+          const isCompleted = roomData.completed;
+          const participants = roomData.participants || {};
+          const hasNoParticipants = Object.keys(participants).length === 0;
+          const userIsParticipant = participants[this.currentUserId] !== undefined;
+          
+          if (isCompleted || hasNoParticipants || !userIsParticipant) {
+            // Stale entry: room is completed, empty, or user is not a participant - clean up userRooms
+            await set(userRoomsRef, null);
+          } else {
+            throw new Error('You already have an active room. Leave your current room before creating a new one.');
+          }
+        }
+      } else {
+        // Defensive: clean up null/invalid userRooms entry
+        await set(userRoomsRef, null);
+      }
     }
 
     // Task 4: Check global limit (max 100 active rooms)
@@ -280,10 +305,48 @@ class FirebaseService extends IRealtimeService {
 
     const creatorName = roomData.creatorName || (this.currentUserProfile && this.currentUserProfile.displayName) || `User ${this.currentUserId?.substr?.(0,6) || ''}`;
 
+    // Validate maximum session duration (12 hours = 43200 seconds)
+    const MAX_DURATION_SEC = 43200; // 12 hours
+    const roomDuration = roomData.duration || 1500;
+    if (roomDuration > MAX_DURATION_SEC) {
+      throw new Error(`Room duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Requested: ${roomDuration} seconds.`);
+    }
+
     const now = Date.now();
     // Determine if room is scheduled (scheduledFor is in the future)
     const scheduledFor = roomData.scheduledFor || null;
     const isScheduled = scheduledFor && scheduledFor > now;
+
+    // Normalize compositeTimer shape if caller provided exercises
+    let compositeTimerNormalized = null;
+    if (roomData.compositeTimer) {
+      if (roomData.compositeTimer.steps) {
+        // Ensure all steps have defined values (no undefined)
+        compositeTimerNormalized = {
+          ...roomData.compositeTimer,
+          steps: roomData.compositeTimer.steps.map(step => ({
+            name: step.name || 'Unnamed Step',
+            duration: step.duration || 60,
+            unit: (step.unit === 'seconds' || step.unit === 'sec') ? 'sec' : (step.unit || 'min'),
+            type: step.type || 'work',
+            color: step.color || '#3b82f6',
+            accent: step.accent || step.color || '#3b82f6'
+          }))
+        };
+      } else if (roomData.compositeTimer.exercises) {
+        compositeTimerNormalized = {
+          ...roomData.compositeTimer,
+          steps: roomData.compositeTimer.exercises.map(ex => ({
+            name: ex.name || 'Unnamed Exercise',
+            duration: ex.duration || 60,
+            unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+            type: ex.type || 'work',
+            color: ex.color || '#3b82f6',
+            accent: ex.accent || ex.color || '#3b82f6'
+          }))
+        };
+      }
+    }
 
     const room = {
       id: roomId,
@@ -299,11 +362,18 @@ class FirebaseService extends IRealtimeService {
       status: isScheduled ? 'scheduled' : 'active', // 'scheduled', 'active', 'completed'
       // Optional per-room empty-room removal delay (in seconds). If provided, this overrides service/env defaults.
       emptyRoomRemovalDelaySec: typeof roomData.emptyRoomRemovalDelaySec === 'number' ? roomData.emptyRoomRemovalDelaySec : undefined,
+      // Ambient music configuration persisted from client
+      ambientSound: roomData.ambientSound || null,
+      ambientAutoStart: !!roomData.ambientAutoStart,
       participants: {},
       timerStartedAt: null,
       timerEndsAt: null,
       completed: false,
-      isPublic: roomData.isPublic !== false
+      isPublic: roomData.isPublic !== false,
+      // Store composite timer data if provided
+      compositeTimer: compositeTimerNormalized || null,
+      timerType: roomData.timerType || (compositeTimerNormalized ? 'composite' : 'single'),
+      currentStep: 0
     };
 
     await set(roomRef, room);
@@ -427,9 +497,8 @@ class FirebaseService extends IRealtimeService {
     updates[`userRooms/${userId}`] = null;
 
     try {
-      logger.info('Attempting leave update by', this.currentUserId, 'updates:', updates);
       await update(rootRef, updates);
-      logger.info('Leave update succeeded for', userId, 'in room', roomId);
+    } catch (err) {
     } catch (err) {
       if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
         throw new Error('Permission denied when leaving room: ensure Realtime DB rules allow the user to remove their participant and userRooms entries.');
@@ -513,6 +582,24 @@ class FirebaseService extends IRealtimeService {
     } catch (e) {
       logger.warn('Post-leave room check failed:', e);
     }
+
+    // Clean up any subscriptions for this room to prevent ghost updates
+    const keysToCleanup = [`room_${roomId}`, `messages_${roomId}`, `timer_${roomId}`];
+    keysToCleanup.forEach(key => {
+      const sub = this.subscriptions.get(key);
+      if (sub) {
+        try {
+          const { off } = this.firebase;
+          off(sub.ref, 'value', sub.listener);
+          this.subscriptions.delete(key);
+          console.log(`Cleaned up subscription for ${key} after user ${userId} left room ${roomId}`);
+        } catch (e) {
+          console.warn('Failed to cleanup subscription', key, e);
+        }
+      }
+    });
+
+    console.log(`User ${userId} left room ${roomId}. Subscriptions remaining:`, this.subscriptions.size);
   }
 
   /**
@@ -678,10 +765,55 @@ class FirebaseService extends IRealtimeService {
   /**
    * Start room timer
    */
-  async startRoomTimer(roomId, duration) {
+  async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
     if (!this.db) throw new Error('Service not initialized');
 
-    const { ref, set, get } = this.firebase;
+    // Defensive normalization: accept `timerData` in either { steps: [...] } or { exercises: [...] } shape
+    if (timerType === 'composite' && timerData && !timerData.steps && timerData.exercises) {
+      try {
+        timerData.steps = timerData.exercises.map(ex => ({
+          name: ex.name || 'Unnamed Exercise',
+          duration: ex.duration || 60,
+          unit: (ex.unit === 'seconds' || ex.unit === 'sec') ? 'sec' : (ex.unit || 'min'),
+          type: ex.type || 'work',
+          color: ex.color || '#3b82f6',
+          accent: ex.accent || ex.color || '#3b82f6'
+        }));
+      } catch (e) {
+        // If normalization fails, leave timerData as-is and let later checks fail cleanly
+        // Only log if in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to normalize composite timerData.exercises -> steps', e);
+        }
+      }
+    }
+
+    // Validate maximum session duration (12 hours = 43200 seconds)
+    const MAX_DURATION_SEC = 43200; // 12 hours
+    if (duration > MAX_DURATION_SEC) {
+      throw new Error(`Timer duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Requested: ${duration} seconds.`);
+    }
+
+    // For composite timers, also validate total duration
+    if (timerType === 'composite' && timerData?.steps) {
+      const totalDurationSec = timerData.steps.reduce((total, step) => {
+        return total + (step.unit === 'sec' ? step.duration : step.duration * 60);
+      }, 0);
+      
+      if (totalDurationSec > MAX_DURATION_SEC) {
+        throw new Error(`Composite timer total duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Total: ${totalDurationSec} seconds.`);
+      }
+    } else if (timerType === 'composite' && timerData?.exercises) {
+      const totalDurationSec = timerData.exercises.reduce((total, exercise) => {
+        return total + (exercise.unit === 'sec' || exercise.unit === 'seconds' ? exercise.duration : exercise.duration * 60);
+      }, 0);
+      
+      if (totalDurationSec > MAX_DURATION_SEC) {
+        throw new Error(`Composite timer total duration cannot exceed 12 hours (${MAX_DURATION_SEC} seconds). Total: ${totalDurationSec} seconds.`);
+      }
+    }
+
+    const { ref, set, get, update } = this.firebase;
 
     // Check if room is scheduled and time hasn't arrived yet
     const roomRef = ref(this.db, `focusRooms/${roomId}`);
@@ -694,14 +826,34 @@ class FirebaseService extends IRealtimeService {
       throw new Error('This room is scheduled for ' + new Date(room.scheduledFor).toLocaleString() + '. You cannot start the timer until the scheduled time.');
     }
 
-    const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
+    // Handle composite timers
+    let timerDuration = duration;
+    if (timerType === 'composite' && timerData?.steps) {
+      const currentStepData = timerData.steps[timerData.currentStep || 0];
+      timerDuration = currentStepData ? (currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60) : duration;
+    } else if (timerType === 'composite' && timerData?.exercises) {
+      const currentExerciseData = timerData.exercises[timerData.currentStep || 0];
+      timerDuration = currentExerciseData ? (currentExerciseData.unit === 'sec' || currentExerciseData.unit === 'seconds' ? currentExerciseData.duration : currentExerciseData.duration * 60) : duration;
+    }
 
+    const timerRef = ref(this.db, `focusRooms/${roomId}/timer`);
     const now = Date.now();
     await set(timerRef, {
       startedAt: now,
-      endsAt: now + (duration * 1000),
-      duration
+      endsAt: now + (timerDuration * 1000),
+      duration: timerDuration
     });
+
+    // Update room with timerType and compositeTimer
+    const roomUpdate = { timerType };
+    if (timerType === 'composite' && timerData) {
+      roomUpdate.compositeTimer = timerData;
+      roomUpdate.currentStep = timerData.currentStep || 0;
+    } else {
+      roomUpdate.compositeTimer = null;
+      roomUpdate.currentStep = 0;
+    }
+    await update(roomRef, roomUpdate);
     // Schedule room removal after timer end + configured delay
     try {
       const delaySec = (this.config && this.config.roomRemovalDelaySec) || parseInt(process.env.REACT_APP_ROOM_REMOVAL_DELAY_SEC || '30', 10);
@@ -780,6 +932,15 @@ class FirebaseService extends IRealtimeService {
       throw new Error('Timer not started');
     }
 
+    // Check that total duration won't exceed 12 hours
+    const MAX_TOTAL_DURATION_SEC = 43200; // 12 hours
+    const currentDuration = room.timer.duration || 0;
+    const newTotalDuration = currentDuration + extensionMs / 1000;
+    
+    if (newTotalDuration > MAX_TOTAL_DURATION_SEC) {
+      throw new Error(`Total timer duration cannot exceed 12 hours (${MAX_TOTAL_DURATION_SEC} seconds). Current: ${Math.floor(currentDuration)}s, Extension would make: ${Math.floor(newTotalDuration)}s.`);
+    }
+
     // Extend the timer
     const newEndsAt = room.timer.endsAt + extensionMs;
     const newDuration = room.timer.duration + extensionMs / 1000;
@@ -818,6 +979,10 @@ class FirebaseService extends IRealtimeService {
       const rootRef = ref(this.db, '/');
       const updates = {};
       updates[`focusRooms/${roomId}`] = null;
+      // Clean up userRooms mapping for all participants (not just creator)
+      Object.keys(participants).forEach(uid => {
+        updates[`userRooms/${uid}`] = null;
+      });
       updates[`userRooms/${requesterId}`] = null;
       await update(rootRef, updates);
       // clear any scheduled cleanup

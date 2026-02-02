@@ -103,7 +103,7 @@ const FeedbackModal = ({ theme, onClose }) => {
         className="feedback-modal-content"
         style={{
           background: theme.card,
-          borderRadius: 10,
+          borderRadius: theme.borderRadius,
           padding: 15,
           maxWidth: 600,
           width: '100%',
@@ -121,7 +121,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: `${theme.accent}20`,
               padding: 10,
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -138,7 +138,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               color: getTextOpacity(theme, 0.6),
               cursor: 'pointer',
               padding: 8,
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               display: 'flex',
               alignItems: 'center',
               transition: 'all 0.2s'
@@ -157,7 +157,7 @@ const FeedbackModal = ({ theme, onClose }) => {
           {/* About Section */}
           <div style={{
             background: 'rgba(255,255,255,0.05)',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 15,
             marginBottom: 20,
             border: `1px solid ${theme.accent}20`
@@ -189,7 +189,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${getTextOpacity(theme, 0.1)}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 fontSize: 15,
@@ -216,7 +216,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${getTextOpacity(theme, 0.1)}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 fontSize: 15,
@@ -243,7 +243,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${getTextOpacity(theme, 0.1)}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 fontSize: 15,
@@ -270,7 +270,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${getTextOpacity(theme, 0.1)}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 fontSize: 15,
@@ -298,7 +298,7 @@ const FeedbackModal = ({ theme, onClose }) => {
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `2px solid ${suggestion ? theme.accent : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: 14,
                 color: theme.text,
                 fontSize: 15,
@@ -327,7 +327,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: `${theme.accent}20`,
               border: `2px solid ${theme.accent}`,
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 16,
               marginBottom: 20,
               textAlign: 'center',
@@ -343,7 +343,7 @@ const FeedbackModal = ({ theme, onClose }) => {
             <div style={{
               background: 'rgba(255,0,0,0.1)',
               border: '2px solid rgba(255,0,0,0.5)',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 16,
               marginBottom: 20,
               textAlign: 'center',
@@ -363,7 +363,7 @@ const FeedbackModal = ({ theme, onClose }) => {
               width: '100%',
               background: suggestion.trim() ? theme.accent : 'rgba(255,255,255,0.1)',
               border: suggestion.trim() ? 'none' : `1px solid ${getTextOpacity(theme, 0.2)}`,
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 16,
               color: suggestion.trim() ? getContrastColor(theme.accent) : theme.text,
               cursor: suggestion.trim() ? 'pointer' : 'not-allowed',

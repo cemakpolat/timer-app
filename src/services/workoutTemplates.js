@@ -84,7 +84,7 @@ export const WORKOUT_TEMPLATES = [
     name: 'HIIT Beginner',
     description: '20-minute high-intensity interval training perfect for getting started',
     category: 'cardio',
-    duration: 1200,
+    duration: 840,
     difficulty: 'beginner',
     templateType: 'workout',
     exercises: [
@@ -112,7 +112,7 @@ export const WORKOUT_TEMPLATES = [
       source: 'template',
       isTemplate: true,
       isEditable: false,
-      totalDuration: 1200,
+      totalDuration: 840,
       exerciseCount: 17,
       isRoomCompatible: true,
       recommendedParticipants: 4

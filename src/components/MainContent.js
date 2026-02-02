@@ -124,7 +124,7 @@ const MainContent = ({
           gap: 6,
           marginBottom: 16,
           background: theme.card,
-          borderRadius: 12,
+          borderRadius: theme.borderRadius,
           padding: 6
         }}>
           {[
@@ -141,7 +141,7 @@ const MainContent = ({
                 flex: 1,
                 background: activeMainTab === tab.value ? theme.accent : 'transparent',
                 border: 'none',
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: '8px 6px',
                 color: activeMainTab === tab.value ? getContrastColor(theme.accent) : theme.text,
                 cursor: 'pointer',
@@ -190,7 +190,7 @@ const MainContent = ({
             gap: 4,
             marginBottom: 16,
             background: 'rgba(255,255,255,0.05)',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 4
           }}>
             {[
@@ -206,7 +206,7 @@ const MainContent = ({
                   flex: 1,
                   background: activeFeatureTab === tab.value ? theme.accent : 'transparent',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: '8px',
                   color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : theme.text,
                   cursor: 'pointer',

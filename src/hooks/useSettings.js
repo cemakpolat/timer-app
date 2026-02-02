@@ -302,6 +302,24 @@ const useSettings = () => {
     return entry ? entry.url : null;
   }, []);
 
+  // Ensure the URL for a custom music file is available. If not present in memory,
+  // try to load the blob from IndexedDB, create an object URL and cache it.
+  const ensureCustomMusicUrl = useCallback(async (fileId) => {
+    const entry = fileStorageRef.current.get(fileId);
+    if (entry && entry.url) return entry.url;
+    try {
+      const blob = await getFileBlob(fileId);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        fileStorageRef.current.set(fileId, { blob, url });
+        return url;
+      }
+    } catch (err) {
+      console.warn('Failed to load blob for', fileId, err);
+    }
+    return null;
+  }, []);
+
   const deleteCustomMusic = useCallback((fileId) => {
     setCustomMusicFiles(prev => prev.filter(file => file.id !== fileId));
     const entry = fileStorageRef.current.get(fileId);
@@ -361,6 +379,7 @@ const useSettings = () => {
     deleteCustomMusic,
     renameCustomMusic,
     getCustomMusicUrl,
+    ensureCustomMusicUrl,
     
     // Data management
     exportData,

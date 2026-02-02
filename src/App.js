@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy, useMemo } from 'react';
 import { Play, Pause, RotateCcw, Clock, Zap, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, ChevronUp, ChevronDown, Users, ListChecks } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
@@ -44,8 +44,43 @@ const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPan
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
 const RoutinesPanel = lazy(() => import('./components/panels/RoutinesPanel'));
 
-// Create logger instance for App component
-const logger = createLogger('TimerApp');
+// Utility function to calculate relative luminance of a color
+const getLuminance = (hexColor) => {
+  // Convert hex to RGB
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+
+  // Apply gamma correction
+  const [rs, gs, bs] = [r, g, b].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+
+  // Calculate relative luminance
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+};
+
+// Determine if a color is light (returns true for light colors)
+const isLightColor = (hexColor) => {
+  return getLuminance(hexColor) > 0.5;
+};
+
+// Get contrasting text color for a given background
+const getContrastColor = (bgColor) => {
+  return isLightColor(bgColor) ? '#000000' : '#ffffff';
+};
+
+// Get semi-transparent text color based on theme
+const getTextOpacity = (theme, opacity = 0.7) => {
+  const baseColor = theme.text || (isLightColor(theme.bg) ? '#000000' : '#ffffff');
+  // Convert hex to rgba
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 // Use themes from constants with isDefault flag
 const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
@@ -62,12 +97,28 @@ const defaultSavedTimers = [
   { name: "Routine", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
 ];
 
+// Centralized styles for inputs for consistency and easier modification
+const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)', borderRadius = 0) => ({
+    width: '100%',
+    background: 'rgba(255,255,255,0.05)',
+    border: `1px solid ${borderColor}`,
+    borderRadius: borderRadius,
+    padding: 12,
+    color: textColor,
+    fontSize: 14,
+    boxSizing: 'border-box', // Ensure padding doesn't add to total width
+});
+
+// accentInputStyle removed (unused) to satisfy lint rules
+
+
 export default function TimerApp() {
   // Track if service is ready
   const [serviceReady, setServiceReady] = useState(false);
 
   // Do not initialize realtime service on page load.
   // Firebase connection will be created on-demand when the user creates or joins a focus room.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, no-use-before-define
   useEffect(() => {
     // Subscribe to factory init events so we know when the realtime service becomes available
     if (RealtimeServiceFactory.getServiceSafe()) {
@@ -86,7 +137,8 @@ export default function TimerApp() {
     return () => {
       RealtimeServiceFactory.offInit(onInit);
       RealtimeServiceFactory.offError(onError);
-      RealtimeServiceFactory.resetService();
+      // Removed resetService() call to prevent disconnecting service during development
+      // or React StrictMode double-mounting. Service will disconnect naturally on page unload.
       setServiceReady(false);
     };
   }, []);
@@ -139,24 +191,6 @@ export default function TimerApp() {
   const [, forceUpdate] = useState(0);
   const [showRoomExpirationModal, setShowRoomExpirationModal] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
-
-  useEffect(() => {
-    if (currentRoom?.timer) {
-      const interval = setInterval(() => {
-        // Check if timer has expired
-        const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
-        if (timeRemainingSec === 0 && !timerExpired) {
-          setTimerExpired(true);
-          setShowRoomExpirationModal(true);
-        }
-        forceUpdate(n => n + 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setTimerExpired(false);
-      setShowRoomExpirationModal(false);
-    }
-  }, [currentRoom?.timer, timerExpired]);
 
   // Handle timer extension
   const handleExtendTimer = async (extensionMs) => {
@@ -218,20 +252,76 @@ export default function TimerApp() {
     }
   });
   
+  // Load custom border radius from localStorage
+  const [customBorderRadius, setCustomBorderRadius] = useState(() => {
+    try {
+      const stored = localStorage.getItem('customBorderRadius');
+      return stored !== null ? parseInt(stored) : null;
+    } catch (error) {
+      console.error('Failed to load customBorderRadius:', error);
+      return null;
+    }
+  });
+
   // Load theme opacity from localStorage
   const [themeOpacity, setThemeOpacity] = useState(() => {
     try {
-      return parseFloat(localStorage.getItem('themeOpacity')) || 1;
+      const stored = localStorage.getItem('themeOpacity');
+      return stored !== null ? parseFloat(stored) : 1;
     } catch (error) {
       logger.error('Failed to load themeOpacity:', error);
       return 1;
     }
   });
 
+  // Persist custom border radius to localStorage
+  useEffect(() => {
+    if (customBorderRadius !== null) {
+      localStorage.setItem('customBorderRadius', customBorderRadius.toString());
+    } else {
+      localStorage.removeItem('customBorderRadius');
+    }
+  }, [customBorderRadius]);
+
+  // Keep the active `theme` object in sync with `customBorderRadius` so
+  // components that read `theme.borderRadius` (not `effectiveTheme`) update
+  // immediately when the settings slider changes.
+  useEffect(() => {
+    if (customBorderRadius !== null) {
+      setTheme(prev => prev && prev.borderRadius === customBorderRadius ? prev : { ...prev, borderRadius: customBorderRadius });
+    } else {
+      // If the user cleared the custom override, restore the theme's original
+      // borderRadius value from the themes array (if available).
+      try {
+        const original = themes.find(t => t.name === theme?.name);
+        if (original) setTheme(original);
+      } catch (err) {
+        // ignore
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customBorderRadius]);
+
+  // When the selected theme changes, reapply customBorderRadius if present
+  useEffect(() => {
+    if (customBorderRadius !== null && theme) {
+      setTheme(prev => ({ ...prev, borderRadius: customBorderRadius }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme?.name]);
+
   // Persist theme opacity to localStorage
   useEffect(() => {
     localStorage.setItem('themeOpacity', themeOpacity.toString());
   }, [themeOpacity]);
+
+  // Get effective theme with custom border radius
+  const effectiveTheme = useMemo(() => {
+    return {
+      ...theme,
+      borderRadius: customBorderRadius !== null ? customBorderRadius : (theme.borderRadius !== undefined ? theme.borderRadius : 12)
+    };
+  }, [theme, customBorderRadius]);
 
   const [, setShowThemes] = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -508,17 +598,32 @@ export default function TimerApp() {
       let displayName = localStorage.getItem('userDisplayName');
       if (!displayName) {
         const service = RealtimeServiceFactory.getServiceSafe();
+        // eslint-disable-next-line no-unused-vars
         const userId = service?.currentUserId || 'anonymous';
-        displayName = `User ${userId.substring(0, 5)}`;
+        // Generate a unique display name
+        const adjectives = ['Swift', 'Bright', 'Calm', 'Bold', 'Wise', 'Quick', 'Gentle', 'Sharp'];
+        const nouns = ['Eagle', 'Wolf', 'Bear', 'Fox', 'Owl', 'Lion', 'Tiger', 'Hawk'];
+        const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const noun = nouns[Math.floor(Math.random() * nouns.length)];
+        const suffix = Math.random().toString(36).substring(2, 5);
+        displayName = `${adj}${noun}${suffix}`;
         localStorage.setItem('userDisplayName', displayName);
       }
       
       await joinRoom(roomId, { displayName });
+
+      // If a sequence is running, start composite timer in the room
+      console.log('handleJoinRoom sync check:', { mode, isRunning, sequenceLength: sequence.length, currentStep });
+      if (mode === 'sequence' && isRunning) {
+        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+        console.log('Starting composite room timer:', firstDuration, sequence);
+        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
+      }
     } catch (err) {
       logger.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');
     }
-  }, [joinRoom]);
+  }, [joinRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
 
   const handleCreateRoom = useCallback(async (roomData) => {
     // Validate unique room name (case-insensitive)
@@ -532,6 +637,12 @@ export default function TimerApp() {
       await createRoom(roomData);
       // Feedback on success
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room created', type: 'success', ttl: 3000 } }));
+
+      // If a sequence is running, start composite timer in the room
+      if (mode === 'sequence' && isRunning) {
+        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
+      }
     } catch (err) {
       logger.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
@@ -648,7 +759,8 @@ export default function TimerApp() {
     uploadCustomMusic,
     deleteCustomMusic,
     renameCustomMusic,
-    getCustomMusicUrl
+    getCustomMusicUrl,
+    ensureCustomMusicUrl
   } = useSettings();
 
   // Use background images hook
@@ -702,7 +814,8 @@ export default function TimerApp() {
   const {
     playAlarm,
     startAmbient,
-    stopAmbient
+    stopAmbient,
+    ambientAudioRef
   } = useSound({
     alarmType: alarmSoundType,
     alarmVolume,
@@ -722,8 +835,94 @@ export default function TimerApp() {
     
     // Check built-in ambient sounds
     const soundConfig = AMBIENT_SOUNDS.find(s => s.name === soundType);
+    console.log('[getSoundFile] Looking for:', soundType, '-> Found:', soundConfig ? soundConfig.file : null, 'in list:', AMBIENT_SOUNDS.map(s => s.name));
     return soundConfig ? soundConfig.file : null;
   }, [getCustomMusicUrl]);
+
+  // Track which rooms have had their ambient music started to avoid re-triggering
+  const ambientStartedRoomsRef = useRef(new Set());
+
+  // Auto-start ambient music when joining a room with ambient configured (separate from timer logic)
+  useEffect(() => {
+    if (currentRoom?.id && currentRoom.ambientAutoStart && currentRoom.ambientSound) {
+      // Only start once per room to avoid repeated calls
+      if (!ambientStartedRoomsRef.current.has(currentRoom.id)) {
+        try {
+          const sf = getSoundFile(currentRoom.ambientSound);
+          if (sf) {
+            console.log(`Starting ambient for room ${currentRoom.id}:`, currentRoom.ambientSound);
+            startAmbient(sf);
+            ambientStartedRoomsRef.current.add(currentRoom.id);
+          }
+        } catch (e) {
+          console.warn('Failed to auto-start room ambient:', e);
+        }
+      }
+    } else if (currentRoom === null) {
+      // When leaving a room, stop ambient and clear the tracking set
+      try {
+        stopAmbient();
+      } catch (e) {}
+      ambientStartedRoomsRef.current.clear();
+    }
+  }, [currentRoom, getSoundFile, startAmbient, stopAmbient]);
+
+  useEffect(() => {
+    if (currentRoom?.timer) {
+      const interval = setInterval(() => {
+        // Check if timer has expired
+        const timeRemainingSec = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
+        if (timeRemainingSec === 0 && !timerExpired) {
+          // Handle composite timer progression
+          if (currentRoom.timerType === 'composite' && currentRoom.compositeTimer) {
+            const items = currentRoom.compositeTimer.steps || currentRoom.compositeTimer.exercises || [];
+            const currentStep = currentRoom.currentStep || 0;
+            
+            if (currentStep < items.length - 1) {
+              // Advance to next step
+              const nextStep = currentStep + 1;
+              const nextItem = items[nextStep];
+              const nextDuration = nextItem.unit === 'sec' || nextItem.unit === 'seconds' 
+                ? nextItem.duration 
+                : nextItem.duration * 60;
+              
+              console.log(`Advancing composite timer from step ${currentStep} to ${nextStep}: ${nextItem.name} (${nextDuration}s)`);
+              
+              // Start next timer step
+              startRoomTimer(nextDuration, 'composite', {
+                ...currentRoom.compositeTimer,
+                currentStep: nextStep
+              }).catch(err => {
+                console.error('Failed to advance composite timer:', err);
+                setTimerExpired(true);
+                setShowRoomExpirationModal(true);
+              });
+              
+              return; // Don't show expiration modal yet
+            } else {
+              console.log(`Composite timer completed all ${items.length} steps`);
+            }
+          }
+          
+          // Timer is complete or not composite
+          setTimerExpired(true);
+          setShowRoomExpirationModal(true);
+        }
+        forceUpdate(n => n + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setTimerExpired(false);
+      setShowRoomExpirationModal(false);
+    }
+  }, [
+    currentRoom?.timer,
+    timerExpired,
+    startRoomTimer,
+    currentRoom?.compositeTimer,
+    currentRoom?.currentStep,
+    currentRoom?.timerType
+  ]);
 
   const [confettiActiveDuration, setConfettiActiveDuration] = useState(0); // in seconds, controls how long confetti animation plays
 
@@ -1107,7 +1306,7 @@ export default function TimerApp() {
     }
   }, [firstTimerDate, currentStreak, lastCompletionDate, dailyChallenge, checkAchievements]);
 
-  const handleComplete = React.useCallback(() => {
+  const handleComplete = () => {
     setIsTransitioning(true);
     setIsRunning(false);
     // Stop ambient sound when timer completes
@@ -1203,11 +1402,19 @@ export default function TimerApp() {
               return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
             }, 0);
             const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
+            // Normalize sequence steps for visualization (duration in seconds, name, color)
+            const normalizedSequence = currentSeq.map(step => ({
+              name: step.name || (step.type || 'Step'),
+              duration: step.unit === 'sec' ? step.duration : step.duration * 60,
+              color: step.color || step.accent || (theme && theme.accent) || '#8b5cf6'
+            }));
+
             const completionData = {
                 type: 'Sequence',
                 name: sequenceName,
                 totalSeconds: totalSeconds,
-                details: `${currentSeq.length} steps`
+                details: `${currentSeq.length} steps`,
+                sequence: normalizedSequence
             };
             addToHistory(completionData);
 
@@ -1270,27 +1477,10 @@ export default function TimerApp() {
             setIsTransitioning(false);
       }
     }, 500);
-  }, [
-    mode,
-    isWork,
-    currentRound,
-    rounds,
-    work,
-    rest,
-    repeatEnabled,
-    initialTime,
-    saved,
-    addToHistory,
-    playAlarmSound,
-    stopAmbient,
-    seqName,
-    ambientSoundType,
-    getSoundFile,
-    startAmbient
-  ]);  // Keep ref updated with the latest handleComplete function so effects can call it
+  };
   useEffect(() => {
     handleCompleteRef.current = handleComplete;
-  }, [handleComplete]);
+  });
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -1346,21 +1536,30 @@ export default function TimerApp() {
   const resetStopwatch = () => { setIsRunning(false); setTime(0); };
 
   // Theme management: Theme UI handled in settings; setters remain for compatibility
-  const startSequence = () => {
-    if (sequence.length === 0) return;
+  const startSequence = (sequenceData = null) => {
+    const seqToUse = sequenceData || sequence;
+    if (seqToUse.length === 0) return;
+
+    if (currentRoom) {
+      // Start composite timer in room (pass numeric duration + timerData)
+      const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
+      startRoomTimer(firstDuration, 'composite', { steps: seqToUse, currentStep: 0 });
+      return;
+    }
+
     setMode('sequence');
     setCurrentStep(0);
-    const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
+    const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
     setTime(firstDuration);
     setIsRunning(true);
     // Apply theme for first step - commented out to prevent unwanted theme changes
-    // if (sequence[0].accent) {
-    //   setTheme(prevTheme => ({ ...prevTheme, accent: sequence[0].accent }));
+    // if (seqToUse[0].accent) {
+    //   setTheme(prevTheme => ({ ...prevTheme, accent: seqToUse[0].accent }));
     // }
     // Apply scene from first step
-    if (sequence[0].scene) {
-      setActiveScene(sequence[0].scene);
-      setCurrentTimerScene(sequence[0].scene);
+    if (seqToUse[0].scene) {
+      setActiveScene(seqToUse[0].scene);
+      setCurrentTimerScene(seqToUse[0].scene);
     }
     // Start ambient sound if configured
     if (ambientSoundType !== 'None') {
@@ -1765,8 +1964,8 @@ export default function TimerApp() {
         '--theme-opacity': themeOpacity
       }}
     >
-      <ModalProvider theme={theme}>
-      <ToastProvider theme={theme}>
+      <ModalProvider theme={effectiveTheme}>
+      <ToastProvider theme={effectiveTheme}>
       <style>{`
         @keyframes pulseTimer {
           0%, 100% { transform: scale(1); }
@@ -1846,7 +2045,7 @@ export default function TimerApp() {
 
       {/* Achievement Unlock Popup */}
       {showAchievement && (
-        <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px 32px', borderRadius: 16, zIndex: 1001, fontSize: 14, fontWeight: 600, boxShadow: '0 12px 40px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.2)', animation: 'slideDown 0.5s ease-out' }}>
+        <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '20px 32px', borderRadius: theme.borderRadius, zIndex: 1001, fontSize: 14, fontWeight: 600, boxShadow: '0 12px 40px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.2)', animation: 'slideDown 0.5s ease-out' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 40 }}>{showAchievement.icon}</div>
             <div>
@@ -1861,7 +2060,7 @@ export default function TimerApp() {
       {/* Time Capsule Notification */}
       {showCapsuleNotification && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001 }}>
-          <div style={{ background: theme.card, borderRadius: 32, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>📬</div>
             <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16, margin: 0 }}>
               Time Capsule Opened!
@@ -1869,12 +2068,12 @@ export default function TimerApp() {
             <p style={{ fontSize: 16, color: getTextOpacity(theme, 0.7), marginBottom: 32 }}>
               A message from your past self, {Math.floor((Date.now() - showCapsuleNotification.createdAt) / (1000 * 60 * 60 * 24))} days ago:
             </p>
-            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 15, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 15, marginBottom: 32, fontSize: 16, lineHeight: 1.6, fontStyle: 'italic' }}>
               "{showCapsuleNotification.message}"
             </div>
             <button
               onClick={() => setShowCapsuleNotification(null)}
-              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 10, padding: 15, color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+              style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 15, color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
             >
               Close
             </button>
@@ -1899,7 +2098,7 @@ export default function TimerApp() {
           ))}
 
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-            <div style={{ background: theme.card, borderRadius: 32, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
+            <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 48, maxWidth: 500, width: '90%', textAlign: 'center' }}>
               <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
               <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, margin: 0 }}>
                 Well Done!
@@ -1907,7 +2106,7 @@ export default function TimerApp() {
               <p style={{ fontSize: 18, color: getTextOpacity(theme, 0.7), marginBottom: 32 }}>
                 You completed your {completedSession?.type}!
               </p>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 24, marginBottom: 32 }}>
                 <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginBottom: 8 }}>Total Time</div>
                 <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent }}>
                   {formatTime(completedSession?.totalSeconds || 0)}
@@ -1915,6 +2114,101 @@ export default function TimerApp() {
                 {completedSession?.details && (
                   <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.5), marginTop: 8 }}>
                     {completedSession.details}
+                  </div>
+                )}
+                {/* Render visualization preview for completed sequences */}
+                {completedSession?.type === 'Sequence' && completedSession.sequence && (
+                  <div style={{ marginTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)', borderRadius: theme.borderRadius,  paddingTop: 24 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: theme.text, marginBottom: 16,  borderRadius: theme.borderRadius, textAlign: 'center' }}>
+                      Sequence: {completedSession.name}
+                    </div>
+                    {/* Debug: Show sequence data */}
+                    <div style={{ background: 'rgba(255,0,0,0.1)', padding: 10, marginBottom: 16, borderRadius: theme.borderRadius, fontSize: 12, color: 'red', border: '1px solid red' }}>
+                      Debug: Sequence data - {JSON.stringify(completedSession.sequence, null, 2)}
+                    </div>
+                    {/* Always show step names list */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',  borderRadius: theme.borderRadius, gap: 16, maxWidth: 400, margin: '0 auto', marginBottom: 24 }}>
+                      {/* Left: Progress Dots */}
+                      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column',  borderRadius: theme.borderRadius, gap: 4 }}>
+                        {completedSession.sequence.map((step, idx) => (
+                          <div key={idx} style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: step.color,
+                            opacity: 0.8,
+                            transition: 'all 0.3s ease'
+                          }} />
+                        ))}
+                      </div>
+                      {/* Right: All Step Names */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, borderRadius: theme.borderRadius,  }}>
+                        {completedSession.sequence.map((step, idx) => (
+                          <div key={idx} style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: step.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            justifyContent: 'space-between'
+                          }}>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name || 'Unnamed Step'}</span>
+                            <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), flexShrink: 0 }}>{formatTime(step.duration)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Show visualization based on type */}
+                    {timerVisualization !== 'default' && (
+                      (() => {
+                        const Viz = timerVisualization === 'compact' ? CompactTimerVisualization :
+                          timerVisualization === 'minimal' ? MinimalTimerVisualization :
+                          timerVisualization === 'cardStack' ? CardStackTimerVisualization :
+                          timerVisualization === 'timeline' ? TimelineTimerVisualization :
+                          CompactTimerVisualization;
+                        
+                        // For compact/minimal, show visualization for each step
+                        if (timerVisualization === 'compact' || timerVisualization === 'minimal') {
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                              {completedSession.sequence.map((step, idx) => (
+                                <div key={idx} style={{ opacity: 1 }}>
+                                  <Viz
+                                    time={step.duration}
+                                    totalTime={step.duration}
+                                    sequence={completedSession.sequence}
+                                    currentStep={idx}
+                                    mode={'sequence'}
+                                    theme={theme}
+                                    isRunning={false}
+                                    currentRound={null}
+                                    rounds={null}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        
+                        // For cardStack/timeline, show full visualization
+                        return (
+                          <div style={{ maxWidth: 420, margin: '0 auto' }}>
+                            <Viz
+                              time={completedSession.sequence[completedSession.sequence.length - 1].duration}
+                              totalTime={completedSession.sequence[completedSession.sequence.length - 1].duration}
+                              sequence={completedSession.sequence}
+                              currentStep={completedSession.sequence.length - 1}
+                              mode={'sequence'}
+                              theme={theme}
+                              isRunning={false}
+                              currentRound={null}
+                              rounds={null}
+                            />
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 )}
               </div>
@@ -1928,7 +2222,7 @@ export default function TimerApp() {
                     setCurrentRound(1);
                     setMode('timer');
                   }}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 16, padding: '20px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: '20px', color: theme.text, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
                 >
                   Done
                 </button>
@@ -1943,7 +2237,7 @@ export default function TimerApp() {
                       startTimer(initialTime);
                     }
                   }}
-                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: 16, padding: '20px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
+                  style={{ flex: 1, background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '20px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
                 >
                   Start Again
                 </button>
@@ -1953,8 +2247,8 @@ export default function TimerApp() {
         </>
       )}
 
-      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: 12, padding: 16, color: getContrastColor(theme.accent), cursor: 'pointer' }}>Close</button></div></div>}
-      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: 10, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
+      {showShareModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowShareModal(false)}><div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, maxWidth: 500, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Link Copied! 🎉</h3><div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 12, marginBottom: 24, wordBreak: 'break-all', fontSize: 13 }}>{shareLink}</div><button onClick={() => setShowShareModal(false)} style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 16, color: getContrastColor(theme.accent), cursor: 'pointer' }}>Close</button></div></div>}
+      {showDeleteModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(false)}><div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, maxWidth: 400, width: '90%' }} onClick={(e) => e.stopPropagation()}><h3 style={{ margin: 0, marginBottom: 16 }}>Delete "{timerToDelete?.name}"?</h3><div style={{ display: 'flex', gap: 12 }}><button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: 16, color: theme.text, cursor: 'pointer' }}>Cancel</button><button onClick={executeDelete} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: theme.borderRadius, padding: 16, color: 'white', cursor: 'pointer' }}>Delete</button></div></div></div>}
       {showCreateRoomModal && <CreateRoomModal theme={theme} onClose={() => { setShowCreateRoomModal(false); setPrefillTemplateId(null); }} onCreateRoom={handleCreateRoom} savedTimers={saved} prefillTemplateId={prefillTemplateId} />}
       {showFeedbackModal && <FeedbackModal theme={theme} onClose={() => setShowFeedbackModal(false)} />}
       {showInfoModal && <InfoModal theme={theme} onClose={() => setShowInfoModal(false)} />}
@@ -1963,7 +2257,7 @@ export default function TimerApp() {
       {/* Create Scene Modal */}
       {showCreateSceneModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowCreateSceneModal(false)}>
-          <div style={{ background: theme.card, borderRadius: 10, padding: 24, maxWidth: 500, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 24, maxWidth: 500, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0, marginBottom: 20, color: theme.text }}>Create New Scene</h3>
             
             <div style={{ marginBottom: 16 }}>
@@ -1977,7 +2271,7 @@ export default function TimerApp() {
                   width: '100%',
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 12,
                   color: theme.text,
                   fontSize: 14
@@ -1996,7 +2290,7 @@ export default function TimerApp() {
                   width: '100%',
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 12,
                   color: theme.text,
                   fontSize: 14
@@ -2028,7 +2322,7 @@ export default function TimerApp() {
                     width: 50,
                     height: 40,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     cursor: 'pointer'
                   }}
                   title="Pick gradient start color"
@@ -2042,7 +2336,7 @@ export default function TimerApp() {
                     flex: 1,
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14,
@@ -2076,7 +2370,7 @@ export default function TimerApp() {
                     width: 50,
                     height: 40,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     cursor: 'pointer'
                   }}
                   title="Pick card background color"
@@ -2090,7 +2384,7 @@ export default function TimerApp() {
                     flex: 1,
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14,
@@ -2111,7 +2405,7 @@ export default function TimerApp() {
                     width: 50,
                     height: 40,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     cursor: 'pointer'
                   }}
                 />
@@ -2123,7 +2417,7 @@ export default function TimerApp() {
                     flex: 1,
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14,
@@ -2144,7 +2438,7 @@ export default function TimerApp() {
                   width: '100%',
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 12,
                   color: theme.text,
                   fontSize: 14,
@@ -2190,7 +2484,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: (newSceneName && newSceneEmoji && newSceneBg && newSceneCard) ? theme.accent : 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 12,
                   color: theme.text,
                   cursor: (newSceneName && newSceneEmoji && newSceneBg && newSceneCard) ? 'pointer' : 'not-allowed',
@@ -2207,7 +2501,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 12,
                   color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -2243,7 +2537,7 @@ export default function TimerApp() {
           <div
             style={{
               background: theme.card,
-              borderRadius: 24,
+              borderRadius: theme.borderRadius,
               padding: '24px 20px',
               maxWidth: 500,
               width: '100%',
@@ -2271,7 +2565,7 @@ export default function TimerApp() {
                     width: '100%',
                     background: 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14
@@ -2294,7 +2588,7 @@ export default function TimerApp() {
                         width: 100,
                         height: 40,
                         border: 'none',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         cursor: 'pointer'
                       }}
                     />
@@ -2306,7 +2600,7 @@ export default function TimerApp() {
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
                         border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 8px',
                         color: theme.text,
                         fontSize: 12,
@@ -2329,7 +2623,7 @@ export default function TimerApp() {
                         width: 100,
                         height: 40,
                         border: 'none',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         cursor: 'pointer'
                       }}
                     />
@@ -2341,7 +2635,7 @@ export default function TimerApp() {
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
                         border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 8px',
                         color: theme.text,
                         fontSize: 12,
@@ -2364,7 +2658,7 @@ export default function TimerApp() {
                         width: 50,
                         height: 32,
                         border: 'none',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         cursor: 'pointer'
                       }}
                     />
@@ -2376,7 +2670,7 @@ export default function TimerApp() {
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
                         border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 8px',
                         color: theme.text,
                         fontSize: 12,
@@ -2399,7 +2693,7 @@ export default function TimerApp() {
                         width: 100,
                         height: 40,
                         border: 'none',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         cursor: 'pointer'
                       }}
                     />
@@ -2411,7 +2705,7 @@ export default function TimerApp() {
                         flex: 1,
                         background: 'rgba(255,255,255,0.05)',
                         border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 8px',
                         color: theme.text,
                         fontSize: 12,
@@ -2431,7 +2725,7 @@ export default function TimerApp() {
                   style={{
                     background: newThemeBg,
                     border: `2px solid ${newThemeAccent}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 16,
                     minHeight: 60,
                     display: 'flex',
@@ -2444,7 +2738,7 @@ export default function TimerApp() {
                       background: newThemeCard,
                       color: newThemeText,
                       padding: '8px 16px',
-                      borderRadius: 6,
+                      borderRadius: theme.borderRadius,
                       fontSize: 14,
                       fontWeight: 600
                     }}
@@ -2465,7 +2759,7 @@ export default function TimerApp() {
                     flex: 1,
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 10,
+                    borderRadius: theme.borderRadius,
                     padding: '14px',
                     color: theme.text,
                     cursor: 'pointer',
@@ -2482,7 +2776,7 @@ export default function TimerApp() {
                     flex: 1,
                     background: newThemeName.trim() ? newThemeAccent : 'rgba(255,255,255,0.1)',
                     border: 'none',
-                    borderRadius: 10,
+                    borderRadius: theme.borderRadius,
                     padding: '14px',
                     color: newThemeName.trim() ? getContrastColor(newThemeAccent) : theme.text,
                     cursor: newThemeName.trim() ? 'pointer' : 'not-allowed',
@@ -2517,7 +2811,7 @@ export default function TimerApp() {
           <div
             style={{
               background: theme.card,
-              borderRadius: 24,
+              borderRadius: theme.borderRadius,
               padding: 32,
               width: '90%',
               maxWidth: 450,
@@ -2552,7 +2846,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 14,
                   color: theme.text,
                   cursor: 'pointer',
@@ -2571,7 +2865,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: '#ef4444',
                   border: 'none',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 14,
                   color: getContrastColor('#ef4444'),
                   cursor: 'pointer',
@@ -2608,7 +2902,7 @@ export default function TimerApp() {
           <div
             style={{
               background: theme.card,
-              borderRadius: 20,
+              borderRadius: theme.borderRadius,
               padding: '24px',
               maxWidth: 400,
               width: '100%',
@@ -2633,7 +2927,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '12px',
                   color: theme.text,
                   cursor: 'pointer',
@@ -2652,7 +2946,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: '#ef4444',
                   border: 'none',
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '12px',
                   color: getContrastColor('#ef4444'),
                   cursor: 'pointer',
@@ -2675,7 +2969,7 @@ export default function TimerApp() {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px' }}>
         
         <Header
-          theme={theme}
+          theme={effectiveTheme}
           themeOpacity={themeOpacity}
           setThemeOpacity={setThemeOpacity}
           onShowInfo={() => setShowInfoModal(true)}
@@ -2708,7 +3002,12 @@ export default function TimerApp() {
           uploadCustomMusic={uploadCustomMusic}
           deleteCustomMusic={deleteCustomMusic}
           getCustomMusicUrl={getCustomMusicUrl}
+          ensureCustomMusicUrl={ensureCustomMusicUrl}
+          getSoundFile={getSoundFile}
           renameCustomMusic={renameCustomMusic}
+          startAmbient={startAmbient}
+          stopAmbient={stopAmbient}
+          ambientAudioRef={ambientAudioRef}
           // Background images props
           selectedBackgroundId={selectedBackgroundId}
           setSelectedBackgroundId={setSelectedBackgroundId}
@@ -2719,12 +3018,15 @@ export default function TimerApp() {
           // Timer visualization props
           timerVisualization={timerVisualization}
           setTimerVisualization={setTimerVisualization}
+          // Border radius props
+          customBorderRadius={customBorderRadius}
+          setCustomBorderRadius={setCustomBorderRadius}
         />
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
         {/* Hide navigation in Clean Mode when not running */}
         {!theme.isCleanMode && !isRunning && time === 0 && !isTransitioning && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: theme.card, borderRadius: 12, padding: 6 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: theme.card, borderRadius: theme.borderRadius, padding: 6 }}>
             {[
               { label: 'Focus Rooms', value: 'rooms', icon: Users },
               { label: 'Timer', value: 'timer', icon: Clock },
@@ -2740,7 +3042,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: activeMainTab === tab.value ? theme.accent : 'transparent',
                   border: 'none',
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '8px 6px',
                   color: activeMainTab === tab.value ? getContrastColor(theme.accent) : theme.text,
                   cursor: 'pointer',
@@ -2785,7 +3087,7 @@ export default function TimerApp() {
                 style={{
                   background: activeFeatureTab === tab.value ? theme.accent : 'rgba(255,255,255,0.05)',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: 10,
                   color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -2814,7 +3116,7 @@ export default function TimerApp() {
                   flex: 1,
                   background: activeFeatureTab === tab.value ? 'rgba(255,255,255,0.1)' : 'transparent',
                   border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                  borderRadius: 10,
+                  borderRadius: theme.borderRadius,
                   padding: '8px 10px',
                   color: activeFeatureTab === tab.value ? getContrastColor(theme.accent) : getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -2849,7 +3151,7 @@ export default function TimerApp() {
               <div style={{
                 background: 'rgba(0,0,0,0.3)',
                 backdropFilter: 'blur(10px)',
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: '12px 20px',
                 marginBottom: 16,
                 textAlign: 'center',
@@ -2873,33 +3175,42 @@ export default function TimerApp() {
               </div>
             )}
             {(isRunning || time > 0 || isTransitioning) && (
-              <div style={{ background: theme.card, borderRadius: 10, padding: timerVisualization === 'compact' || mode === 'stopwatch' ? '12px' : '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: timerVisualization === 'default' ? 32 : 12, alignItems: 'stretch', flexDirection: 'row', minHeight: (timerVisualization === 'compact' || mode === 'stopwatch') ? 'auto' : '200px' }}>
+              <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: timerVisualization === 'compact' || mode === 'stopwatch' ? '12px' : '15px', marginBottom: 32, textAlign: 'center', position: 'relative', display: 'flex', gap: timerVisualization === 'default' ? 32 : 12, alignItems: 'stretch', flexDirection: 'row', minHeight: (timerVisualization === 'compact' || mode === 'stopwatch') ? 'auto' : '200px' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: 0 }}>
                   {/* Timer Visualization */}
                   {timerVisualization === 'default' && (
                     <>
                       {mode === 'stopwatch' && (
-                        <div style={{ fontSize: 64, fontWeight: 700, color: theme.text }}>{formatTime(time)}</div>
+                        <div style={{ fontSize: 64, fontWeight: 700, color: theme.text, fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace', letterSpacing: '0.5px' }}>{formatTime(time)}</div>
+                      )}
+                      {mode === 'sequence' && (
+                        <>
+                          {/* Show current step info for sequences */}
+                          {sequence.length > 0 && (
+                            <div style={{ fontSize: 16, color: getTextOpacity(theme, 0.7), marginTop: 8 }}>
+                              Step {currentStep + 1} of {sequence.length}: {sequence[currentStep]?.name || 'Unknown'}
+                            </div>
+                          )}
+                        </>
                       )}
                       {mode !== 'stopwatch' && mode !== 'sequence' && (
                         <>
-                          <div style={{ fontSize: 64, fontWeight: 700, color: showWarning ? '#ef4444' : theme.text, animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+                          <div style={{ fontSize: 64, fontWeight: 700, color: showWarning ? '#ef4444' : theme.text, animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none', fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace', letterSpacing: '0.5px' }}>{formatTime(time)}</div>
                         </>
                       )}
                     </>
                   )}
 
                   {timerVisualization === 'compact' && (
-                    <CompactTimerVisualization
+                      <CompactTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
                       theme={theme}
                       isRunning={isRunning}
                       currentRound={currentRound}
-                      isWork={isWork}
                       rounds={rounds}
                     />
                   )}
@@ -2907,7 +3218,7 @@ export default function TimerApp() {
                   {timerVisualization === 'minimal' && (
                     <MinimalTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -2921,7 +3232,7 @@ export default function TimerApp() {
                   {timerVisualization === 'cardStack' && (
                     <CardStackTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -2935,7 +3246,7 @@ export default function TimerApp() {
                   {timerVisualization === 'timeline' && (
                     <TimelineTimerVisualization
                       time={time}
-                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
+                      totalTime={mode === 'sequence' ? (sequence[currentStep]?.unit === 'sec' || sequence[currentStep]?.unit === 'seconds' ? sequence[currentStep]?.duration || 0 : (sequence[currentStep]?.duration || 0) * 60) : initialTime}
                       sequence={sequence}
                       currentStep={currentStep}
                       mode={mode}
@@ -2966,7 +3277,7 @@ export default function TimerApp() {
 
                       {/* Center: Timer */}
                       <div style={{ flex: 1, textAlign: 'center' }}>
-                        <div style={{ fontSize: 64, fontWeight: 700, color: showWarning ? '#ef4444' : theme.text, animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none' }}>{formatTime(time)}</div>
+                        <div style={{ fontSize: 64, fontWeight: 700, color: showWarning ? '#ef4444' : theme.text, animation: showWarning ? 'pulseTimer 1s ease-in-out infinite' : 'none', filter: showCritical ? 'drop-shadow(0 0 30px #ef4444)' : 'none', fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace', letterSpacing: '0.5px' }}>{formatTime(time)}</div>
                       </div>
 
                       {/* Right: Step Names */}
@@ -3001,7 +3312,7 @@ export default function TimerApp() {
                         // Stop ambient sound when timer pauses
                         stopAmbient();
                       }
-                    }} style={{ background: 'transparent', border: 'none', borderRadius: 14, padding: '12px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={18} /> : <Play size={18} />}</span></button>
+                    }} style={{ background: 'transparent', border: 'none', borderRadius: theme.borderRadius, padding: '12px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}>{isRunning ? <Pause size={18} /> : <Play size={18} />}</span></button>
                     <button onClick={() => {
                       // Restart timer instead of resetting to 0
                       setIsRunning(false);
@@ -3017,7 +3328,7 @@ export default function TimerApp() {
                     setActiveMainTab('routines');
                     setActiveFeatureTab(null);
                   }
-                }} style={{ background: 'transparent', border: 'none', borderRadius: 14, padding: '12px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={18} /></span></button>
+                }} style={{ background: 'transparent', border: 'none', borderRadius: theme.borderRadius, padding: '12px', color: theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><RotateCcw size={18} /></span></button>
                 <button onClick={() => {
                   setIsRunning(false);
                   setTime(0);
@@ -3029,9 +3340,9 @@ export default function TimerApp() {
                     setActiveMainTab('routines');
                     setActiveFeatureTab(null);
                   }
-                }} style={{ background: 'transparent', border: 'none', borderRadius: 14, padding: '12px', color: '#ffffff', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><X size={18} /></span></button>
+                }} style={{ background: 'transparent', border: 'none', borderRadius: theme.borderRadius, padding: '12px', color: '#ffffff', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><X size={18} /></span></button>
                 {mode !== 'stopwatch' && (
-                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: 'transparent', border: 'none', borderRadius: 14, padding: '12px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={16} /></span></button>
+                  <button onClick={() => setRepeatEnabled(!repeatEnabled)} style={{ background: 'transparent', border: 'none', borderRadius: theme.borderRadius, padding: '12px', color: repeatEnabled ? getContrastColor(theme.accent) : theme.text, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, transition: 'all 0.1s ease' }} className='animate-button-press'><span style={{ display: 'flex', alignItems: 'center' }}><Repeat size={16} /></span></button>
                 )}
               </div>
             </div>
@@ -3091,16 +3402,16 @@ export default function TimerApp() {
 
             {/* Your Timers Section - Shows only on TimerBlocks and Composite tabs */}
             {activeMainTab === 'timer' && (activeFeatureTab === 'timerblocks' || activeFeatureTab === 'composite') && !(isRunning || time > 0 || isTransitioning) && (
-              <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: theme.borderRadius,  marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                   <h2 style={{ fontSize: 18, margin: 0 }}>Your Timers</h2>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, borderRadius: theme.borderRadius }}>
                     <button
                       onClick={() => setCollapsedGroups({})}
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 12px',
                         color: getTextOpacity(theme, 0.6),
                         cursor: 'pointer',
@@ -3120,7 +3431,7 @@ export default function TimerApp() {
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '6px 12px',
                         color: getTextOpacity(theme, 0.6),
                         cursor: 'pointer',
@@ -3132,36 +3443,36 @@ export default function TimerApp() {
                       <ChevronUp size={14} />
                     </button>
                     {activeMainTab === 'timer' && (
-                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
+                      <button onClick={() => setShowCreateTimer(!showCreateTimer)} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '8px 16px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', gap: 6 }}><Plus size={16} />Create</button>
                     )}
                   </div>
                 </div>
 
               {showCreateTimer && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1)), marginBottom: 12 }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: theme.borderRadius, padding: 24, marginBottom: 24 }}>
+                  <input type="text" placeholder="Timer name" value={newTimerName} onChange={(e) => setNewTimerName(e.target.value)} style={{ ...inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1), theme.borderRadius), marginBottom: 12 }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',  borderRadius: theme.borderRadius, gap: 12, marginBottom: 12 }} className="grid-col-sm-3-to-1">
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input
                         type="number"
                         placeholder={newTimerUnit === 'min' ? 'Minutes' : 'Seconds'}
                         value={newTimerMin}
                         onChange={(e) => setNewTimerMin(Math.max(0, parseInt(e.target.value) || 0))}
-                        style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))}
+                        style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1), theme.borderRadius)}
                       />
                       <select
                         value={newTimerUnit}
                         onChange={(e) => setNewTimerUnit(e.target.value)}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: theme.borderRadius, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}
                       >
                         <option value="min" style={{ background: theme.card }}>Min</option>
                         <option value="sec" style={{ background: theme.card }}>Sec</option>
                       </select>
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1))} />
+                      <input type="text" placeholder="Group" value={newTimerGroup} onChange={(e) => setNewTimerGroup(e.target.value)} onFocus={() => setShowGroupDropdown(true)} onBlur={() => setTimeout(() => setShowGroupDropdown(false), 200)} style={inputStyle(theme.accent, theme.text, getTextOpacity(theme, 0.1), theme.borderRadius)} />
                       {showGroupDropdown && groups.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: theme.card, border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: theme.borderRadius, maxHeight: 150, overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
                           {filteredGroups.map(g => (
                             <button key={g} onClick={() => { setNewTimerGroup(g); setShowGroupDropdown(false); }} style={{ width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', color: theme.text, textAlign: 'left', cursor: 'pointer', fontSize: 14 }} onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}>{g}</button>
                           ))}
@@ -3170,12 +3481,12 @@ export default function TimerApp() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto', paddingBottom: 8 }}>
-                    {colorOptions.map(color => <button key={color} onClick={() => setNewTimerColor(color)} style={{ minWidth: 40, height: 40, borderRadius: 8, background: color, border: newTimerColor === color ? '3px solid white' : 'none', cursor: 'pointer', flexShrink: 0 }} />)}
+                    {colorOptions.map(color => <button key={color} onClick={() => setNewTimerColor(color)} style={{ minWidth: 40, height: 40, borderRadius: theme.borderRadius, background: color, border: newTimerColor === color ? '3px solid white' : 'none', cursor: 'pointer', flexShrink: 0 }} />)}
                   </div>
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 12, color: getTextOpacity(theme, 0.6), marginBottom: 8, display: 'block' }}>Immersive Scene (Optional)</label>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
+                      <select value={newTimerScene} onChange={(e) => setNewTimerScene(e.target.value)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: theme.borderRadius, padding: 12, color: theme.text, fontSize: 14, cursor: 'pointer' }}>
                         {Object.entries(SCENES).map(([key, scene]) => (
                           <option key={key} value={key} style={{ background: theme.card }}>
                             {scene.emoji} {scene.name}
@@ -3189,7 +3500,7 @@ export default function TimerApp() {
                           height: 44,
                           background: 'rgba(255,255,255,0.05)',
                           border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                          borderRadius: 8,
+                          borderRadius: theme.borderRadius,
                           color: theme.text,
                           cursor: 'pointer',
                           display: 'flex',
@@ -3208,10 +3519,10 @@ export default function TimerApp() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ flex: 1, background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
+                    <button onClick={createTimer} disabled={!newTimerName || !newTimerMin} style={{ flex: 1, background: newTimerName && newTimerMin ? theme.accent : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: 12, color: theme.text, cursor: newTimerName && newTimerMin ? 'pointer' : 'not-allowed', fontSize: 14, fontWeight: 600, opacity: newTimerName && newTimerMin ? 1 : 0.5 }}>
                       <Save size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Create Timer
                     </button>
-                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 8, padding: 12, color: getTextOpacity(theme, 0.6), cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                    <button onClick={cancelCreateTimer} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: theme.borderRadius, padding: 12, color: getTextOpacity(theme, 0.6), cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                       <X size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cancel
                     </button>
                   </div>
@@ -3232,7 +3543,7 @@ export default function TimerApp() {
                         marginBottom: isCollapsed ? 0 : 12,
                         padding: '8px 12px',
                         background: 'rgba(255,255,255,0.03)',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
@@ -3254,7 +3565,7 @@ export default function TimerApp() {
                           }}
                           style={{
                             border: 'none',
-                            borderRadius: 10,
+                            borderRadius: theme.borderRadius,
                             padding: 8,
                             color: theme.accent,
                             cursor: 'pointer',
@@ -3279,8 +3590,8 @@ export default function TimerApp() {
                       )}
                     </div>
                     {!isCollapsed && groupTimers.map((timer) => (
-                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: 16, padding: 20, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                        <div style={{ width: 6, height: 40, borderRadius: 3, background: timer.color, flexShrink: 0 }} />
+                      <div key={timer.name} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${getTextOpacity(theme, 0.1)}`, borderRadius: theme.borderRadius, padding: 20, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ width: 6, height: 40, borderRadius: theme.borderRadius, background: timer.color, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: '120px' }}>
                           <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                             {timer.name}
@@ -3293,9 +3604,9 @@ export default function TimerApp() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
-                          {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
-                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: 8, padding: '8px 12px', color: getContrastColor(theme.accent), cursor: 'pointer' }}><Play size={16} /></button>
-                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: '8px 12px', color: getTextOpacity(theme, 0.5), cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
+                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: getContrastColor(theme.accent), cursor: 'pointer' }}><Play size={16} /></button>
+                          <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: getTextOpacity(theme, 0.5), cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
                       </div>
                     ))}
@@ -3340,6 +3651,13 @@ export default function TimerApp() {
                   getParticipantCount={getParticipantCount}
                   isRoomFull={isRoomFull}
                   setShowCreateRoomModal={setShowCreateRoomModal}
+                  activeBackground={activeBackground}
+                  timerVisualization={timerVisualization}
+                  sequence={sequence}
+                  mode={mode}
+                  currentStep={currentStep}
+                  customMusicFiles={customMusicFiles}
+                  AMBIENT_SOUNDS={AMBIENT_SOUNDS}
                 />
               )}
 
@@ -3410,8 +3728,8 @@ export default function TimerApp() {
               {/* Routines Main Tab */}
               {activeMainTab === 'routines' && !activeFeatureTab && !(isRunning || time > 0 || isTransitioning) && (
                 <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
-                  <RoutinesPanel
-                    theme={theme}
+                      <RoutinesPanel
+                        theme={theme}
                     savedSequences={saved.filter(t => t.isSequence)}
                     savedTimers={saved.filter(t => !t.isSequence)}
                     onStartRoutine={(workout) => {
@@ -3419,10 +3737,19 @@ export default function TimerApp() {
                       window.localStorage.setItem('lastRoutineSource', 'routines');
                       // If workout has exercises (composite/sequence), start as sequence
                       if (workout.exercises && workout.exercises.length > 0) {
-                        setSequence(workout.exercises.map(step => ({ ...step, accent: step.accent || step.color })));
+                        const workoutSequence = workout.exercises.map(step => ({ ...step, accent: step.accent || step.color }));
+                        setSequence(workoutSequence);
                         setSeqName(workout.name);
-                        // Start the sequence without switching tabs
-                        startSequence();
+                        
+                        // If in a room, start composite timer in room immediately
+                        if (currentRoom) {
+                          const firstDuration = workoutSequence[0].unit === 'sec' || workoutSequence[0].unit === 'seconds' ? workoutSequence[0].duration : workoutSequence[0].duration * 60;
+                          startRoomTimer(firstDuration, 'composite', { steps: workoutSequence, currentStep: 0 });
+                        } else {
+                          // Switch to timer tab and start the sequence (passing the sequence data directly)
+                          setActiveMainTab('timer');
+                          startSequence(workoutSequence);
+                        }
                         return;
                       }
 
@@ -3430,7 +3757,8 @@ export default function TimerApp() {
                       const durationSec = workout.duration || (workout.unit === 'min' ? (workout.durationMinutes || workout.duration) * 60 : workout.duration);
                       const scene = workout.scene || workout.category || 'none';
                       if (typeof durationSec === 'number' && durationSec > 0) {
-                        // Start timer without switching tabs
+                        // Switch to timer tab and start timer
+                        setActiveMainTab('timer');
                         startTimer(durationSec, scene);
                       }
                     }}
@@ -3510,22 +3838,22 @@ export default function TimerApp() {
               )}
 
               {activeMainTab === 'timer' && activeFeatureTab === 'stopwatch' && !(isRunning || time > 0 || isTransitioning) && (
-                <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+                <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
                   <h2 style={{ fontSize: 18, margin: 0, marginBottom: 16 }}>Stopwatch</h2>
-                  <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, marginBottom: 24 }}>
+                  <div style={{ textAlign: 'center', fontSize: 48, fontWeight: 300, borderRadius: theme.borderRadius, marginBottom: 24 }}>
                     {formatTime(time)}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                  <div style={{ display: 'flex', borderRadius: theme.borderRadius, justifyContent: 'center', gap: 16 }}>
                     <button onClick={() => {
                       if (isRunning) {
                         pauseStopwatch();
                       } else {
                         startStopwatch();
                       }
-                    }} style={{ background: theme.accent, border: 'none', borderRadius: 12, padding: '16px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16 }}>
+                    }} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '16px', color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16 }}>
                       {isRunning ? <Pause size={20} /> : <Play size={20} />}
                     </button>
-                    <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: '16px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
+                    <button onClick={resetStopwatch} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: '16px', color: theme.text, cursor: 'pointer', fontSize: 16 }}>
                       <RotateCcw size={20} />
                     </button>
                     <button onClick={() => {
@@ -3533,7 +3861,7 @@ export default function TimerApp() {
                       setTime(0);
                       // Stop ambient sound when stopwatch is canceled
                       stopAmbient();
-                    }} style={{ background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: 12, padding: '16px', color: '#ffffff', cursor: 'pointer', fontSize: 16 }}>
+                    }} style={{ background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: theme.borderRadius, padding: '16px', color: '#ffffff', cursor: 'pointer', fontSize: 16 }}>
                       <X size={20} />
                     </button>
                   </div>
@@ -3550,7 +3878,7 @@ export default function TimerApp() {
       </div>
 
       {/* Weather Effect Canvas */}
-      {weatherEffect !== 'none' && (
+      {weatherEffect !== 'none' && !showWorldClocks && (
         <WeatherEffect type={weatherEffect} config={weatherConfig[weatherEffect]} />
       )}
 
@@ -3596,7 +3924,7 @@ export default function TimerApp() {
           }}>
             <div style={{
               background: theme.bg,
-              borderRadius: 24,
+              borderRadius: theme.borderRadius,
               width: '100%',
               maxWidth: 1200,
               maxHeight: '90vh',
@@ -3612,7 +3940,7 @@ export default function TimerApp() {
                   float: 'right',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: 8,
                   color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -3639,7 +3967,7 @@ export default function TimerApp() {
                       background: theme.accent,
                       color: '#000',
                       border: 'none',
-                      borderRadius: 12,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 24px',
                       cursor: 'pointer',
                       fontSize: 14,
@@ -3671,7 +3999,7 @@ export default function TimerApp() {
         }} onClick={() => setEditingWeather(null)}>
           <div style={{
             background: theme.card,
-            borderRadius: 24,
+            borderRadius: theme.borderRadius,
             padding: 24,
             width: '90%',
             maxWidth: 400,
@@ -3708,12 +4036,12 @@ export default function TimerApp() {
                       height: 50,
                       padding: 0,
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       cursor: 'pointer',
                       background: 'none'
                     }}
                   />
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 8, color: theme.text, fontSize: 14 }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 12px', background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, color: theme.text, fontSize: 14 }}>
                     {weatherConfig[editingWeather]?.color || '#ffffff'}
                   </div>
                 </div>
@@ -3771,7 +4099,7 @@ export default function TimerApp() {
                     background: theme.accent,
                     color: '#000',
                     border: 'none',
-                    borderRadius: 12,
+                    borderRadius: theme.borderRadius,
                     padding: '12px 24px',
                     fontSize: 14,
                     fontWeight: 600,
