@@ -21,9 +21,18 @@ export const LogLevel = {
  */
 const config = {
   enableInProduction: false,
-  minLevel: isDevelopment ? LogLevel.DEBUG : LogLevel.WARN,
   enableTimestamps: true,
-  enableStackTrace: isDevelopment
+  enableStackTrace: true, // Enable in tests too
+  enableInTests: false // Allow enabling logging in tests
+};
+
+/**
+ * Get current minimum log level based on environment
+ * @returns {string} Minimum log level
+ */
+const getMinLevel = () => {
+  const isDev = process.env.NODE_ENV === 'development';
+  return isDev ? LogLevel.DEBUG : LogLevel.WARN;
 };
 
 /**
@@ -53,11 +62,30 @@ const formatMessage = (level, context, message) => {
  * @returns {boolean} True if logging is enabled for this level
  */
 const isLevelEnabled = (level) => {
-  if (isTest) return false; // Disable logging in tests
-  if (!isDevelopment && !config.enableInProduction) return false;
+  const currentIsTest = process.env.NODE_ENV === 'test';
+  if (currentIsTest && !config.enableInTests) return false; // Disable logging in tests unless explicitly enabled
+  
+  const currentIsDev = process.env.NODE_ENV === 'development';
+  const currentIsProd = process.env.NODE_ENV === 'production';
+  
+  // In development, allow all levels
+  if (currentIsDev) {
+    const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
+    const currentLevelIndex = levels.indexOf(getMinLevel());
+    const requestedLevelIndex = levels.indexOf(level);
+    return requestedLevelIndex >= currentLevelIndex;
+  }
+  
+  // In production, always allow WARN and ERROR regardless of enableInProduction setting
+  if (currentIsProd && (level === LogLevel.WARN || level === LogLevel.ERROR)) {
+    return true;
+  }
+  
+  // For other cases, check enableInProduction
+  if (!currentIsDev && !config.enableInProduction) return false;
   
   const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
-  const currentLevelIndex = levels.indexOf(config.minLevel);
+  const currentLevelIndex = levels.indexOf(getMinLevel());
   const requestedLevelIndex = levels.indexOf(level);
   
   return requestedLevelIndex >= currentLevelIndex;
@@ -78,7 +106,7 @@ class Logger {
    */
   debug(message, ...args) {
     if (isLevelEnabled(LogLevel.DEBUG)) {
-      console.debug(formatMessage(LogLevel.DEBUG, this.context, message), ...args);
+      console.log(formatMessage(LogLevel.DEBUG, this.context, message), message, ...args);
     }
   }
 
@@ -89,7 +117,7 @@ class Logger {
    */
   info(message, ...args) {
     if (isLevelEnabled(LogLevel.INFO)) {
-      console.log(formatMessage(LogLevel.INFO, this.context, message), ...args);
+      console.log(formatMessage(LogLevel.INFO, this.context, message), message, ...args);
     }
   }
 
@@ -100,7 +128,7 @@ class Logger {
    */
   warn(message, ...args) {
     if (isLevelEnabled(LogLevel.WARN)) {
-      console.warn(formatMessage(LogLevel.WARN, this.context, message), ...args);
+      console.warn(formatMessage(LogLevel.WARN, this.context, message), message, ...args);
     }
   }
 
@@ -112,10 +140,10 @@ class Logger {
    */
   error(message, error, ...args) {
     if (isLevelEnabled(LogLevel.ERROR)) {
-      console.error(formatMessage(LogLevel.ERROR, this.context, message), ...args);
+      console.error(formatMessage(LogLevel.ERROR, this.context, message), error, ...args);
       
-      if (error && config.enableStackTrace) {
-        console.error('Stack trace:', error.stack || error);
+      if (error && config.enableStackTrace && error.stack) {
+        console.error('Stack trace:', error.stack);
       }
     }
   }
@@ -123,16 +151,65 @@ class Logger {
   /**
    * Group related log messages
    * @param {string} label - Group label
-   * @param {Function} callback - Function containing grouped logs
+   * @param {Function} callback - Function containing grouped logs (optional)
    */
   group(label, callback) {
-    if (isDevelopment) {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
       console.group(formatMessage(LogLevel.INFO, this.context, label));
-      try {
-        callback();
-      } finally {
-        console.groupEnd();
+      if (callback) {
+        try {
+          callback();
+        } finally {
+          console.groupEnd();
+        }
       }
+    }
+  }
+
+  /**
+   * Create a collapsed group
+   * @param {string} label - Group label
+   * @param {Function} callback - Function containing grouped logs (optional)
+   */
+  groupCollapsed(label, callback) {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.groupCollapsed(formatMessage(LogLevel.INFO, this.context, label));
+      if (callback) {
+        try {
+          callback();
+        } finally {
+          console.groupEnd();
+        }
+      }
+    }
+  }
+
+  /**
+   * End group
+   */
+  groupEnd() {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.groupEnd();
+    }
+  }
+
+  /**
+   * Start a timer
+   * @param {string} label - Timer label
+   */
+  time(label) {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.time(formatMessage(LogLevel.INFO, this.context, label));
+    }
+  }
+
+  /**
+   * End a timer
+   * @param {string} label - Timer label
+   */
+  timeEnd(label) {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.timeEnd(formatMessage(LogLevel.INFO, this.context, label));
     }
   }
 

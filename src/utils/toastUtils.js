@@ -31,7 +31,7 @@ export const showToast = (message, type = ToastType.INFO, ttl = 3000) => {
  * @param {number} ttl - Time to live in milliseconds (default: 3000)
  */
 export const showSuccess = (message, ttl = 3000) => {
-  showToast(`✅ ${message}`, ToastType.SUCCESS, ttl);
+  showToast(message, ToastType.SUCCESS, ttl);
 };
 
 /**
@@ -40,7 +40,7 @@ export const showSuccess = (message, ttl = 3000) => {
  * @param {number} ttl - Time to live in milliseconds (default: 5000)
  */
 export const showError = (message, ttl = 5000) => {
-  showToast(`❌ ${message}`, ToastType.ERROR, ttl);
+  showToast(message, ToastType.ERROR, ttl);
 };
 
 /**
@@ -49,7 +49,7 @@ export const showError = (message, ttl = 5000) => {
  * @param {number} ttl - Time to live in milliseconds (default: 3000)
  */
 export const showInfo = (message, ttl = 3000) => {
-  showToast(`ℹ️ ${message}`, ToastType.INFO, ttl);
+  showToast(message, ToastType.INFO, ttl);
 };
 
 /**
@@ -58,7 +58,7 @@ export const showInfo = (message, ttl = 3000) => {
  * @param {number} ttl - Time to live in milliseconds (default: 4000)
  */
 export const showWarning = (message, ttl = 4000) => {
-  showToast(`⚠️ ${message}`, ToastType.WARNING, ttl);
+  showToast(message, ToastType.WARNING, ttl);
 };
 
 /**
@@ -67,9 +67,15 @@ export const showWarning = (message, ttl = 4000) => {
  * @param {string} context - Context of the error (e.g., 'Save settings', 'Load data')
  */
 export const handleError = (error, context = 'Operation') => {
-  const message = error && error.message 
-    ? `${context} failed: ${error.message}` 
-    : `${context} failed`;
+  let message;
+  
+  if (typeof error === 'string') {
+    message = `${context}: ${error}`;
+  } else if (error && error.message) {
+    message = `${context}: ${error.message}`;
+  } else {
+    message = `${context} failed`;
+  }
   
   console.error(`[${context}]`, error);
   showError(message);

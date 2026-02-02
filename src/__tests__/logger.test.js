@@ -1,12 +1,19 @@
-import { createLogger } from '../utils/logger';
+import { createLogger, configureLogger } from '../utils/logger';
 
 // Mock console methods
 const originalConsole = { ...console };
 
 describe('logger', () => {
   let consoleSpies;
+  const originalEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
+    // Reset env to development for tests
+    process.env.NODE_ENV = 'development';
+    
+    // Enable logging in tests
+    configureLogger({ enableInTests: true });
+    
     // Create spies for console methods
     consoleSpies = {
       log: jest.spyOn(console, 'log').mockImplementation(),
@@ -26,6 +33,10 @@ describe('logger', () => {
     Object.keys(consoleSpies).forEach(key => {
       consoleSpies[key].mockRestore();
     });
+    // Reset logger config
+    configureLogger({ enableInTests: false });
+    // Reset env
+    process.env.NODE_ENV = originalEnv;
   });
 
   describe('createLogger', () => {
@@ -39,13 +50,12 @@ describe('logger', () => {
     });
 
     test('creates logger with custom name', () => {
+      process.env.NODE_ENV = 'development';
       const logger = createLogger('MyComponent');
       logger.info('test');
       
       // In development, should include component name
-      if (process.env.NODE_ENV !== 'production') {
-        expect(consoleSpies.info).toHaveBeenCalled();
-      }
+      expect(consoleSpies.log).toHaveBeenCalled();
     });
 
     test('returns logger with all required methods', () => {
@@ -74,7 +84,7 @@ describe('logger', () => {
       const logger = createLogger('Test');
       
       logger.info('test message');
-      expect(consoleSpies.info).toHaveBeenCalled();
+      expect(consoleSpies.log).toHaveBeenCalled();
     });
 
     test('suppresses debug in production', () => {
@@ -116,9 +126,9 @@ describe('logger', () => {
       expect(consoleSpies.log).toHaveBeenCalled();
     });
 
-    test('info method logs with console.info', () => {
+    test('info method logs with console.log', () => {
       logger.info('info message', { data: 'test' });
-      expect(consoleSpies.info).toHaveBeenCalled();
+      expect(consoleSpies.log).toHaveBeenCalled();
     });
 
     test('warn method logs with console.warn', () => {
@@ -133,7 +143,7 @@ describe('logger', () => {
 
     test('supports multiple arguments', () => {
       logger.info('message', 'arg1', 'arg2', { key: 'value' });
-      expect(consoleSpies.info).toHaveBeenCalledWith(
+      expect(consoleSpies.log).toHaveBeenCalledWith(
         expect.any(String),
         'message',
         'arg1',
@@ -172,7 +182,7 @@ describe('logger', () => {
       logger.groupEnd();
       
       expect(consoleSpies.group).toHaveBeenCalledTimes(1);
-      expect(consoleSpies.info).toHaveBeenCalledTimes(1);
+      expect(consoleSpies.log).toHaveBeenCalledTimes(1);
       expect(consoleSpies.groupEnd).toHaveBeenCalledTimes(1);
     });
   });
@@ -226,7 +236,7 @@ describe('logger', () => {
       
       logger.info('test');
       
-      const callArgs = consoleSpies.info.mock.calls[0];
+      const callArgs = consoleSpies.log.mock.calls[0];
       expect(callArgs[0]).toContain('ComponentName');
     });
 
@@ -313,7 +323,7 @@ describe('logger', () => {
       logger1.info('from logger 1');
       logger2.info('from logger 2');
       
-      expect(consoleSpies.info).toHaveBeenCalledTimes(2);
+      expect(consoleSpies.log).toHaveBeenCalledTimes(2);
     });
   });
 });

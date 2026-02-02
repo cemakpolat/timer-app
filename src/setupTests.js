@@ -26,3 +26,38 @@ jest.mock('idb', () => {
 		openDB: jest.fn(() => Promise.resolve(fakeDB)),
 	};
 });
+
+// Mock Firebase
+jest.mock('firebase/app', () => ({
+	initializeApp: jest.fn(() => ({})),
+	getApps: jest.fn(() => []),
+}));
+
+jest.mock('firebase/database', () => ({
+	getDatabase: jest.fn(() => ({})),
+	ref: jest.fn(() => ({})),
+	set: jest.fn(() => Promise.resolve()),
+	get: jest.fn(() => Promise.resolve({ val: () => null })),
+	onValue: jest.fn(() => jest.fn()),
+	off: jest.fn(),
+	remove: jest.fn(() => Promise.resolve()),
+	serverTimestamp: jest.fn(() => ({ '.sv': 'timestamp' })),
+	runTransaction: jest.fn(() => Promise.resolve({ committed: true, snapshot: { val: () => null } })),
+	update: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('firebase/auth', () => ({
+	getAuth: jest.fn(() => ({})),
+	signInAnonymously: jest.fn(() => Promise.resolve({ user: { uid: 'test-uid' } })),
+}));
+
+// Mock HTMLMediaElement for audio tests
+Object.defineProperty(window.HTMLMediaElement.prototype, 'pause', {
+	writable: true,
+	value: jest.fn(),
+});
+
+Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
+	writable: true,
+	value: jest.fn(() => Promise.resolve()),
+});
