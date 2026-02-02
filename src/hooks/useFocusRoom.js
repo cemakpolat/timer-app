@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeServiceFactory, { ServiceType } from '../services/RealtimeServiceFactory';
 import firebaseConfig from '../config/firebase.config';
-import { createLogger } from '../utils/logger';
-
-const logger = createLogger('useFocusRoom');
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing focus rooms

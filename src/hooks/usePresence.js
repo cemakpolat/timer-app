@@ -122,7 +122,6 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
           service.removePresence().catch(console.error);
         }
       } catch (err) {
-      } catch (err) {
         // Service already cleaned up
       }
 

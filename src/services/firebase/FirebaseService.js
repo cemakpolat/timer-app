@@ -499,7 +499,6 @@ class FirebaseService extends IRealtimeService {
     try {
       await update(rootRef, updates);
     } catch (err) {
-    } catch (err) {
       if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
         throw new Error('Permission denied when leaving room: ensure Realtime DB rules allow the user to remove their participant and userRooms entries.');
       }

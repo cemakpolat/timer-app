@@ -36,51 +36,13 @@ import {
 import { getLuminance, isLightColor, getContrastColor, getTextOpacity } from './utils/colorUtils';
 import { SCENES } from './utils/scenes';
 import { inputStyle } from './utils/styleHelpers';
-import { createLogger } from './utils/logger';
+import { logger } from './utils/logger';
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
 const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
 const RoutinesPanel = lazy(() => import('./components/panels/RoutinesPanel'));
-
-// Utility function to calculate relative luminance of a color
-const getLuminance = (hexColor) => {
-  // Convert hex to RGB
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16) / 255;
-  const g = parseInt(hex.substr(2, 2), 16) / 255;
-  const b = parseInt(hex.substr(4, 2), 16) / 255;
-
-  // Apply gamma correction
-  const [rs, gs, bs] = [r, g, b].map(c =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-  );
-
-  // Calculate relative luminance
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-};
-
-// Determine if a color is light (returns true for light colors)
-const isLightColor = (hexColor) => {
-  return getLuminance(hexColor) > 0.5;
-};
-
-// Get contrasting text color for a given background
-const getContrastColor = (bgColor) => {
-  return isLightColor(bgColor) ? '#000000' : '#ffffff';
-};
-
-// Get semi-transparent text color based on theme
-const getTextOpacity = (theme, opacity = 0.7) => {
-  const baseColor = theme.text || (isLightColor(theme.bg) ? '#000000' : '#ffffff');
-  // Convert hex to rgba
-  const hex = baseColor.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
 
 // Use themes from constants with isDefault flag
 const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
@@ -96,18 +58,6 @@ const defaultSavedTimers = [
   { name: "Deep Work", duration: 50, unit: "min", min: 50, color: "#8b5cf6", group: "Work", scene: "deepWork" },
   { name: "Routine", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
 ];
-
-// Centralized styles for inputs for consistency and easier modification
-const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)', borderRadius = 0) => ({
-    width: '100%',
-    background: 'rgba(255,255,255,0.05)',
-    border: `1px solid ${borderColor}`,
-    borderRadius: borderRadius,
-    padding: 12,
-    color: textColor,
-    fontSize: 14,
-    boxSizing: 'border-box', // Ensure padding doesn't add to total width
-});
 
 // accentInputStyle removed (unused) to satisfy lint rules
 

@@ -1,4 +1,5 @@
 import { STORAGE_VERSION, STORAGE_KEYS } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 /**
  * Service for managing localStorage with versioning and migrations
