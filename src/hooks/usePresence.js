@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import RealtimeServiceFactory from '../services/RealtimeServiceFactory';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing user presence and active users count

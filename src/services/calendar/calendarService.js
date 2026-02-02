@@ -3,6 +3,7 @@
  */
 
 import shareService from '../shareService';
+import { logger } from '../../utils/logger';
 
 /**
  * Generate an .ics file content from room data

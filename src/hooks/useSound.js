@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { COUNTDOWN_NOISE_SOUND } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook for sound management (alarm and ambient sounds)

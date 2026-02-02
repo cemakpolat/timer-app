@@ -1,4 +1,5 @@
 import { copyToClipboard } from '../utils/helpers';
+import { logger } from '../utils/logger';
 
 /**
  * Service for sharing timers and generating share links

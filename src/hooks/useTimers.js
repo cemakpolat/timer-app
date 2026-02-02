@@ -7,6 +7,7 @@ import {
   getTemplatesByType,
   createRoomPayloadFromTemplate
 } from '../services/timerService';
+import { logger } from '../utils/logger';
 
 /**
  * useTimers Hook

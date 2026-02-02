@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob, clearAllFileBlobs } from '../services/indexeddb';
+import { logger } from '../utils/logger';
 
 /**
  * Default weather configuration - centralized to avoid recreation

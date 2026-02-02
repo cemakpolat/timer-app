@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useModal } from '../context/ModalContext';
 import { X, Send, Lightbulb } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 // Utility function to get contrasting text color
 const getContrastColor = (bgColor) => {

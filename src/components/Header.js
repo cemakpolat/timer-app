@@ -4,6 +4,7 @@ import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Tra
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
+import { logger } from '../utils/logger';
 
 const Header = ({
   theme,

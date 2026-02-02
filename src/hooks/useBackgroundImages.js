@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
 import { BUILT_IN_BACKGROUND_IMAGES } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook to manage background images

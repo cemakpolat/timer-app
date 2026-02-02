@@ -1,5 +1,6 @@
 import FirebaseService from './firebase/FirebaseService';
 import MockRealtimeService from './mock/MockRealtimeService';
+import { logger } from '../utils/logger';
 
 /**
  * Factory for creating realtime service instances

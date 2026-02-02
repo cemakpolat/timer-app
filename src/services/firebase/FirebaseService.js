@@ -1,4 +1,5 @@
 import { IRealtimeService } from '../interfaces/IRealtimeService';
+import { logger } from '../../utils/logger';
 
 /**
  * Firebase implementation of IRealtimeService
