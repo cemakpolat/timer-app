@@ -33,7 +33,7 @@ import {
   TimelineTimerVisualization
 } from './components/TimerVisualizations';
 // Import utility functions from dedicated modules
-import { getLuminance, isLightColor, getContrastColor, getTextOpacity } from './utils/colorUtils';
+import { getContrastColor, getTextOpacity } from './utils/colorUtils';
 import { SCENES } from './utils/scenes';
 import { inputStyle } from './utils/styleHelpers';
 import { logger } from './utils/logger';
@@ -598,7 +598,7 @@ export default function TimerApp() {
       showRealtimeErrorToast(err, 'Creating room');
       throw err; // rethrow if callers expect it
     }
-  }, [rooms, createRoom]);
+  }, [rooms, createRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
 
   // Task 5: Calendar export handlers
   const handleExportToICS = useCallback((room) => {

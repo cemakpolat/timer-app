@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob, clearAllFileBlobs } from '../services/indexeddb';
 import { logger } from '../utils/logger';
 
@@ -119,7 +119,7 @@ const useSettings = () => {
       }
     })();
     return () => { mounted = false; };
-  }, []); // Only run once on mount
+  }, [customMusicFiles]); // Include customMusicFiles to ensure effect runs when it changes
   
   // Debounced localStorage save function to batch writes
   const debouncedSave = useCallback((key, value) => {
