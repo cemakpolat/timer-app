@@ -75,7 +75,7 @@ export default function RoomTemplateSelector({ theme, onSelectTemplate, onSkip }
                   style={{
                     background: theme.card,
                     border: `1px solid rgba(255,255,255,0.1)`,
-                    borderRadius: 16,
+                    borderRadius: theme.borderRadius,
                     padding: 20,
                     cursor: 'pointer',
                     transition: 'all 0.3s'
@@ -152,7 +152,7 @@ export default function RoomTemplateSelector({ theme, onSelectTemplate, onSkip }
                     gap: 6,
                     padding: 12,
                     background: 'rgba(255,255,255,0.05)',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     marginBottom: 16
                   }}>
                     <Target size={14} style={{ marginTop: 2, color: theme.accent, flexShrink: 0 }} />
@@ -169,7 +169,7 @@ export default function RoomTemplateSelector({ theme, onSelectTemplate, onSkip }
                       background: theme.accent,
                       color: '#000',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       cursor: 'pointer',
                       fontSize: 14,
                       fontWeight: 600,
@@ -198,7 +198,7 @@ export default function RoomTemplateSelector({ theme, onSelectTemplate, onSkip }
           style={{
             background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 8,
+            borderRadius: theme.borderRadius,
             padding: '10px 20px',
             color: 'rgba(255,255,255,0.6)',
             cursor: 'pointer',

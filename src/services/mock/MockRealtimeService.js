@@ -1,4 +1,5 @@
 import { IRealtimeService } from '../interfaces/IRealtimeService';
+import { logger } from '../../utils/logger';
 
 /**
  * Mock implementation for testing without Firebase
@@ -99,7 +100,7 @@ class MockRealtimeService extends IRealtimeService {
   }
 
   async initialize(config) {
-    console.log('Mock service initialized (no Firebase needed)');
+    logger.info('Mock service initialized (no Firebase needed)');
     return true;
   }
 
@@ -189,6 +190,9 @@ class MockRealtimeService extends IRealtimeService {
       messages: [],
       completed: false,
       isPublic: roomData.isPublic !== false,
+      // ambient sound configuration persisted from client
+      ambientSound: roomData.ambientSound || null,
+      ambientAutoStart: !!roomData.ambientAutoStart,
       timerType: roomData.timerType || 'single',
       compositeTimer: roomData.compositeTimer || null,
       currentStep: 0
@@ -278,6 +282,37 @@ class MockRealtimeService extends IRealtimeService {
     } catch (e) {}
   }
 
+  async deleteFocusRoom(roomId, requesterId = this.currentUserId) {
+    const rooms = JSON.parse(localStorage.getItem('mockRooms') || '[]');
+    const room = rooms.find(r => r.id === roomId);
+
+    if (!room) throw new Error('Room not found');
+
+    // Check if requester is the creator
+    if (room.createdBy !== requesterId) {
+      throw new Error('Only the room creator can delete this room');
+    }
+
+    // Remove the room
+    const updatedRooms = rooms.filter(r => r.id !== roomId);
+    localStorage.setItem('mockRooms', JSON.stringify(updatedRooms));
+
+    // Remove userRooms mapping for all participants
+    const mockUserRooms = JSON.parse(localStorage.getItem('mockUserRooms') || '{}');
+    Object.keys(room.participants || {}).forEach(userId => {
+      if (mockUserRooms[userId] === roomId) {
+        delete mockUserRooms[userId];
+      }
+    });
+    localStorage.setItem('mockUserRooms', JSON.stringify(mockUserRooms));
+
+    // Notify listeners
+    this.notifyListeners(`room_${roomId}`, null);
+    this.notifyListeners('rooms', updatedRooms);
+
+    return { success: true, message: 'Room deleted' };
+  }
+
   subscribeToFocusRoom(roomId, callback) {
     const key = `room_${roomId}`;
 
@@ -340,12 +375,13 @@ class MockRealtimeService extends IRealtimeService {
     };
   }
 
-  async startRoomTimer(roomId, duration) {
+  async startRoomTimer(roomId, duration, timerType = 'timer', timerData = null) {
+    console.log('startRoomTimer called with', roomId, duration, timerType, timerData);
     const rooms = JSON.parse(localStorage.getItem('mockRooms') || '[]');
     const room = rooms.find(r => r.id === roomId);
 
     if (!room) {
-      console.error('Room not found:', roomId);
+      logger.error('Room not found:', roomId);
       return;
     }
 
@@ -356,10 +392,17 @@ class MockRealtimeService extends IRealtimeService {
 
     const now = Date.now();
 
+    // Set timer type and data
+    room.timerType = timerType;
+    if (timerType === 'composite') {
+      room.compositeTimer = timerData;
+      room.currentStep = timerData?.currentStep || 0;
+    }
+
     // For composite timers, use the duration of the current step
     let stepDuration = duration;
-    if (room.timerType === 'composite' && room.compositeTimer?.steps) {
-      const currentStepData = room.compositeTimer.steps[room.currentStep || 0];
+    if (timerType === 'composite' && timerData?.steps) {
+      const currentStepData = timerData.steps[room.currentStep || 0];
       if (currentStepData) {
         stepDuration = currentStepData.unit === 'sec' ? currentStepData.duration : currentStepData.duration * 60;
       }
@@ -378,7 +421,7 @@ class MockRealtimeService extends IRealtimeService {
     this.notifyListeners(`room_${roomId}`, room);
 
     // Auto-advance composite timer steps
-    if (room.timerType === 'composite' && room.compositeTimer?.steps) {
+    if (timerType === 'composite' && timerData?.steps) {
       setTimeout(() => {
         this.advanceCompositeStep(roomId);
       }, stepDuration * 1000);
@@ -471,7 +514,7 @@ class MockRealtimeService extends IRealtimeService {
     await this.removePresence();
     this.stopPresenceHeartbeat();
     this.listeners.clear();
-    console.log('Mock service disconnected');
+    logger.info('Mock service disconnected');
   }
 }
 

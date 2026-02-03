@@ -10,7 +10,7 @@ import React from 'react';
  * - theme: Current theme object with card and text properties (optional)
  */
 
-export default function LazyLoadingFallback({ theme }) {
+const LazyLoadingFallback = ({ theme }) => {
   return (
     <div style={{
       display: 'flex',
@@ -18,7 +18,7 @@ export default function LazyLoadingFallback({ theme }) {
       justifyContent: 'center',
       padding: '15px',
       background: theme?.card || 'rgba(255,255,255,0.05)',
-      borderRadius: 10,
+      borderRadius: theme.borderRadius,
       minHeight: 200
     }}>
       <div style={{ textAlign: 'center' }}>
@@ -47,4 +47,7 @@ export default function LazyLoadingFallback({ theme }) {
       </div>
     </div>
   );
-}
+};
+
+// Memoize to prevent unnecessary re-renders
+export default React.memo(LazyLoadingFallback);

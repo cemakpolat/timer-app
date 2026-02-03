@@ -14,8 +14,12 @@ export const THEMES = [
   { name: "Spring", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d" }, // Light Green
   { name: "Autumn", bg: "#451a03", card: "#78350f", accent: "#d97706" }, // Brown/Orange
   
+  // Professional/Business Themes
+  { name: "Corporate Blue", bg: "#f8fafc", card: "#ffffff", accent: "#1e40af", text: "#1e293b" }, // Clean blue & white - sharp corners for professional look
+  { name: "Executive Grey", bg: "#f1f5f9", card: "#ffffff", accent: "#334155", text: "#0f172a" }, // Professional grey scale - slightly rounded
+  
   // Cultural Themes
-  { name: "Japanese", bg: "#1a0808", card: "#2d0f0f", accent: "#dc2626", text: "#fef2f2" }, // Deep red & black
+  { name: "Japanese", bg: "#1a0808", card: "#2d0f0f", accent: "#dc2626", text: "#fef2f2",    }, // Deep red & black
   { name: "Sakura", bg: "#fdf2f8", card: "#fce7f3", accent: "#ec4899", text: "#831843" }, // Cherry blossom pink
   { name: "Indian Festival", bg: "#451a03", card: "#78350f", accent: "#f59e0b", text: "#fef3c7" }, // Saffron & gold
   { name: "Turkish", bg: "#7f1d1d", card: "#991b1b", accent: "#fef3c7", text: "#fef3c7" }, // Turkish red & gold
@@ -31,12 +35,56 @@ export const THEMES = [
   { name: "Thai Temple", bg: "#451a03", card: "#78350f", accent: "#fbbf24", text: "#fef3c7" }, // Gold & brown
   { name: "Indonesian Batik", bg: "#422006", card: "#713f12", accent: "#0891b2", text: "#cffafe" }, // Brown & teal
   { name: "Moroccan Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa" }, // Spice colors
-  { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7" }, // Royal blue & gold
+  { name: "Egyptian Gold", bg: "#1e1b4b", card: "#312e81", accent: "#fbbf24", text: "#fef3c7"  }, // Royal blue & gold
   { name: "Greek Island", bg: "#f0f9ff", card: "#e0f2fe", accent: "#0284c7", text: "#075985" }, // White & blue
+  
+  // City-Inspired Themes
+  { name: "Tokyo Neon", bg: "#0a0a0a", card: "#1a1a1a", accent: "#ff0080", text: "#f0f0f0"  }, // Cyberpunk neon pink
+  { name: "New York City", bg: "#1a1a1a", card: "#2d2d2d", accent: "#fbbf24", text: "#f5f5f5" }, // Urban yellow taxi - sharp corners
+  { name: "Paris Elegance", bg: "#f8f6f0", card: "#ffffff", accent: "#1e3a8a", text: "#1e293b" }, // French blue elegance
+  { name: "London Fog", bg: "#3f3f46", card: "#52525b", accent: "#dc2626", text: "#f5f5f5"  }, // British grey & red
+  { name: "Dubai Gold", bg: "#7c2d12", card: "#9a3412", accent: "#fbbf24", text: "#fef3c7" }, // Luxurious gold
+  { name: "Amsterdam Canal", bg: "#0c4a6e", card: "#075985", accent: "#fb923c", text: "#f0f9ff" }, // Canal blue & orange
+  { name: "Singapore Garden", bg: "#14532d", card: "#166534", accent: "#86efac", text: "#f0fdf4" }, // Garden city green
+  { name: "Sydney Beach", bg: "#0ea5e9", card: "#38bdf8", accent: "#fbbf24", text: "#0c4a6e" }, // Beach blue & sand
+  { name: "Rio Colors", bg: "#fef3c7", card: "#fde68a", accent: "#16a34a", text: "#14532d" }, // Brazilian yellow & green
+  { name: "Mumbai Spice", bg: "#7c2d12", card: "#9a3412", accent: "#fb923c", text: "#fed7aa"  }, // Spice market colors
+  { name: "Moscow Winter", bg: "#f0f9ff", card: "#e0f2fe", accent: "#dc2626", text: "#1e293b" }, // Snow white & Russian red
+  { name: "Istanbul Bazaar", bg: "#450a0a", card: "#7f1d1d", accent: "#fbbf24", text: "#fef3c7" }, // Bazaar red & gold
+  { name: "Barcelona Gaudi", bg: "#fef2f8", card: "#fce7f3", accent: "#0891b2", text: "#831843"  }, // Colorful mosaic - very rounded
+  { name: "Cape Town Sunset", bg: "#450a0a", card: "#7f1d1d", accent: "#fb923c", text: "#fed7aa"    }, // Sunset colors
+  { name: "Stockholm Minimal", bg: "#f8fafc", card: "#ffffff", accent: "#64748b", text: "#0f172a"  }, // Scandinavian minimalism
+  { name: "Seoul Modern", bg: "#fafafa", card: "#ffffff", accent: "#ec4899", text: "#1f2937"  }, // Modern K-style
+  { name: "Venice Canal", bg: "#0c4a6e", card: "#075985", accent: "#fbbf24", text: "#f0f9ff"  }, // Water & gold
+  
+  // Artist-Inspired Themes
+  { name: "Van Gogh - Starry Night", bg: "#0f1419", card: "#1e293b", accent: "#fbbf24", text: "#f1f5f9"  }, // Deep blue night sky with yellow stars - very rounded for swirling effect
+  { name: "Dali - Surreal Desert", bg: "#fef7ed", card: "#fed7aa", accent: "#ea580c", text: "#9a3412" }, // Warm desert tones, melting clocks - extremely rounded for surreal effect
+  { name: "Monet - Water Lilies", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d"  }, // Soft greens and pastels - very rounded for impressionist softness
+  { name: "Picasso - Cubist Blue", bg: "#f0f9ff", card: "#e0f2fe", accent: "#1e40af", text: "#1e293b" }, // Blue period colors - sharp corners for geometric cubism
+  { name: "Frida Kahlo - Mexican Folk", bg: "#fef2f8", card: "#fce7f3", accent: "#dc2626", text: "#831843" }, // Bright Mexican colors - moderately rounded
   
   // Special Themes
   { name: "Minimal Light", bg: "#ffffff", card: null, accent: "#000000", text: "#000000", isMinimal: true, isLight: true }, // Transparent mode - no background, no cards
-  { name: "Clean Mode", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isCleanMode: true }  // Clean mode - only header and focus
+  { name: "Clean Mode", bg: "#000000", card: "#1a1a1a", accent: "#3b82f6", text: "#ffffff", isCleanMode: true },  // Clean mode - only header and focus
+
+  // New theme additions (from feature brainstorming)
+  { name: "Aurora", bg: "linear-gradient(135deg,#062743 0%,#0b3954 40%,#2a7aa1 100%)", card: "rgba(10,25,40,0.4)", accent: "#6dd3ff", text: "#e6f7ff", description: "Dynamic aurora gradient with soft particles", previewConfig: { animation: 'aurora' } },
+  { name: "Paper Notebook", bg: "#fbf6ee", card: "#fffaf5", accent: "#c75b39", text: "#2b2b2b", description: "Warm paper texture with hand-drawn accents", previewConfig: { texture: true } },
+  { name: "Cinematic", bg: "#070707", card: "#0f0f0f", accent: "#ffd166", text: "#f8f7f3", description: "Vignette and spotlight with letterbox option" },
+  { name: "Synthwave", bg: "#0a0a0f", card: "#151522", accent: "#ff3cac", text: "#f0f0f0", description: "Neon grid and retro glow" },
+  { name: "Nebula", bg: "#08020a", card: "#1a0b2f", accent: "#ff6fd8", text: "#e6e6ff", description: "Starfield with drifting nebula bands", previewConfig: { animation: 'nebula' } },
+  { name: "Frosted Glass", bg: "#0f172a", card: "rgba(255,255,255,0.06)", accent: "#60a5fa", text: "#e6eef8", description: "Translucent frosted panels with soft blur", previewConfig: { blur: true } },
+  { name: "Seasons (Auto)", bg: "#f8fafc", card: "#ffffff", accent: "#22c55e", text: "#1f2937", description: "Material base with seasonal overlays (petals, leaves, snow)", previewConfig: { seasonal: true } },
+  { name: "High Contrast", bg: "#000000", card: "#000000", accent: "#ffffff", text: "#ffffff", description: "Accessibility-first high-contrast palette" },
+  { name: "Focus Mode", bg: "#071027", card: "rgba(10,25,40,0.3)", accent: "#60a5fa", text: "#e6eef8", description: "Low-distraction muted UI for concentration" },
+  { name: "Energy Mode", bg: "#fff7ed", card: "#ffedd5", accent: "#f97316", text: "#7c2d12", description: "Bright, energetic colors and lively motion" },
+  { name: "Calm Mode", bg: "#f0fdf4", card: "#dcfce7", accent: "#22c55e", text: "#14532d", description: "Pastel tones and slow, calming motion" },
+  { name: "Arcade", bg: "#020617", card: "#091226", accent: "#00ff9d", text: "#eafff0", description: "Game-like HUD with badges and celebratory particles" },
+  { name: "Audio Reactive", bg: "#0b0f1a", card: "#111322", accent: "#7c3aed", text: "#e6e6ff", description: "Visuals that react subtly to ambient audio", previewConfig: { audioReactive: true } },
+  { name: "Developer", bg: "#0f172a", card: "#111827", accent: "#10b981", text: "#cce7d6", description: "Developer overlay with FPS and particle counts", previewConfig: { debug: true } },
+  { name: "Colorblind Safe", bg: "#f8fafc", card: "#ffffff", accent: "#0072b2", text: "#0f172a", description: "Palette optimized for common color vision deficiencies" },
+  { name: "Snowfall", bg: "#f3f8ff", card: "#eef6ff", accent: "#a7d8ff", text: "#0f172a", description: "Subtle layered snowfall with depth and soft blur", previewConfig: { particle: 'snow' } }
 ];
 
 // Ambient sound configurations
@@ -129,7 +177,9 @@ export const STORAGE_KEYS = {
   CURRENT_STREAK: 'currentStreak',
   LAST_COMPLETION_DATE: 'lastCompletionDate',
   ACHIEVEMENTS: 'achievements',
-  STORAGE_VERSION: 'storageVersion'
+  STORAGE_VERSION: 'storageVersion',
+  CUSTOM_BORDER_RADIUS: 'customBorderRadius',
+  THEME_OPACITY: 'themeOpacity'
 };
 
 // Data version for migrations

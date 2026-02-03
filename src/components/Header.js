@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
+import { logger } from '../utils/logger';
 
 const Header = ({
   theme,
@@ -36,7 +37,12 @@ const Header = ({
   uploadCustomMusic,
   deleteCustomMusic,
   getCustomMusicUrl,
+  ensureCustomMusicUrl,
+  getSoundFile,
   renameCustomMusic,
+  startAmbient,
+  stopAmbient,
+  ambientAudioRef,
   // Background images
   selectedBackgroundId,
   setSelectedBackgroundId,
@@ -46,10 +52,15 @@ const Header = ({
   deleteBackgroundImage,
   // Timer visualization
   timerVisualization,
-  setTimerVisualization
+  setTimerVisualization,
+  // Border radius
+  customBorderRadius,
+  setCustomBorderRadius
 
 }) => {
   const settingsPanelRef = useRef(null);
+  const soundListRef = useRef(null);
+  const selectedSoundButtonRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -68,15 +79,225 @@ const Header = ({
     };
   }, [showSettings, setShowSettings, setSettingsView]);
 
+  // Scroll selected sound into view
+  useEffect(() => {
+    if (selectedSoundButtonRef.current && soundListRef.current) {
+      selectedSoundButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [ambientSound]);
+
   const modal = useModal();
   const [selectedMusicId, setSelectedMusicId] = useState(null);
   const [showOpacityModal, setShowOpacityModal] = useState(false);
+  const [showBorderRadiusModal, setShowBorderRadiusModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [isHeaderMusicPlaying, setIsHeaderMusicPlaying] = useState(false);
+  const [headerMusicRepeatMode, setHeaderMusicRepeatMode] = useState('sequential'); // sequential, random, repeat-one
+  const [musicCurrentTime, setMusicCurrentTime] = useState(0);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const audioRef = useRef(null);
+  const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
+  const playbackCheckIntervalRef = useRef(null); // Timer for checking playback end
+  const musicUpdateIntervalRef = useRef(null); // Timer for updating music progress
 
   const truncate = (s, n = 28) => {
     if (!s) return '';
     return s.length > n ? `${s.slice(0, n - 1)}…` : s;
   };
+
+  // Handle song end - auto-advance based on repeat mode
+  const handleSongEnd = useCallback(async () => {
+    console.log('[DEBUG SONG END] Mode:', headerMusicRepeatMode, 'currentId:', currentPlayingIdRef.current, 'ambientSound:', ambientSound);
+    console.log('[DEBUG] customFiles:', customMusicFiles.map(f => f.id), 'AMBIENT_SOUNDS:', AMBIENT_SOUNDS.map(s => s.name));
+    
+    if (headerMusicRepeatMode === 'repeat-one') {
+      console.log('[DEBUG] Repeat-one mode, restarting current sound');
+      // For repeat-one, just restart whatever is currently playing
+      if (audioRef.current && ambientSound && ambientSound.startsWith('custom_')) {
+        // Custom file repeat
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play().catch(e => console.error('Repeat play error:', e));
+      } else if (ambientSound && !ambientSound.startsWith('custom_') && ambientSound !== 'None') {
+        // Built-in sound repeat - restart via ambient system
+        stopAmbient();
+        startAmbient(getSoundFile(ambientSound));
+      }
+      return;
+    }
+
+    // Determine if playing custom or built-in sound
+    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
+    let soundList = [];
+    let currentSoundName = '';
+
+    if (isPlayingCustom) {
+      // Custom music files list
+      soundList = customMusicFiles.map(f => f.id);
+      currentSoundName = currentPlayingIdRef.current;
+    } else {
+      // Built-in ambient sounds list
+      soundList = AMBIENT_SOUNDS.filter(s => s.name !== 'None').map(s => s.name);
+      currentSoundName = ambientSound && ambientSound !== 'None' ? ambientSound : soundList[0];
+    }
+
+    console.log('[DEBUG] Sound list:', soundList, 'current:', currentSoundName);
+
+    if (soundList.length === 0) {
+      console.log('[DEBUG] No sounds available, stopping');
+      setIsHeaderMusicPlaying(false);
+      return;
+    }
+
+    let nextId = null;
+    
+    if (headerMusicRepeatMode === 'random') {
+      // Random: pick any random sound
+      const randomIndex = Math.floor(Math.random() * soundList.length);
+      nextId = soundList[randomIndex];
+      console.log('[DEBUG] Random mode, picked index:', randomIndex, 'id:', nextId);
+    } else {
+      // Sequential: play next sound in order (default mode)
+      const currentIndex = soundList.findIndex(s => s === currentSoundName);
+      console.log('[DEBUG] Sequential mode, currentIndex:', currentIndex, 'total:', soundList.length);
+      if (currentIndex >= 0 && currentIndex < soundList.length - 1) {
+        nextId = soundList[currentIndex + 1];
+        console.log('[DEBUG] Playing next sound at index', currentIndex + 1);
+      } else {
+        // Loop back to first sound
+        nextId = soundList[0];
+        console.log('[DEBUG] Looping back to first sound');
+      }
+    }
+
+    if (nextId) {
+      console.log('[DEBUG] Auto-advancing to sound:', nextId);
+      
+      if (isPlayingCustom) {
+        // Play next custom file
+        const url = await ensureCustomMusicUrl(nextId) || getCustomMusicUrl(nextId);
+        console.log('[DEBUG] Got URL for next custom file:', url);
+        if (url && audioRef.current) {
+          audioRef.current.src = url;
+          audioRef.current.currentTime = 0;
+          console.log('[DEBUG] Playing next custom file');
+          await audioRef.current.play().catch(e => console.error('Auto-advance play error:', e));
+          currentPlayingIdRef.current = nextId;
+          setSelectedMusicId(nextId);
+          setAmbientSound(`custom_${nextId}`);
+          startAmbient(getSoundFile(`custom_${nextId}`));
+        }
+      } else {
+        // Play next built-in sound
+        console.log('[DEBUG] Playing next built-in sound:', nextId);
+        const soundFile = getSoundFile(nextId);
+        console.log('[DEBUG] getSoundFile result:', soundFile);
+        stopAmbient();
+        setAmbientSound(nextId);
+        if (soundFile) {
+          startAmbient(soundFile);
+        } else {
+          console.error('[ERROR] getSoundFile returned null/undefined for:', nextId);
+        }
+      }
+    } else {
+      console.log('[DEBUG] No next sound found, stopping');
+      setIsHeaderMusicPlaying(false);
+    }
+  }, [headerMusicRepeatMode, customMusicFiles, AMBIENT_SOUNDS, ambientSound, ensureCustomMusicUrl, getCustomMusicUrl, setAmbientSound, startAmbient, getSoundFile, stopAmbient]);
+
+  // Attach onEnded handler to ambientAudioRef for built-in sounds
+  useEffect(() => {
+    const audioElement = ambientAudioRef?.current;
+    if (audioElement) {
+      audioElement.onended = handleSongEnd;
+      console.log('[SETUP] Attached onended handler to ambientAudioRef');
+      return () => {
+        if (audioElement) {
+          audioElement.onended = null;
+        }
+      };
+    }
+  }, [handleSongEnd, ambientAudioRef]);
+
+  // Update music progress for both custom and built-in sounds
+  useEffect(() => {
+    if (!isHeaderMusicPlaying) {
+      if (musicUpdateIntervalRef.current) {
+        clearInterval(musicUpdateIntervalRef.current);
+        musicUpdateIntervalRef.current = null;
+      }
+      return;
+    }
+
+    musicUpdateIntervalRef.current = setInterval(() => {
+      // Check custom music on audioRef
+      if (audioRef.current && audioRef.current.src) {
+        setMusicCurrentTime(audioRef.current.currentTime);
+        setMusicDuration(audioRef.current.duration || 0);
+      }
+      // Check built-in sounds on ambientAudioRef
+      else if (ambientAudioRef?.current && ambientAudioRef.current.src) {
+        setMusicCurrentTime(ambientAudioRef.current.currentTime);
+        setMusicDuration(ambientAudioRef.current.duration || 0);
+      }
+    }, 500); // Update every 500ms
+
+    return () => {
+      if (musicUpdateIntervalRef.current) {
+        clearInterval(musicUpdateIntervalRef.current);
+        musicUpdateIntervalRef.current = null;
+      }
+    };
+  }, [isHeaderMusicPlaying, ambientAudioRef]);
+
+  // Monitor playback and trigger auto-advance when song ends
+  useEffect(() => {
+    if (!isHeaderMusicPlaying) {
+      if (playbackCheckIntervalRef.current) {
+        clearInterval(playbackCheckIntervalRef.current);
+        playbackCheckIntervalRef.current = null;
+      }
+      return;
+    }
+
+    console.log('[INIT] Starting playback monitor');
+    playbackCheckIntervalRef.current = setInterval(() => {
+      // Check custom music on audioRef
+      if (audioRef.current && audioRef.current.src) {
+        const audio = audioRef.current;
+        const isEnded = audio.ended;
+        const duration = audio.duration;
+        const currentTime = audio.currentTime;
+        
+        if (isEnded || (duration > 0 && currentTime >= duration - 0.5)) {
+          console.log('[MONITOR CUSTOM] Song ended detected. Duration:', duration, 'CurrentTime:', currentTime);
+          handleSongEnd();
+          return;
+        }
+      }
+      
+      // Check built-in sounds on ambientAudioRef
+      if (ambientAudioRef?.current && ambientAudioRef.current.src) {
+        const audio = ambientAudioRef.current;
+        const isEnded = audio.ended;
+        const duration = audio.duration;
+        const currentTime = audio.currentTime;
+        
+        if (isEnded || (duration > 0 && currentTime >= duration - 0.5)) {
+          console.log('[MONITOR AMBIENT] Song ended detected. Duration:', duration, 'CurrentTime:', currentTime);
+          handleSongEnd();
+          return;
+        }
+      }
+    }, 1000); // Check every 1 second
+
+    return () => {
+      if (playbackCheckIntervalRef.current) {
+        clearInterval(playbackCheckIntervalRef.current);
+        playbackCheckIntervalRef.current = null;
+      }
+    };
+  }, [isHeaderMusicPlaying, handleSongEnd, ambientAudioRef]);
 
   const stripExtension = (name) => {
     if (!name) return '';
@@ -142,7 +363,7 @@ const Header = ({
       a.click();
       document.body.removeChild(a);
     } catch (err) {
-      console.warn('Download failed', err);
+      logger.warn('Download failed', err);
       modal.alert('Download failed.', 'Error');
     }
   };
@@ -162,7 +383,7 @@ const Header = ({
       }
       setIsFullscreen(!!document.fullscreenElement);
     } catch (err) {
-      console.warn('Fullscreen toggle failed', err);
+      logger.warn('Fullscreen toggle failed', err);
     }
   };
 
@@ -194,7 +415,7 @@ const Header = ({
           onClick={onShowInfo}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -220,7 +441,7 @@ const Header = ({
           onClick={onShowAchievements}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -246,7 +467,7 @@ const Header = ({
           onClick={onShowFeedback}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -272,7 +493,7 @@ const Header = ({
           onClick={onShowWorldClocks}
           style={{
             border: 'none',
-            borderRadius: 10,
+            borderRadius: theme.borderRadius,
             padding: 10,
             color: theme.accent,
             cursor: 'pointer',
@@ -299,7 +520,7 @@ const Header = ({
             onClick={onShowSettings}
             style={{
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 10,
               color: theme.accent,
               cursor: 'pointer',
@@ -331,7 +552,7 @@ const Header = ({
                 right: 0,
                 background: theme.card,
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius,
                 padding: settingsView === 'main' ? 4 : 8,
                 minWidth: settingsView === 'main' ? 'auto' : 200,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
@@ -349,7 +570,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -377,7 +598,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -405,7 +626,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -433,7 +654,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -461,7 +682,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -489,7 +710,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -517,7 +738,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '12px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -551,7 +772,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -587,7 +808,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -619,7 +840,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.isDefault && theme.name === 'Midnight' ? 'rgba(255,255,255,0.3)' : theme.text,
                         cursor: theme.isDefault && theme.name === 'Midnight' ? 'not-allowed' : 'pointer',
@@ -651,7 +872,7 @@ const Header = ({
                       style={{
                         background: (theme.isDefault && theme.name === 'Midnight') ? 'rgba(255,255,255,0.05)' : 'rgba(255, 0, 0, 0.1)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: (theme.isDefault && theme.name === 'Midnight') ? getTextOpacity(theme, 0.3) : '#ff4444',
                         cursor: (theme.isDefault && theme.name === 'Midnight') ? 'not-allowed' : 'pointer',
@@ -678,7 +899,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -698,6 +919,38 @@ const Header = ({
                       <Eye size={18} />
                     </button>
 
+                    {/* Border Radius Control Button */}
+                    <button
+                      onClick={() => setShowBorderRadiusModal(true)}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Adjust Border Radius"
+                    >
+                      <div style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: customBorderRadius !== null ? `${customBorderRadius}px` : `${theme.borderRadius || 10}px`,
+                        background: theme.accent,
+                        border: '1px solid rgba(255,255,255,0.3)'
+                      }} />
+                    </button>
+
                     <div style={{ flex: 1 }} />
 
                     {/* Add New Theme Icon */}
@@ -709,7 +962,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -750,7 +1003,7 @@ const Header = ({
                         style={{
                           background: t.bg,
                           border: theme.name === t.name ? `2px solid ${t.accent}` : '2px solid transparent',
-                          borderRadius: 8,
+                          borderRadius: theme.borderRadius,
                           padding: 12,
                           cursor: 'pointer',
                           fontSize: 11,
@@ -788,7 +1041,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -819,7 +1072,7 @@ const Header = ({
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '8px 10px',
                         color: weatherEffect === 'none' ? 'rgba(255,255,255,0.3)' : theme.text,
                         cursor: weatherEffect === 'none' ? 'not-allowed' : 'pointer',
@@ -877,7 +1130,7 @@ const Header = ({
                           style={{
                             background: weatherEffect === effect.id ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '12px 8px',
                             color: weatherEffect === effect.id ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -932,7 +1185,7 @@ const Header = ({
                     style={{
                       background: 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '10px 12px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -1001,14 +1254,14 @@ const Header = ({
                           style={{ display: 'none' }}
                           id="custom-music-upload"
                         />
-                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
+                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: theme.borderRadius, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
                           <Upload size={14} />
                         </label>
 
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalDownload(); }}
                           title="Download selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Download size={14} />
@@ -1016,7 +1269,7 @@ const Header = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalRename(); }}
                           title="Rename selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Pencil size={14} />
@@ -1024,7 +1277,7 @@ const Header = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalDelete(); }}
                           title="Delete selected"
-                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: 6, opacity: selectedMusicId ? 1 : 0.4 }}
+                          style={{ background: 'none', border: 'none', color: getTextOpacity(theme, 0.7), cursor: selectedMusicId ? 'pointer' : 'not-allowed', padding: 6, borderRadius: theme.borderRadius, opacity: selectedMusicId ? 1 : 0.4 }}
                           disabled={!selectedMusicId}
                         >
                           <Trash size={14} />
@@ -1038,16 +1291,17 @@ const Header = ({
                       gap: 6,
                       maxHeight: 200,
                       overflowY: 'auto'
-                    }}>
+                    }} ref={soundListRef}>
                       {/* Built-in ambient sounds */}
                       {AMBIENT_SOUNDS.map(sound => (
                         <button
+                          ref={ambientSound === sound.name ? selectedSoundButtonRef : null}
                           key={sound.name}
                           onClick={() => setAmbientSound(sound.name)}
                           style={{
                             background: ambientSound === sound.name ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             color: ambientSound === sound.name ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -1062,12 +1316,13 @@ const Header = ({
                       {/* Custom music files merged into Ambient Sounds list */}
                       {customMusicFiles.map(file => (
                         <button
+                          ref={ambientSound === `custom_${file.id}` ? selectedSoundButtonRef : null}
                           key={`custom_${file.id}`}
                           onClick={() => { setAmbientSound(`custom_${file.id}`); setSelectedMusicId(file.id); }}
                           style={{
                             background: ambientSound === `custom_${file.id}` ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: 8,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             color: ambientSound === `custom_${file.id}` ? '#fff' : theme.text,
                             cursor: 'pointer',
@@ -1085,6 +1340,194 @@ const Header = ({
                       ))}
                     </div>
                   </div>
+
+                  {/* Music Playback Controls */}
+                  {(customMusicFiles.length > 0 || AMBIENT_SOUNDS.filter(s => s.name !== 'None').length > 0) && (
+                    <div style={{ marginTop: 16, borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 12 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: theme.text }}>🎵 Music Playback</label>
+                      
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{
+                          position: 'relative',
+                          width: '100%',
+                          height: 4,
+                          background: 'rgba(255,255,255,0.1)',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          cursor: 'pointer'
+                        }} onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const percent = (e.clientX - rect.left) / rect.width;
+                          if (audioRef.current && audioRef.current.src) {
+                            audioRef.current.currentTime = percent * audioRef.current.duration;
+                          } else if (ambientAudioRef?.current && ambientAudioRef.current.src) {
+                            ambientAudioRef.current.currentTime = percent * ambientAudioRef.current.duration;
+                          }
+                        }}>
+                          <div style={{
+                            height: '100%',
+                            width: musicDuration > 0 ? `${(musicCurrentTime / musicDuration) * 100}%` : '0%',
+                            background: theme.accent,
+                            transition: 'width 0.2s ease-out'
+                          }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: getTextOpacity(theme, 0.6) }}>
+                          <span>{Math.floor(musicCurrentTime / 60)}:{String(Math.floor(musicCurrentTime % 60)).padStart(2, '0')}</span>
+                          <span>{Math.floor(musicDuration / 60)}:{String(Math.floor(musicDuration % 60)).padStart(2, '0')}</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 8 }}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            // Play/pause based on currently selected ambientSound (supports built-in and custom)
+                            const active = ambientSound;
+                            console.log('[DEBUG] Play clicked. active=', active, 'isHeaderMusicPlaying=', isHeaderMusicPlaying);
+
+                            // If currently playing, pause it
+                            if (isHeaderMusicPlaying) {
+                              console.log('[DEBUG] Pausing playback');
+                              if (audioRef.current) audioRef.current.pause();
+                              if (ambientAudioRef?.current) ambientAudioRef.current.pause();
+                              setIsHeaderMusicPlaying(false);
+                              return;
+                            }
+
+                            // If not playing, start playback of selected sound
+                            if (active === 'None' || !active) {
+                              console.log('[DEBUG] No sound selected');
+                              return;
+                            }
+
+                            // Handle custom music
+                            if (active.startsWith('custom_')) {
+                              const id = active.replace('custom_', '');
+                              console.log('[DEBUG] Playing custom music id=', id);
+                              const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
+                              if (url && audioRef.current) {
+                                // Always start fresh
+                                console.log('[DEBUG] Starting custom file:', url);
+                                audioRef.current.src = url;
+                                audioRef.current.currentTime = 0;
+                                await audioRef.current.play().catch(e => console.error('Play error:', e));
+                                currentPlayingIdRef.current = id;
+                                setSelectedMusicId(id);
+                                startAmbient(getSoundFile(`custom_${id}`));
+                                setIsHeaderMusicPlaying(true);
+                              }
+                              return;
+                            }
+
+                            // Handle built-in sounds
+                            const soundFile = getSoundFile(active);
+                            if (soundFile && ambientAudioRef?.current) {
+                              console.log('[DEBUG] Starting built-in sound:', active, 'file:', soundFile);
+                              // Stop any custom audio
+                              if (audioRef.current) {
+                                audioRef.current.pause();
+                                audioRef.current.currentTime = 0;
+                              }
+                              // Start the built-in sound
+                              startAmbient(soundFile);
+                              setIsHeaderMusicPlaying(true);
+                            }
+                          }}
+                          disabled={false}
+                          title={isHeaderMusicPlaying ? 'Pause music' : 'Play music'}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: isHeaderMusicPlaying ? theme.accent : 'rgba(255,255,255,0.08)',
+                            color: isHeaderMusicPlaying ? '#ffffff' : theme.text,
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            opacity: 1,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {isHeaderMusicPlaying ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (audioRef.current) {
+                              audioRef.current.pause();
+                              audioRef.current.currentTime = 0;
+                              setIsHeaderMusicPlaying(false);
+                            }
+                            setAmbientSound('None');
+                            stopAmbient();
+                          }}
+                          title="Stop music"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: !isHeaderMusicPlaying ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
+                            color: !isHeaderMusicPlaying ? '#ef4444' : getTextOpacity(theme, 0.7),
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <X size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const modes = ['sequential', 'random', 'repeat-one'];
+                            const currentIndex = modes.indexOf(headerMusicRepeatMode);
+                            const nextMode = modes[(currentIndex + 1) % modes.length];
+                            setHeaderMusicRepeatMode(nextMode);
+                          }}
+                          disabled={false}
+                          title={`Repeat mode: ${headerMusicRepeatMode}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.05)',
+                            color: headerMusicRepeatMode !== 'sequential' ? theme.accent : getTextOpacity(theme, 0.7),
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            opacity: 1,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {headerMusicRepeatMode === 'random' ? <Shuffle size={16} /> : <Repeat2 size={16} />}
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), textAlign: 'center' }}>
+                        {headerMusicRepeatMode === 'sequential' && '▶️ Sequential'}
+                        {headerMusicRepeatMode === 'random' && '🔀 Random'}
+                        {headerMusicRepeatMode === 'repeat-one' && '🔁 Repeat One'}
+                      </div>
+                      
+                      {/* Hidden Audio Element */}
+                      <audio
+                        ref={audioRef}
+                        onEnded={handleSongEnd}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1105,12 +1548,44 @@ const Header = ({
 
               {/* Timer Visualization Settings */}
               {settingsView === 'timerVisualization' && (
-                <TimerVisualizationSelector
-                  currentVisualization={timerVisualization}
-                  onVisualizationChange={setTimerVisualization}
-                  theme={theme}
-                  getTextOpacity={getTextOpacity}
-                />
+                <>
+                  {/* Back Button and Title */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setSettingsView('main')}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        padding: '8px 10px',
+                        color: theme.text,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                        minWidth: '40px',
+                        minHeight: '40px'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      title="Back"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: theme.text }}>
+                      Timer Visualization
+                    </div>
+                  </div>
+                  <TimerVisualizationSelector
+                    currentVisualization={timerVisualization}
+                    onVisualizationChange={setTimerVisualization}
+                    theme={theme}
+                    getTextOpacity={getTextOpacity}
+                  />
+                </>
               )}
             </div>
           )}
@@ -1134,7 +1609,7 @@ const Header = ({
           <div
             style={{
               background: theme.card,
-              borderRadius: 12,
+              borderRadius: theme.borderRadius,
               padding: 24,
               minWidth: 300,
               boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
@@ -1162,7 +1637,7 @@ const Header = ({
                 style={{
                   width: '100%',
                   height: 6,
-                  borderRadius: 3,
+                  borderRadius: theme.borderRadius,
                   background: getTextOpacity(theme, 0.2),
                   outline: 'none',
                   cursor: 'pointer',
@@ -1189,7 +1664,7 @@ const Header = ({
                   style={{
                     background: Math.abs(themeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '10px 12px',
                     color: Math.abs(themeOpacity - preset.value) < 0.01 ? getTextOpacity(theme, 1) : theme.text,
                     cursor: 'pointer',
@@ -1220,7 +1695,131 @@ const Header = ({
                 width: '100%',
                 background: theme.accent,
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
+                padding: '12px 16px',
+                color: getTextOpacity(theme, 1),
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Border Radius Modal */}
+      {showBorderRadiusModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => setShowBorderRadiusModal(false)}
+        >
+          <div
+            style={{
+              background: theme.card,
+              borderRadius: theme.borderRadius,
+              padding: 24,
+              minWidth: 300,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              border: `1px solid rgba(255,255,255,0.1)`
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>
+              Border Radius
+            </h2>
+
+            <p style={{ fontSize: 13, color: getTextOpacity(theme, 0.6), marginBottom: 16 }}>
+              Adjust the corner rounding of UI elements. Current: {customBorderRadius}px
+            </p>
+
+            {/* Border Radius Slider */}
+            <div style={{ marginBottom: 24 }}>
+              <input
+                type="range"
+                min="0"
+                max="32"
+                step="2"
+                value={customBorderRadius}
+                onChange={(e) => setCustomBorderRadius(parseInt(e.target.value))}
+                style={{
+                  width: '100%',
+                  height: 6,
+                  borderRadius: theme.borderRadius,
+                  background: getTextOpacity(theme, 0.2),
+                  outline: 'none',
+                  cursor: 'pointer',
+                  accentColor: theme.accent
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: getTextOpacity(theme, 0.5) }}>
+                <span>0px</span>
+                <span>16px</span>
+                <span>32px</span>
+              </div>
+            </div>
+
+            {/* Preset Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Sharp', value: 0 },
+                { label: 'Medium', value: 12 },
+                { label: 'Rounded', value: 24 }
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => setCustomBorderRadius(preset.value)}
+                  style={{
+                    background: customBorderRadius === preset.value ? theme.accent : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                    borderRadius: theme.borderRadius,
+                    padding: '10px 12px',
+                    color: customBorderRadius === preset.value ? getTextOpacity(theme, 1) : theme.text,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (customBorderRadius !== preset.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (customBorderRadius !== preset.value) {
+                      e.target.style.background = 'rgba(255,255,255,0.05)';
+                    }
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowBorderRadiusModal(false)}
+              style={{
+                width: '100%',
+                background: theme.accent,
+                border: 'none',
+                borderRadius: theme.borderRadius,
                 padding: '12px 16px',
                 color: getTextOpacity(theme, 1),
                 cursor: 'pointer',

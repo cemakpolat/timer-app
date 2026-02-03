@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeServiceFactory, { ServiceType } from '../services/RealtimeServiceFactory';
 import firebaseConfig from '../config/firebase.config';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing focus rooms
@@ -24,6 +25,8 @@ const useFocusRoom = () => {
   const subscribedRoomIdsRef = useRef(new Set());
   // Track unsub functions per room so we can clean them up
   const subscriptionsRef = useRef(new Map());
+  // Track room IDs that the user has explicitly left (to prevent re-subscription)
+  const leftRoomIdsRef = useRef(new Set());
 
   /**
    * Initial fetch to get room list, then subscribe to each room for real-time updates
@@ -40,7 +43,7 @@ const useFocusRoom = () => {
           await RealtimeServiceFactory.createService(ServiceType.FIREBASE, firebaseConfig, { allowFallback: true });
           service = RealtimeServiceFactory.getService();
         } catch (e) {
-          console.error('Failed to initialize realtime service for fetching rooms:', e);
+          logger.error('Failed to initialize realtime service for fetching rooms:', e);
           setLoading(false);
           return;
         }
@@ -133,7 +136,7 @@ const useFocusRoom = () => {
                       presenceMap = await service.getPresenceForUserIds(participantIds);
                     } catch (e) {
                       // If presence lookup fails, keep the room (safer)
-                      console.warn('Presence lookup failed for', candidate.id, e);
+                      logger.warn('Presence lookup failed for', candidate.id, e);
                       return;
                     }
 
@@ -154,7 +157,7 @@ const useFocusRoom = () => {
                 });
               } catch (err) {
                 // If subscribe fails, do nothing — safer to keep room in UI than to remove it wrongly
-                console.warn('One-time room existence/presence check failed for', candidate.id, err);
+                logger.warn('One-time room existence/presence check failed for', candidate.id, err);
               }
             });
 
@@ -166,7 +169,7 @@ const useFocusRoom = () => {
       })();
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch rooms:', err);
+      logger.error('Failed to fetch rooms:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -199,6 +202,9 @@ const useFocusRoom = () => {
         return;
       }
       const room = await service.joinFocusRoom(roomId, undefined, userInfo);
+
+      // Clear from leftRoomIds if user is re-joining a previously left room
+      leftRoomIdsRef.current.delete(roomId);
 
       setCurrentRoom(room);
       setError(null);
@@ -243,7 +249,7 @@ const useFocusRoom = () => {
 
       return room;
     } catch (err) {
-      console.error('Failed to join room:', err);
+      logger.error('Failed to join room:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -274,7 +280,7 @@ const useFocusRoom = () => {
         }
       } catch (err) {
         // Service not initialized yet
-        console.error('Service initialization error:', err);
+        logger.error('Service initialization error:', err);
         setError('Service not ready. Please wait a moment and try again.');
         setLoading(false);
         throw err;
@@ -286,10 +292,15 @@ const useFocusRoom = () => {
       if (room.status !== 'scheduled') {
         // Get or generate display name for the creator
         let displayName = localStorage.getItem('userDisplayName');
-        if (!displayName) {
-          const service = RealtimeServiceFactory.getServiceSafe();
-          const userId = service?.currentUserId || 'anonymous';
-          displayName = roomData.creatorName || `User ${userId.substring(0, 5)}`;
+        if (!displayName || roomData.creatorName) {
+          // Use the creatorName from roomData if provided, otherwise generate one
+          if (roomData.creatorName) {
+            displayName = roomData.creatorName;
+          } else {
+            const service = RealtimeServiceFactory.getServiceSafe();
+            const userId = service?.currentUserId || 'anonymous';
+            displayName = `User ${userId.substring(0, 5)}`;
+          }
           localStorage.setItem('userDisplayName', displayName);
         }
         
@@ -297,12 +308,12 @@ const useFocusRoom = () => {
       }
 
       // Refresh the room list to include the newly created room
-      fetchRooms().catch(err => console.error('Failed to refresh rooms after creation:', err));
+      fetchRooms().catch(err => logger.error('Failed to refresh rooms after creation:', err));
 
       setError(null);
       return room;
     } catch (err) {
-      console.error('Failed to create room:', err);
+      logger.error('Failed to create room:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -331,17 +342,32 @@ const useFocusRoom = () => {
       } catch (e) {
         // ignore
       }
-      // Unsubscribe from updates
-      if (currentRoom._unsubscribe) {
-        currentRoom._unsubscribe();
+
+      // Mark this room as left to prevent automatic re-subscription
+      leftRoomIdsRef.current.add(currentRoom.id);
+
+      // Unsubscribe from the specific room's subscriptions
+      const roomSubscription = subscriptionsRef.current.get(currentRoom.id);
+      if (roomSubscription) {
+        try { roomSubscription(); } catch (e) {}
+        subscriptionsRef.current.delete(currentRoom.id);
       }
+      subscribedRoomIdsRef.current.delete(currentRoom.id);
+
+      // Also call currentRoom._unsubscribe if present (legacy - for room, messages, timer)
+      if (currentRoom._unsubscribe) {
+        try { currentRoom._unsubscribe(); } catch (e) {}
+      }
+
+      // Remove the left room from rooms list to prevent re-subscription and ghost updates
+      setRooms((cur) => cur.filter(r => r.id !== currentRoom.id));
 
       setCurrentRoom(null);
       setMessages([]);
       setRoomTimer(null);
       setError(null);
     } catch (err) {
-      console.error('Failed to leave room:', err);
+      logger.error('Failed to leave room:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -352,7 +378,7 @@ const useFocusRoom = () => {
       const result = await service.deleteFocusRoom(roomId, service.currentUserId);
       return result;
     } catch (err) {
-      console.error('Failed to delete room:', err);
+      logger.error('Failed to delete room:', err);
       setError(err.message);
       throw err;
     }
@@ -372,7 +398,7 @@ const useFocusRoom = () => {
       setError(null);
       return true;
     } catch (err) {
-      console.error('Failed to update room settings:', err);
+      logger.error('Failed to update room settings:', err);
       setError(err.message);
       throw err;
     }
@@ -389,7 +415,7 @@ const useFocusRoom = () => {
       await service.sendMessage(currentRoom.id, undefined, text);
       setError(null);
     } catch (err) {
-      console.error('Failed to send message:', err);
+      logger.error('Failed to send message:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -397,15 +423,15 @@ const useFocusRoom = () => {
   /**
    * Start timer in current room
    */
-  const startTimer = useCallback(async (duration) => {
+  const startTimer = useCallback(async (duration, timerType = 'timer', timerData = null) => {
     if (!currentRoom) return;
 
     try {
       const service = RealtimeServiceFactory.getService();
-      await service.startRoomTimer(currentRoom.id, duration);
+      await service.startRoomTimer(currentRoom.id, duration, timerType, timerData);
       setError(null);
     } catch (err) {
-      console.error('Failed to start timer:', err);
+      logger.error('Failed to start timer:', err);
       setError(err.message);
     }
   }, [currentRoom]);
@@ -421,7 +447,7 @@ const useFocusRoom = () => {
       await service.extendRoomTimer(currentRoom.id, extensionMs);
       setError(null);
     } catch (err) {
-      console.error('Failed to extend timer:', err);
+      logger.error('Failed to extend timer:', err);
       setError(err.message);
       throw err;
     }
@@ -453,6 +479,11 @@ const useFocusRoom = () => {
     const subscribeToRoom = async (roomId) => {
       // Skip if already subscribed
       if (subscribedRoomIdsRef.current.has(roomId)) {
+        return;
+      }
+
+      // Skip if user has explicitly left this room
+      if (leftRoomIdsRef.current.has(roomId)) {
         return;
       }
 
@@ -494,7 +525,7 @@ const useFocusRoom = () => {
         subscribedRoomIdsRef.current.add(roomId);
         subscriptionsRef.current.set(roomId, unsub);
       } catch (err) {
-        console.warn('Failed to subscribe to room', roomId, err);
+        logger.warn('Failed to subscribe to room', roomId, err);
       }
     };
 

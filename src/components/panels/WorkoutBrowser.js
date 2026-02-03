@@ -38,7 +38,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [showSource, setShowSource] = useState('templates'); // templates, my-routines
+  const [showSource, setShowSource] = useState('my-routines'); // templates, my-routines - default to my-routines
   const [selectedTags, setSelectedTags] = useState([]);
 
   // Convert custom timers to routine format (from timerService)
@@ -49,13 +49,20 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
     const itemCount = isSequence ? (timer.steps?.length || 0) : (timer.exercises?.length || 0);
     const itemType = isSequence ? 'steps' : 'exercises';
     
+    // Ensure duration is in seconds
+    let duration = timer.duration || (timer.exercises?.reduce((sum, ex) => sum + ex.duration, 0) || 0);
+    // If timer has unit specified as 'min', convert to seconds
+    if (timer.unit === 'min' && duration > 0) {
+      duration = duration * 60;
+    }
+    
     return {
       id: timer.id,
       name: timer.name,
       description: timer.description || `Custom routine with ${itemCount} ${itemType}`,
       category: timer.category || 'mixed',
       difficulty: timer.difficulty || 'intermediate',
-      duration: timer.duration || (timer.exercises?.reduce((sum, ex) => sum + ex.duration, 0) || 0),
+      duration: duration,
       exercises: timer.exercises || timer.steps || [],
       emoji: timer.emoji || '⭐',
       tags: timer.tags || ['custom'],
@@ -198,7 +205,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
   return (
     <div>
       {/* Source Toggle */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, background: theme.card, borderRadius: 10, padding: 6 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, background: theme.card, borderRadius: theme.borderRadius, padding: 6 }}>
         {[
             { label: 'Template Routines', value: 'templates' },
             { label: 'My Routines', value: 'my-routines' }
@@ -210,7 +217,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                 flex: 1,
                 background: showSource === tab.value ? theme.accent : 'transparent',
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: theme.borderRadius,
                 padding: '10px',
                 color: showSource === tab.value ? '#ffffff' : theme.text,
                 cursor: 'pointer',
@@ -238,7 +245,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                 width: '100%',
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid rgba(255,255,255,0.1)`,
-                borderRadius: 10,
+                borderRadius: theme.borderRadius,
                 padding: '12px 40px 12px 12px',
                 color: theme.text,
                 fontSize: 14
@@ -262,7 +269,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
             style={{
               background: showFilters ? theme.accent : 'rgba(255,255,255,0.05)',
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: '12px 16px',
               color: showFilters ? '#ffffff' : theme.text,
               cursor: 'pointer',
@@ -287,7 +294,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: '12px 16px',
               color: '#ffffff',
               cursor: 'pointer',
@@ -308,7 +315,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
           <div
             style={{
               background: 'rgba(255,255,255,0.05)',
-              borderRadius: 10,
+              borderRadius: theme.borderRadius,
               padding: 16,
               marginBottom: 12
             }}
@@ -324,7 +331,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                   style={{
                     background: selectedCategory === 'all' ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '8px 12px',
                     color: selectedCategory === 'all' ? '#ffffff' : theme.text,
                     cursor: 'pointer',
@@ -340,7 +347,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                     style={{
                       background: selectedCategory === key ? cat.color : 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px 12px',
                       color: selectedCategory === key ? '#ffffff' : theme.text,
                       cursor: 'pointer',
@@ -367,7 +374,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                   style={{
                     background: selectedDifficulty === 'all' ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '8px 12px',
                     color: selectedDifficulty === 'all' ? '#ffffff' : theme.text,
                     cursor: 'pointer',
@@ -383,7 +390,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                     style={{
                       background: selectedDifficulty === key ? diff.color : 'rgba(255,255,255,0.05)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px 12px',
                       color: selectedDifficulty === key ? '#ffffff' : theme.text,
                       cursor: 'pointer',
@@ -421,7 +428,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                         style={{
                           background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
                           border: 'none',
-                          borderRadius: 8,
+                          borderRadius: theme.borderRadius,
                           padding: '8px 12px',
                           color: isSelected ? '#ffffff' : theme.text,
                           cursor: 'pointer',
@@ -443,7 +450,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: '8px 12px',
                   color: theme.text,
                   cursor: 'pointer',
@@ -472,7 +479,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
             textAlign: 'center',
             padding: '40px 20px',
             background: 'rgba(255,255,255,0.03)',
-            borderRadius: 10
+            borderRadius: theme.borderRadius
           }}
         >
           <p style={{ color: getTextOpacity(theme, 0.6), marginBottom: 8 }}>No routines found</p>
@@ -481,7 +488,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               padding: '10px 16px',
               color: '#ffffff',
               cursor: 'pointer',
@@ -510,7 +517,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                 key={routine.id}
                 style={{
                   background: theme.card,
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   border: `1px solid rgba(255,255,255,0.05)`,
                   transition: 'all 0.2s',
@@ -536,7 +543,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                         background: category.color,
                         color: '#ffffff',
                         padding: '4px 8px',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         fontSize: 11,
                         fontWeight: 600,
                         display: 'flex',
@@ -551,7 +558,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                         background: difficulty.color,
                         color: '#ffffff',
                         padding: '4px 8px',
-                        borderRadius: 6,
+                        borderRadius: theme.borderRadius,
                         fontSize: 11,
                         fontWeight: 600
                       }}
@@ -591,7 +598,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                       flex: 1,
                       background: theme.accent,
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '10px',
                       color: '#ffffff',
                       cursor: 'pointer',
@@ -616,7 +623,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                     style={{
                       background: 'rgba(255,255,255,0.1)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '10px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -660,7 +667,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -685,7 +692,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '10px',
                         color: theme.text,
                         cursor: 'pointer',
@@ -736,7 +743,7 @@ const RoutineBrowser = ({ theme, savedSequences, savedTimers = [], onStartRoutin
                       style={{
                         background: 'rgba(239, 68, 68, 0.2)',
                         border: 'none',
-                        borderRadius: 8,
+                        borderRadius: theme.borderRadius,
                         padding: '10px',
                         color: '#ef4444',
                         cursor: 'pointer',

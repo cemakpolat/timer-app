@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { COUNTDOWN_NOISE_SOUND } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook for sound management (alarm and ambient sounds)
@@ -24,7 +25,7 @@ export const useSound = ({
     try {
       countdownAudioRef.current = new Audio(COUNTDOWN_NOISE_SOUND);
     } catch (e) {
-      console.error('Failed to load countdown sound:', e);
+      logger.error('Failed to load countdown sound:', e);
       countdownAudioRef.current = {
         play: () => Promise.resolve(),
         pause: () => {},
@@ -80,7 +81,7 @@ export const useSound = ({
         osc2.stop(ctx.currentTime + 0.5);
       }
     } catch (error) {
-      console.error('Error playing alarm sound:', error);
+      logger.error('Error playing alarm sound:', error);
     }
   }, [alarmType, alarmVolume]);
 
@@ -92,10 +93,10 @@ export const useSound = ({
       countdownAudioRef.current.volume = alarmVolume;
       countdownAudioRef.current.currentTime = 0;
       countdownAudioRef.current.play().catch(e => {
-        console.error('Countdown sound playback error:', e);
+        logger.error('Countdown sound playback error:', e);
       });
     } catch (error) {
-      console.error('Error playing countdown tick:', error);
+      logger.error('Error playing countdown tick:', error);
     }
   }, [countdownEnabled, alarmVolume]);
 
@@ -109,10 +110,10 @@ export const useSound = ({
       ambientAudioRef.current.src = soundFile;
       ambientAudioRef.current.volume = ambientVolume;
       ambientAudioRef.current.play().catch(e => {
-        console.log('Ambient audio play blocked:', e);
+        logger.info('Ambient audio play blocked:', e);
       });
     } catch (error) {
-      console.error('Error starting ambient sound:', error);
+      logger.error('Error starting ambient sound:', error);
     }
   }, [ambientVolume]);
 
@@ -125,7 +126,7 @@ export const useSound = ({
         ambientAudioRef.current.currentTime = 0;
       }
     } catch (error) {
-      console.error('Error stopping ambient sound:', error);
+      logger.error('Error stopping ambient sound:', error);
     }
   }, []);
 

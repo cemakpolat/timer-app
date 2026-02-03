@@ -125,7 +125,7 @@ export default function BackgroundImagesPanel({
         style={{
           background: 'rgba(255,255,255,0.05)',
           border: 'none',
-          borderRadius: 8,
+          borderRadius: theme.borderRadius,
           padding: '10px 12px',
           color: theme.text,
           cursor: 'pointer',
@@ -181,7 +181,7 @@ export default function BackgroundImagesPanel({
             style={{
               background: theme.accent,
               border: 'none',
-              borderRadius: 6,
+              borderRadius: theme.borderRadius,
               padding: '6px 10px',
               color: '#fff',
               cursor: 'pointer',
@@ -207,7 +207,7 @@ export default function BackgroundImagesPanel({
             style={{
               background: isDeleteDisabled ? 'rgba(255,255,255,0.1)' : '#ef4444',
               border: 'none',
-              borderRadius: 6,
+              borderRadius: theme.borderRadius,
               padding: '6px 10px',
               color: '#fff',
               cursor: isDeleteDisabled ? 'not-allowed' : 'pointer',
@@ -233,7 +233,7 @@ export default function BackgroundImagesPanel({
       {selectedBackgroundId !== 'None' && imageUrls[selectedBackgroundId] && (
         <div style={{
           marginBottom: 12,
-          borderRadius: 8,
+          borderRadius: theme.borderRadius,
           overflow: 'hidden',
           border: `2px solid ${theme.accent}`,
           background: 'rgba(0,0,0,0.2)'
@@ -275,7 +275,7 @@ export default function BackgroundImagesPanel({
             onClick={() => setSelectedBackgroundId(img.id)}
             style={{
               position: 'relative',
-              borderRadius: 8,
+              borderRadius: theme.borderRadius,
               overflow: 'hidden',
               cursor: 'pointer',
               border: selectedBackgroundId === img.id ? `2px solid ${theme.accent}` : `1px solid ${getTextOpacity(theme, 0.1)}`,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Clock, Calendar, Play, Send, Search, X, LogOut, Settings, Share2, Trash2 } from 'lucide-react';
+import { CompactTimerVisualization, MinimalTimerVisualization, CardStackTimerVisualization, TimelineTimerVisualization } from '../TimerVisualizations';
 import { useToast } from '../../context/ToastContext';
 import RoomSettingsModal from '../FocusRooms/RoomSettingsModal';
 import RoomExpirationModal from '../FocusRooms/RoomExpirationModal';
@@ -95,8 +96,24 @@ function FocusRoomsPanel({
   handleShareRoomLink,
   formatTime,
   getParticipantCount,
-  isRoomFull
+  isRoomFull,
+  activeBackground,
+  timerVisualization,
+  sequence: externalSequence = [],
+  mode,
+  currentStep,
+  customMusicFiles = [],
+  AMBIENT_SOUNDS = []
 }) {
+  // Use sequence from props (from App.js state when routine is started)
+  const sequence = React.useMemo(() => 
+    externalSequence && externalSequence.length > 0 ? externalSequence : [],
+    [externalSequence]
+  );
+  
+  React.useEffect(() => {
+    // (Log removed for production cleanliness)
+  }, [sequence]);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
@@ -154,7 +171,7 @@ function FocusRoomsPanel({
       {!currentRoom ? (
         <>
           {/* Room List */}
-          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+          <div style={{ background: theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Users size={18} /> Focus Rooms
@@ -164,7 +181,7 @@ function FocusRoomsPanel({
                 style={{
                   background: theme.accent,
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: theme.borderRadius,
                   padding: '8px 16px',
                   color: getContrastColor(theme.accent),
                   cursor: 'pointer',
@@ -193,7 +210,7 @@ function FocusRoomsPanel({
                     width: '100%',
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '12px 12px 12px 40px',
                     color: theme.text,
                     fontSize: 14,
@@ -290,7 +307,7 @@ function FocusRoomsPanel({
                     key={room.id}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
-                      borderRadius: 16,
+                      borderRadius: theme.borderRadius,
                       padding: 20,
                       border: `1px solid rgba(255,255,255,0.1)`,
                       transition: 'all 0.3s'
@@ -301,7 +318,7 @@ function FocusRoomsPanel({
                         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                           {room.name}
                           {room.status === 'scheduled' && (
-                            <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                            <span style={{ fontSize: 12, background: 'rgba(255,193,7,0.2)', color: '#ffc107', padding: '2px 8px', borderRadius: theme.borderRadius, fontWeight: 500 }}>
                               📅 Scheduled
                             </span>
                           )}
@@ -331,7 +348,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'rgba(34,197,94,0.2)',
                               border: '1px solid rgba(34,197,94,0.5)',
-                              borderRadius: 8,
+                              borderRadius: theme.borderRadius,
                               padding: '8px',
                               color: '#22c55e',
                               cursor: 'pointer',
@@ -356,7 +373,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              borderRadius: 10,
+                              borderRadius: theme.borderRadius,
                               padding: 8,
                               color: theme.accent,
                               cursor: 'pointer',
@@ -392,7 +409,7 @@ function FocusRoomsPanel({
                             style={{
                               background: 'rgba(239,68,68,0.2)',
                               border: '1px solid rgba(239,68,68,0.5)',
-                              borderRadius: 8,
+                              borderRadius: theme.borderRadius,
                               padding: '8px',
                               color: '#ef4444',
                               cursor: 'pointer',
@@ -418,7 +435,7 @@ function FocusRoomsPanel({
                           style={{
                             background: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)` : theme.accent,
                             border: 'none',
-                            borderRadius: 12,
+                            borderRadius: theme.borderRadius,
                             padding: '10px 20px',
                             color: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? theme.text : getContrastColor(theme.accent),
                             cursor: (isRoomFull(room) || (room.status === 'scheduled' && room.scheduledFor && Date.now() < room.scheduledFor)) ? 'not-allowed' : 'pointer',
@@ -440,7 +457,7 @@ function FocusRoomsPanel({
       ) : (
         <>
           {/* Active Room View */}
-          <div style={{ background: theme.card, borderRadius: 10, padding: 15, marginBottom: 24 }}>
+          <div style={{ background: activeBackground || theme.card, borderRadius: theme.borderRadius, padding: 15, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 18, margin: 0 }}>{currentRoom.name}</h2>
@@ -454,7 +471,7 @@ function FocusRoomsPanel({
                   style={{
                     background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '8px',
                     color: theme.text,
                     cursor: 'pointer',
@@ -481,7 +498,7 @@ function FocusRoomsPanel({
                     style={{
                       background: '#ef4444',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: 'white',
                       cursor: 'pointer',
@@ -500,7 +517,7 @@ function FocusRoomsPanel({
                     style={{
                       background: 'rgba(255,255,255,0.06)',
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -518,7 +535,7 @@ function FocusRoomsPanel({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderRadius: 10,
+                    borderRadius: theme.borderRadius,
                     padding: 8,
                     color: theme.accent,
                     cursor: 'pointer',
@@ -545,7 +562,7 @@ function FocusRoomsPanel({
                     style={{
                       background: 'rgba(34,197,94,0.2)',
                       border: '1px solid rgba(34,197,94,0.5)',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px',
                       color: '#22c55e',
                       cursor: 'pointer',
@@ -567,11 +584,32 @@ function FocusRoomsPanel({
                 )}
                 {!currentRoom.timer && (
                   <button
-                    onClick={() => startRoomTimer(currentRoom.duration)}
+                    onClick={() => {
+                      // (Logs removed for production cleanliness)
+                      // Try all sources for composite steps
+                      let compositeSteps = [];
+                      if (sequence && sequence.length > 0) {
+                        compositeSteps = sequence;
+                      } else if (currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0) {
+                        compositeSteps = currentRoom.compositeTimer.steps;
+                      } else if (currentRoom.compositeTimer?.exercises && currentRoom.compositeTimer.exercises.length > 0) {
+                        compositeSteps = currentRoom.compositeTimer.exercises;
+                      }
+                      if (compositeSteps.length > 0) {
+                        const firstDuration = compositeSteps[0].unit === 'sec' || compositeSteps[0].unit === 'seconds'
+                          ? compositeSteps[0].duration
+                          : compositeSteps[0].duration * 60;
+                        // (Log removed for production cleanliness)
+                        startRoomTimer(firstDuration, 'composite', { steps: compositeSteps, currentStep: currentStep || 0 });
+                      } else {
+                        // (Log removed for production cleanliness)
+                        startRoomTimer(currentRoom.duration);
+                      }
+                    }}
                     style={{
                       background: theme.accent,
                       border: 'none',
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '8px 16px',
                       color: theme.text,
                       cursor: 'pointer',
@@ -602,7 +640,7 @@ function FocusRoomsPanel({
                     key={userId}
                     style={{
                       background: `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
-                      borderRadius: 8,
+                      borderRadius: theme.borderRadius,
                       padding: '6px 12px',
                       fontSize: 13,
                       display: 'flex',
@@ -628,36 +666,71 @@ function FocusRoomsPanel({
             {currentRoom.timer && (
               <div
                 key={`timer-${currentRoom.currentStep}-${currentRoom.timerType}`}
-                style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
+                style={{ background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 24, marginBottom: 24, textAlign: 'center', position: 'relative' }}
               >
-                {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                  <>
-                    <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {currentRoom.compositeTimer.steps.map((step, idx) => (
-                        <React.Fragment key={idx}>
-                          <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: '50%', background: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${step.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${step.color}60` : 'none', margin: '0 auto' }} />
-                          {idx < currentRoom.compositeTimer.steps.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
-                      {currentRoom.compositeTimer.steps.map((step, idx) => (
-                        <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? step.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.name}</div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {currentRoom.timerType === 'composite' && currentRoom.compositeTimer?.steps && currentRoom.compositeTimer.steps.length > 0 && (
-                  <div style={{ fontSize: 14, color: currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.color || theme.accent, marginBottom: 8, fontWeight: 600 }}>
-                    {currentRoom.compositeTimer.steps[currentRoom.currentStep || 0]?.name}
-                  </div>
-                )}
-                <div style={{ fontSize: 48, fontWeight: 700, color: theme.accent, marginBottom: 8 }}>
-                  {formatTime(Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000)))}
-                </div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-                  {currentRoom.timerType === 'composite' ? `Step ${(currentRoom.currentStep || 0) + 1} of ${currentRoom.compositeTimer?.steps?.length || 0}` : 'Time Remaining'}
-                </div>
+                {(() => {
+                  // (Log removed for production cleanliness)
+                  const remainingTime = Math.max(0, Math.floor((currentRoom.timer.endsAt - Date.now()) / 1000));
+                  const totalTime = currentRoom.timerType === 'composite' ? 
+                    (currentRoom.compositeTimer?.steps?.[currentRoom.currentStep || 0]?.duration || 
+                     currentRoom.compositeTimer?.exercises?.[currentRoom.currentStep || 0]?.duration || 0) : 
+                    currentRoom.timer.duration;
+                  const compositeItems = currentRoom.compositeTimer?.steps || currentRoom.compositeTimer?.exercises || [];
+                  const itemType = currentRoom.compositeTimer?.steps ? 'steps' : 'exercises';
+                  if (timerVisualization === 'default') {
+                    return (
+                      <div style={{ display: 'flex', gap: 32, alignItems: 'stretch', flexDirection: 'row', minHeight: '200px' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                          {currentRoom.timerType === 'composite' && compositeItems.length > 0 && (
+                            <div style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                              {compositeItems.map((item, idx) => (
+                                <React.Fragment key={idx}>
+                                  <div style={{ width: idx === (currentRoom.currentStep || 0) ? 12 : 8, height: idx === (currentRoom.currentStep || 0) ? 12 : 8, borderRadius: theme.borderRadius, background: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, border: idx === (currentRoom.currentStep || 0) ? `2px solid ${item.color}40` : 'none', transition: 'all 0.3s', boxShadow: idx === (currentRoom.currentStep || 0) ? `0 0 15px ${item.color}60` : 'none', margin: '0 auto' }} />
+                                  {idx < compositeItems.length - 1 && <div style={{ width: 2, height: 12, background: idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.3)' : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`, margin: '0 auto' }} />}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          )}
+                          {currentRoom.timerType === 'composite' && compositeItems.length > 0 && (
+                            <div style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 100 }}>
+                              {compositeItems.map((item, idx) => (
+                                <div key={idx} style={{ fontSize: 10, color: idx === (currentRoom.currentStep || 0) ? item.color : idx < (currentRoom.currentStep || 0) ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontWeight: idx === (currentRoom.currentStep || 0) ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 72, fontWeight: 300, color: theme.accent, marginBottom: 8 }}>
+                            {formatTime(remainingTime)}
+                          </div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                            {currentRoom.timerType === 'composite' ? `${itemType === 'steps' ? 'Step' : 'Exercise'} ${(currentRoom.currentStep || 0) + 1} of ${compositeItems.length}` : 'Time Remaining'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    const VisualizationComponent = timerVisualization === 'compact' ? CompactTimerVisualization :
+                      timerVisualization === 'minimal' ? MinimalTimerVisualization :
+                      timerVisualization === 'cardStack' ? CardStackTimerVisualization :
+                      timerVisualization === 'timeline' ? TimelineTimerVisualization :
+                      CompactTimerVisualization;
+                    return (
+                      <VisualizationComponent
+                        time={remainingTime}
+                        totalTime={totalTime}
+                        sequence={currentRoom.timerType === 'composite' ? compositeItems : null}
+                        currentStep={currentRoom.timerType === 'composite' ? currentRoom.currentStep || 0 : null}
+                        mode={currentRoom.timerType === 'composite' ? 'sequence' : 'timer'}
+                        theme={theme}
+                        isRunning={true}
+                        isPaused={false}
+                        currentRound={null}
+                        isWork={null}
+                        rounds={null}
+                        style={{ marginBottom: 8 }}
+                      />
+                    );
+                  }
+                })()}
               </div>
             )}
 
@@ -667,13 +740,14 @@ function FocusRoomsPanel({
                 room={currentRoom}
                 onClose={() => setShowRoomSettings(false)}
                 onSave={handleSaveRoomSettings}
+                customMusicFiles={customMusicFiles}
               />
             )}
 
             <RoomExpirationModal
               isOpen={showRoomExpirationModal}
               roomId={currentRoom?.id}
-              isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getService()?.currentUserId}
+              isOwner={currentRoom?.createdBy === RealtimeServiceFactory.getServiceSafe()?.currentUserId}
               onExtend={handleExtendTimer}
               onClose={handleCloseRoom}
               gracePeriodSec={120}
@@ -695,7 +769,7 @@ function FocusRoomsPanel({
               <div
                 style={{
                   background: 'rgba(255,255,255,0.03)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   marginBottom: 12,
                   maxHeight: 300,
@@ -712,7 +786,7 @@ function FocusRoomsPanel({
                 ) : (
                   messages.map((msg) => {
                     const participant = currentRoom.participants?.[msg.userId];
-                    const isMe = msg.userId === RealtimeServiceFactory.getService().currentUserId;
+                    const isMe = msg.userId === RealtimeServiceFactory.getServiceSafe()?.currentUserId;
                     return (
                       <div
                         key={msg.id}
@@ -735,7 +809,7 @@ function FocusRoomsPanel({
                         <div
                           style={{
                             background: isMe ? theme.accent : `rgba(${parseInt(theme.text.slice(1,3),16)},${parseInt(theme.text.slice(3,5),16)},${parseInt(theme.text.slice(5,7),16)},0.1)`,
-                            borderRadius: 12,
+                            borderRadius: theme.borderRadius,
                             padding: '8px 12px',
                             maxWidth: '70%',
                             wordBreak: 'break-word'
@@ -763,7 +837,7 @@ function FocusRoomsPanel({
                     flex: 1,
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: 12,
                     color: theme.text,
                     fontSize: 14
@@ -779,7 +853,7 @@ function FocusRoomsPanel({
                   style={{
                     background: theme.accent,
                     border: 'none',
-                    borderRadius: 8,
+                    borderRadius: theme.borderRadius,
                     padding: '12px 20px',
                     color: theme.text,
                     cursor: 'pointer',
@@ -814,7 +888,7 @@ function FocusRoomsPanel({
           <div
             style={{
               background: theme.card,
-              borderRadius: 24,
+              borderRadius: theme.borderRadius,
               padding: 32,
               maxWidth: 500,
               width: '100%'
@@ -824,7 +898,7 @@ function FocusRoomsPanel({
             <h2 style={{ margin: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>
               📅 Export "{calendarExportRoom.name}" to Calendar
             </h2>
-            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 12 }}>
+            <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius }}>
               {calendarExportRoom.scheduledFor ? (
                 <>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
@@ -857,7 +931,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(34,197,94,0.2)',
                   border: '1px solid rgba(34,197,94,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#22c55e',
                   cursor: 'pointer',
@@ -879,7 +953,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(59,130,246,0.2)',
                   border: '1px solid rgba(59,130,246,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#3b82f6',
                   cursor: 'pointer',
@@ -901,7 +975,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(168,85,247,0.2)',
                   border: '1px solid rgba(168,85,247,0.5)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: '#a855f7',
                   cursor: 'pointer',
@@ -923,7 +997,7 @@ function FocusRoomsPanel({
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
+                  borderRadius: theme.borderRadius,
                   padding: 16,
                   color: getTextOpacity(theme, 0.6),
                   cursor: 'pointer',
@@ -939,6 +1013,18 @@ function FocusRoomsPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Room Settings Modal */}
+      {showRoomSettings && currentRoom && (
+        <RoomSettingsModal
+          theme={theme}
+          room={currentRoom}
+          onClose={() => setShowRoomSettings(false)}
+          onSave={handleSaveRoomSettings}
+          customMusicFiles={customMusicFiles}
+          AMBIENT_SOUNDS={AMBIENT_SOUNDS}
+        />
       )}
     </>
   );

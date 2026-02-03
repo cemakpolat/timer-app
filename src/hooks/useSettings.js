@@ -1,117 +1,102 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob, clearAllFileBlobs } from '../services/indexeddb';
+import { logger } from '../utils/logger';
+
+/**
+ * Default weather configuration - centralized to avoid recreation
+ */
+const DEFAULT_WEATHER_CONFIG = {
+  rain: { color: '#4682B4', opacity: 0.6 },
+  winter: { color: '#FFFFFF', opacity: 0.6 },
+  cloudy: { color: '#FFFFFF', opacity: 0.8 },
+  sunny: { color: '#FFD700', opacity: 0.2 },
+  spring: { color: '#FFB6C1', opacity: 0.7 },
+  autumn: { color: '#D2691E', opacity: 0.7 },
+  sakura: { color: '#FFB7C5', opacity: 0.8 },
+  fireflies: { color: '#FFD700', opacity: 0.9 },
+  butterflies: { color: '#FF69B4', opacity: 0.85 },
+  fire: { color: '#FF6347', opacity: 0.7 },
+  lanterns: { color: '#FF0000', opacity: 0.85 },
+  aurora: { color: '#00FF80', opacity: 0.6 },
+  desert: { color: '#DEB887', opacity: 0.5 },
+  tropical: { color: '#FF69B4', opacity: 0.8 },
+  coffee: { color: '#8B4513', opacity: 0.6 },
+  fireplace: { color: '#FF4500', opacity: 0.8 }
+};
+
+/**
+ * Safe localStorage getter with error handling
+ */
+const getSafeLocalStorage = (key, defaultValue, parser = (v) => v) => {
+  try {
+    const value = localStorage.getItem(key);
+    return value !== null ? parser(value) : defaultValue;
+  } catch (error) {
+    logger.error(`Failed to load ${key}:`, error);
+    return defaultValue;
+  }
+};
 
 /**
  * Custom hook to manage application settings
+ * Optimized to reduce localStorage operations and improve performance
  * Handles alarm sound, volume, animations, repeat preferences, and data export/import
  */
 const useSettings = () => {
   // Alarm sound settings
-  const [alarmSoundType, setAlarmSoundType] = useState(() => {
-    try {
-      return localStorage.getItem('alarmSoundType') || 'bell';
-    } catch (error) {
-      console.error('Failed to load alarmSoundType:', error);
-      return 'bell';
-    }
-  });
+  const [alarmSoundType, setAlarmSoundType] = useState(() => 
+    getSafeLocalStorage('alarmSoundType', 'bell')
+  );
 
-  const [alarmVolume, setAlarmVolume] = useState(() => {
-    try {
-      return parseFloat(localStorage.getItem('alarmVolume')) || 0.5;
-    } catch (error) {
-      console.error('Failed to load alarmVolume:', error);
-      return 0.5;
-    }
-  });
+  const [alarmVolume, setAlarmVolume] = useState(() => 
+    getSafeLocalStorage('alarmVolume', 0.5, parseFloat)
+  );
 
   // UI preferences
-  const [repeatEnabled, setRepeatEnabled] = useState(() => {
-    try {
-      return localStorage.getItem('repeatEnabled') === 'true';
-    } catch (error) {
-      console.error('Failed to load repeatEnabled:', error);
-      return false;
-    }
-  });
+  const [repeatEnabled, setRepeatEnabled] = useState(() => 
+    getSafeLocalStorage('repeatEnabled', false, v => v === 'true')
+  );
 
   // Scene settings
-  const [weatherEffect, setWeatherEffect] = useState(() => {
-    try {
-      return localStorage.getItem('weatherEffect') || 'none';
-    } catch (error) {
-      console.error('Failed to load weatherEffect:', error);
-      return 'none';
-    }
-  });
+  const [weatherEffect, setWeatherEffect] = useState(() => 
+    getSafeLocalStorage('weatherEffect', 'none')
+  );
 
   // Scene configuration (color, opacity)
   const [weatherConfig, setWeatherConfig] = useState(() => {
-    const defaults = {
-      rain: { color: '#4682B4', opacity: 0.6 },
-      winter: { color: '#FFFFFF', opacity: 0.6 },
-      cloudy: { color: '#FFFFFF', opacity: 0.8 },
-      sunny: { color: '#FFD700', opacity: 0.2 },
-      spring: { color: '#FFB6C1', opacity: 0.7 },
-      autumn: { color: '#D2691E', opacity: 0.7 },
-      sakura: { color: '#FFB7C5', opacity: 0.8 },
-      fireflies: { color: '#FFD700', opacity: 0.9 },
-      butterflies: { color: '#FF69B4', opacity: 0.85 },
-      fire: { color: '#FF6347', opacity: 0.7 },
-      lanterns: { color: '#FF0000', opacity: 0.85 },
-      aurora: { color: '#00FF80', opacity: 0.6 },
-      desert: { color: '#DEB887', opacity: 0.5 },
-      tropical: { color: '#FF69B4', opacity: 0.8 },
-      coffee: { color: '#8B4513', opacity: 0.6 },
-      fireplace: { color: '#FF4500', opacity: 0.8 }
-    };
-
     try {
       const stored = localStorage.getItem('weatherConfig');
       if (stored) {
         const parsed = JSON.parse(stored);
         // Merge stored config with defaults to ensure all keys exist
-        return { ...defaults, ...parsed };
+        return { ...DEFAULT_WEATHER_CONFIG, ...parsed };
       }
-      return defaults;
+      return DEFAULT_WEATHER_CONFIG;
     } catch (error) {
-      console.error('Failed to load weatherConfig:', error);
-      return defaults;
+      logger.error('Failed to load weatherConfig:', error);
+      return DEFAULT_WEATHER_CONFIG;
     }
   });
 
   // Ambient sound settings
-  const [ambientSoundType, setAmbientSoundType] = useState(() => {
-    try {
-      return localStorage.getItem('ambientSoundType') || 'None';
-    } catch (error) {
-      console.error('Failed to load ambientSoundType:', error);
-      return 'None';
-    }
-  });
+  const [ambientSoundType, setAmbientSoundType] = useState(() => 
+    getSafeLocalStorage('ambientSoundType', 'None')
+  );
 
-  const [ambientVolume, setAmbientVolume] = useState(() => {
-    try {
-      return parseFloat(localStorage.getItem('ambientVolume')) || 0.3;
-    } catch (error) {
-      console.error('Failed to load ambientVolume:', error);
-      return 0.3;
-    }
-  });
+  const [ambientVolume, setAmbientVolume] = useState(() => 
+    getSafeLocalStorage('ambientVolume', 0.3, parseFloat)
+  );
 
   // Custom music files - store file references in memory for this session
-  const [customMusicFiles, setCustomMusicFiles] = useState(() => {
-    try {
-      const stored = localStorage.getItem('customMusicFiles');
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error('Failed to load customMusicFiles:', error);
-      return [];
-    }
-  });
+  const [customMusicFiles, setCustomMusicFiles] = useState(() => 
+    getSafeLocalStorage('customMusicFiles', [], JSON.parse)
+  );
 
   // In-memory storage for file data during session
   const fileStorageRef = useRef(new Map());
+  
+  // Track if settings have changed to batch localStorage writes
+  const saveTimeoutRef = useRef(null);
 
   // On mount: restore persisted file blobs from IndexedDB for known metadata
   useEffect(() => {
@@ -126,46 +111,71 @@ const useSettings = () => {
               fileStorageRef.current.set(f.id, { blob, url });
             }
           } catch (err) {
-            console.warn('Failed to restore blob for', f.id, err);
+            logger.warn('Failed to restore blob for', f.id, err);
           }
         }
       } catch (err) {
-        console.error('Error restoring custom music files from IndexedDB', err);
+        logger.error('Error restoring custom music files from IndexedDB', err);
       }
     })();
     return () => { mounted = false; };
-  }, [customMusicFiles]); // restore whenever metadata changes
+  }, [customMusicFiles]); // Include customMusicFiles to ensure effect runs when it changes
+  
+  // Debounced localStorage save function to batch writes
+  const debouncedSave = useCallback((key, value) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        logger.error(`Failed to save ${key}:`, error);
+      }
+    }, 100); // 100ms debounce
+  }, []);
+
+  // Batch persist all settings changes
   useEffect(() => {
-    localStorage.setItem('alarmSoundType', alarmSoundType);
-  }, [alarmSoundType]);
+    debouncedSave('alarmSoundType', alarmSoundType);
+  }, [alarmSoundType, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('alarmVolume', alarmVolume.toString());
-  }, [alarmVolume]);
+    debouncedSave('alarmVolume', alarmVolume.toString());
+  }, [alarmVolume, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('repeatEnabled', repeatEnabled.toString());
-  }, [repeatEnabled]);
+    debouncedSave('repeatEnabled', repeatEnabled.toString());
+  }, [repeatEnabled, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('weatherEffect', weatherEffect);
-  }, [weatherEffect]);
+    debouncedSave('weatherEffect', weatherEffect);
+  }, [weatherEffect, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('weatherConfig', JSON.stringify(weatherConfig));
-  }, [weatherConfig]);
+    debouncedSave('weatherConfig', JSON.stringify(weatherConfig));
+  }, [weatherConfig, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('ambientSoundType', ambientSoundType);
-  }, [ambientSoundType]);
+    debouncedSave('ambientSoundType', ambientSoundType);
+  }, [ambientSoundType, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('ambientVolume', ambientVolume.toString());
-  }, [ambientVolume]);
+    debouncedSave('ambientVolume', ambientVolume.toString());
+  }, [ambientVolume, debouncedSave]);
 
   useEffect(() => {
-    localStorage.setItem('customMusicFiles', JSON.stringify(customMusicFiles));
-  }, [customMusicFiles]);
+    debouncedSave('customMusicFiles', JSON.stringify(customMusicFiles));
+  }, [customMusicFiles, debouncedSave]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Export all data
   const exportData = useCallback((data) => {
@@ -231,7 +241,7 @@ const useSettings = () => {
           throw new Error('Invalid backup file');
         }
       } catch (error) {
-        console.error('Import error:', error);
+        logger.error('Import error:', error);
         window.dispatchEvent(new CustomEvent('app-toast', {
           detail: { message: '❌ Failed to import data', type: 'error', ttl: 3000 }
         }));
@@ -292,6 +302,24 @@ const useSettings = () => {
     return entry ? entry.url : null;
   }, []);
 
+  // Ensure the URL for a custom music file is available. If not present in memory,
+  // try to load the blob from IndexedDB, create an object URL and cache it.
+  const ensureCustomMusicUrl = useCallback(async (fileId) => {
+    const entry = fileStorageRef.current.get(fileId);
+    if (entry && entry.url) return entry.url;
+    try {
+      const blob = await getFileBlob(fileId);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        fileStorageRef.current.set(fileId, { blob, url });
+        return url;
+      }
+    } catch (err) {
+      console.warn('Failed to load blob for', fileId, err);
+    }
+    return null;
+  }, []);
+
   const deleteCustomMusic = useCallback((fileId) => {
     setCustomMusicFiles(prev => prev.filter(file => file.id !== fileId));
     const entry = fileStorageRef.current.get(fileId);
@@ -300,7 +328,7 @@ const useSettings = () => {
     }
     fileStorageRef.current.delete(fileId);
     // Remove blob from IndexedDB
-    deleteFileBlob(fileId).catch(err => console.warn('Failed to delete blob from IDB', err));
+    deleteFileBlob(fileId).catch(err => logger.warn('Failed to delete blob from IDB', err));
   }, []);
 
   const renameCustomMusic = useCallback((fileId, newName) => {
@@ -321,7 +349,7 @@ const useSettings = () => {
     }
     fileStorageRef.current.clear();
     // Clear IndexedDB store
-    clearAllFileBlobs().catch(err => console.warn('Failed to clear IDB store', err));
+    clearAllFileBlobs().catch(err => logger.warn('Failed to clear IDB store', err));
   }, []);
 
   return {
@@ -351,6 +379,7 @@ const useSettings = () => {
     deleteCustomMusic,
     renameCustomMusic,
     getCustomMusicUrl,
+    ensureCustomMusicUrl,
     
     // Data management
     exportData,

@@ -15,7 +15,7 @@ export const useLocalStorage = (key, initialValue, debounceWrite = false) => {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error(`Error loading ${key} from localStorage:`, error);
+      logger.error(`Error loading ${key} from localStorage:`, error);
       return initialValue;
     }
   });
@@ -26,10 +26,10 @@ export const useLocalStorage = (key, initialValue, debounceWrite = false) => {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       if (error.name === 'QuotaExceededError') {
-        console.error('localStorage quota exceeded');
+        logger.error('localStorage quota exceeded');
         // Optionally clear old data or notify user
       } else {
-        console.error(`Error saving ${key} to localStorage:`, error);
+        logger.error(`Error saving ${key} to localStorage:`, error);
       }
     }
   }, 500);
@@ -50,7 +50,7 @@ export const useLocalStorage = (key, initialValue, debounceWrite = false) => {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
-      console.error(`Error saving ${key}:`, error);
+      logger.error(`Error saving ${key}:`, error);
     }
   };
 
@@ -60,7 +60,7 @@ export const useLocalStorage = (key, initialValue, debounceWrite = false) => {
       window.localStorage.removeItem(key);
       setStoredValue(initialValue);
     } catch (error) {
-      console.error(`Error removing ${key}:`, error);
+      logger.error(`Error removing ${key}:`, error);
     }
   };
 
@@ -71,7 +71,7 @@ export const useLocalStorage = (key, initialValue, debounceWrite = false) => {
         try {
           setStoredValue(JSON.parse(e.newValue));
         } catch (error) {
-          console.error(`Error parsing storage event for ${key}:`, error);
+          logger.error(`Error parsing storage event for ${key}:`, error);
         }
       }
     };

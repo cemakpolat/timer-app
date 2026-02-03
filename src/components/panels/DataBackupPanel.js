@@ -63,7 +63,7 @@ const DataBackupPanel = ({ theme, getTextOpacity }) => {
         style={{
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid rgba(255,255,255,0.04)',
-          borderRadius: 8,
+          borderRadius: theme.borderRadius,
           padding: '12px',
           textAlign: 'left',
           color: theme.text,
@@ -79,7 +79,7 @@ const DataBackupPanel = ({ theme, getTextOpacity }) => {
         style={{
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid rgba(255,255,255,0.04)',
-          borderRadius: 8,
+          borderRadius: theme.borderRadius,
           padding: '12px',
           textAlign: 'left',
           color: theme.text,
@@ -95,7 +95,7 @@ const DataBackupPanel = ({ theme, getTextOpacity }) => {
         style={{
           background: 'rgba(255,0,0,0.04)',
           border: '1px solid rgba(255,0,0,0.08)',
-          borderRadius: 8,
+          borderRadius: theme.borderRadius,
           padding: '12px',
           textAlign: 'left',
           color: '#ff6666',
