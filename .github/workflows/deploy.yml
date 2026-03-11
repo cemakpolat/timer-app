@@ -404,16 +404,39 @@ jobs:
             exit 1
           fi
 
+      - name: Delete 1st Gen Cloud Functions (Migration to 2nd Gen)
+        run: |
+          npm install -g firebase-tools
+          
+          echo "🗑️  Preparing for 2nd Gen migration by deleting 1st Gen functions..."
+          
+          FUNCTIONS_TO_DELETE=(
+            "activateScheduledRooms"
+            "scheduledRoomCleanup"
+            "scheduledUserCleanup"
+          )
+          
+          for func in "${FUNCTIONS_TO_DELETE[@]}"; do
+            echo "  Attempting to delete: $func (us-central1)..."
+            firebase functions:delete "$func" \
+              --region us-central1 \
+              --project timerapp-2997d \
+              --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" \
+              --force 2>/dev/null || echo "  ℹ️  Function '$func' not found or already deleted"
+          done
+          
+          echo "✓ 1st Gen function cleanup complete"
+
       - name: Deploy Cloud Functions
         run: |
           npm install -g firebase-tools
           
-          echo "� Installing Cloud Functions dependencies..."
+          echo "🚀 Installing Cloud Functions dependencies..."
           cd functions
           npm install
           cd ..
           
-          echo " Deploying Cloud Functions (2nd Generation with latest SDK)..."
+          echo "🚀 Deploying Cloud Functions (2nd Generation with latest SDK)..."
           firebase deploy \
             --project timerapp-2997d \
             --token "${{ secrets.FIREBASE_DEPLOY_TOKEN }}" \
