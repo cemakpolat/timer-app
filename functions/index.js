@@ -379,7 +379,7 @@ exports.scheduledRoomCleanup = onSchedule(CLEANUP_SCHEDULE, async (context) => {
  *
  * Runs on a configurable schedule (default: every 6 hours).
  */
-exports.scheduledUserCleanup = functions.pubsub.schedule(USER_CLEANUP_SCHEDULE).onRun(async (context) => {
+exports.scheduledUserCleanup = onSchedule(USER_CLEANUP_SCHEDULE, async (context) => {
   console.log(`Starting scheduled user cleanup on schedule: ${USER_CLEANUP_SCHEDULE}`);
   
   try {
