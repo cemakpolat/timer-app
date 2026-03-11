@@ -1,4 +1,4 @@
-const functions = require('firebase-functions');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 
 // Initialize app using default credentials when deployed to Firebase.
@@ -135,7 +135,7 @@ async function removeStaleParticipants(roomId, room, presence, now) {
  * Changes room status from 'scheduled' to 'active' when now >= scheduledFor.
  * Runs on the same schedule as room cleanup (default: every 15 minutes).
  */
-exports.activateScheduledRooms = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun(async (context) => {
+exports.activateScheduledRooms = onSchedule(CLEANUP_SCHEDULE, async (context) => {
   console.log(`Starting scheduled room activation (Phase 2a)`);
   
   try {
@@ -211,7 +211,7 @@ exports.activateScheduledRooms = functions.pubsub.schedule(CLEANUP_SCHEDULE).onR
 // Run the cleanup on a configurable schedule (default: every 15 minutes)
 // Schedule can be changed via environment variable CLEANUP_SCHEDULE
 // Examples: 'every 5 minutes', 'every 30 minutes', '*/10 * * * *' (cron)
-exports.scheduledRoomCleanup = functions.pubsub.schedule(CLEANUP_SCHEDULE).onRun(async (context) => {
+exports.scheduledRoomCleanup = onSchedule(CLEANUP_SCHEDULE, async (context) => {
   console.log(`Starting scheduled room cleanup on schedule: ${CLEANUP_SCHEDULE}`);
   
   try {
