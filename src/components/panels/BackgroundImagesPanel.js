@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash, ChevronLeft } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash, ChevronLeft, Images, Film } from 'lucide-react';
+import SlideSetPanel from './SlideSetPanel';
+import BackgroundVideosPanel from './BackgroundVideosPanel';
 
 /**
  * BackgroundImagesPanel Component
@@ -30,8 +32,27 @@ export default function BackgroundImagesPanel({
   getBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
-  onBack
+  onBack,
+  // Slide set props (optional — panel degrades gracefully without them)
+  slideSets = [],
+  activeSlideSetId = null,
+  createSlideSet,
+  deleteSlideSet,
+  renameSlideSet,
+  setSlideInterval,
+  setSlideTransition,
+  addImageToSet,
+  removeImageFromSet,
+  setActiveSlideSetId,
+  // Video props
+  selectedVideoId = 'None',
+  setSelectedVideoId,
+  getAllBackgroundVideos,
+  getBackgroundVideoUrl,
+  uploadBackgroundVideo,
+  deleteBackgroundVideo,
 }) {
+  const [activeTab, setActiveTab] = useState('images'); // 'images' | 'slidesets' | 'videos'
   const [allImages, setAllImages] = useState([]);
   const [imageUrls, setImageUrls] = useState({});
   const [selectedName, setSelectedName] = useState('');
@@ -117,6 +138,23 @@ export default function BackgroundImagesPanel({
   const isDeleteDisabled = selectedBackgroundId === 'None' || 
                           !allImages.find(img => img.id === selectedBackgroundId && !img.isBuiltIn);
 
+  const tabStyle = (tab) => ({
+    flex: 1,
+    background: activeTab === tab ? theme.accent : 'transparent',
+    border: 'none',
+    borderRadius: theme.borderRadius,
+    padding: '7px 0',
+    color: activeTab === tab ? '#fff' : getTextOpacity(theme, 0.6),
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    transition: 'all 0.2s',
+  });
+
   return (
     <div style={{ width: '100%' }}>
       {/* Back Button */}
@@ -145,6 +183,62 @@ export default function BackgroundImagesPanel({
         <ChevronLeft size={16} />
         Back
       </button>
+
+      {/* Tabs: Images | Slide Sets | Videos */}
+      <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 4, marginBottom: 14 }}>
+        <button style={tabStyle('images')} onClick={() => setActiveTab('images')}>
+          <ImageIcon size={13} /> Images
+        </button>
+        <button style={tabStyle('slidesets')} onClick={() => setActiveTab('slidesets')}>
+          <Images size={13} /> Slides
+          {activeSlideSetId && (
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginLeft: 2 }} title="Slideshow active" />
+          )}
+        </button>
+        <button style={tabStyle('videos')} onClick={() => setActiveTab('videos')}>
+          <Film size={13} /> Video
+          {selectedVideoId && selectedVideoId !== 'None' && (
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginLeft: 2 }} title="Video background active" />
+          )}
+        </button>
+      </div>
+
+      {/* Videos tab */}
+      {activeTab === 'videos' && (
+        <BackgroundVideosPanel
+          theme={theme}
+          getTextOpacity={getTextOpacity}
+          selectedVideoId={selectedVideoId}
+          setSelectedVideoId={setSelectedVideoId}
+          getAllBackgroundVideos={getAllBackgroundVideos}
+          getBackgroundVideoUrl={getBackgroundVideoUrl}
+          uploadBackgroundVideo={uploadBackgroundVideo}
+          deleteBackgroundVideo={deleteBackgroundVideo}
+        />
+      )}
+
+      {/* Slide Sets tab */}
+      {activeTab === 'slidesets' && (
+        <SlideSetPanel
+          theme={theme}
+          getTextOpacity={getTextOpacity}
+          slideSets={slideSets}
+          activeSlideSetId={activeSlideSetId}
+          getAllBackgroundImages={getAllBackgroundImages}
+          getBackgroundImageUrl={getBackgroundImageUrl}
+          createSlideSet={createSlideSet}
+          deleteSlideSet={deleteSlideSet}
+          renameSlideSet={renameSlideSet}
+          setSlideInterval={setSlideInterval}
+          setSlideTransition={setSlideTransition}
+          addImageToSet={addImageToSet}
+          removeImageFromSet={removeImageFromSet}
+          setActiveSlideSetId={setActiveSlideSetId}
+        />
+      )}
+
+      {/* Images tab content below */}
+      {activeTab === 'images' && (<>
 
       {/* Title and Add/Delete buttons */}
       <div style={{
@@ -367,6 +461,7 @@ export default function BackgroundImagesPanel({
       }}>
         Click an image to select it as your background. Custom images will be stored on this device.
       </div>
+      </>)}
     </div>
   );
 }

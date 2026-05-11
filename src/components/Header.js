@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
@@ -18,6 +18,8 @@ const Header = ({
   setShowSettings,
   settingsView,
   setSettingsView,
+  cleanMode,
+  toggleCleanMode,
   themes,
   setTheme,
   setEditingTheme,
@@ -49,6 +51,33 @@ const Header = ({
   getBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
+  // Slide sets
+  slideSets,
+  activeSlideSetId,
+  createSlideSet,
+  deleteSlideSet,
+  renameSlideSet,
+  setSlideInterval,
+  setSlideTransition,
+  addImageToSet,
+  removeImageFromSet,
+  setActiveSlideSetId,
+  // Video background
+  selectedVideoId,
+  setSelectedVideoId,
+  getAllBackgroundVideos,
+  getBackgroundVideoUrl,
+  uploadBackgroundVideo,
+  deleteBackgroundVideo,
+  // Break reminders
+  breakReminderSettings,
+  updateBreakReminderSettings,
+  toggleBreakReminders,
+  toggleBreakReminder,
+  setBreakReminderInterval,
+  notificationsGranted,
+  requestNotificationPermission,
+  BREAK_REMINDERS,
   // Timer visualization
   timerVisualization,
   setTimerVisualization,
@@ -387,6 +416,7 @@ const Header = ({
   };
 
   return (
+    <>
     <div style={{
       display: 'flex',
       justifyContent: 'space-between',
@@ -410,6 +440,29 @@ const Header = ({
 
       {/* Icon Buttons */}
       <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+
+        {/* Clean Mode Toggle — always visible */}
+        <button
+          onClick={toggleCleanMode}
+          style={{
+            border: 'none',
+            borderRadius: theme.borderRadius,
+            padding: 10,
+            background: cleanMode ? `${theme.accent}30` : 'transparent',
+            color: cleanMode ? theme.accent : getTextOpacity(theme, 0.5),
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title={cleanMode ? 'Exit Clean Mode' : 'Clean Mode (hide UI)'}
+        >
+          {cleanMode ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+
+        {/* All other icons hidden in clean mode */}
+        {!cleanMode && (<>
         <button
           onClick={onShowInfo}
           style={{
@@ -757,6 +810,35 @@ const Header = ({
                     title="Data & Backup"
                   >
                     <Settings size={18} />
+                  </button>
+
+                  {/* Break Reminders Option */}
+                  <button
+                    onClick={() => setSettingsView('breakReminders')}
+                    style={{
+                      background: breakReminderSettings?.enabled ? `${theme.accent}20` : 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      borderRadius: theme.borderRadius,
+                      padding: '12px 16px',
+                      color: breakReminderSettings?.enabled ? theme.accent : theme.text,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s',
+                      minWidth: '50px',
+                      minHeight: '50px',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.target.style.background = breakReminderSettings?.enabled ? `${theme.accent}20` : 'rgba(255,255,255,0.05)'}
+                    title="Break Reminders"
+                  >
+                    {breakReminderSettings?.enabled ? <BellRing size={18} /> : <Bell size={18} />}
                   </button>
 
                   {/* (Import/Export/Clear moved to Data & Backup panel) */}
@@ -1542,7 +1624,178 @@ const Header = ({
                   uploadBackgroundImage={uploadBackgroundImage}
                   deleteBackgroundImage={deleteBackgroundImage}
                   onBack={() => setSettingsView('main')}
+                  slideSets={slideSets}
+                  activeSlideSetId={activeSlideSetId}
+                  createSlideSet={createSlideSet}
+                  deleteSlideSet={deleteSlideSet}
+                  renameSlideSet={renameSlideSet}
+                  setSlideInterval={setSlideInterval}
+                  setSlideTransition={setSlideTransition}
+                  addImageToSet={addImageToSet}
+                  removeImageFromSet={removeImageFromSet}
+                  setActiveSlideSetId={setActiveSlideSetId}
+                  selectedVideoId={selectedVideoId}
+                  setSelectedVideoId={setSelectedVideoId}
+                  getAllBackgroundVideos={getAllBackgroundVideos}
+                  getBackgroundVideoUrl={getBackgroundVideoUrl}
+                  uploadBackgroundVideo={uploadBackgroundVideo}
+                  deleteBackgroundVideo={deleteBackgroundVideo}
                 />
+              )}
+
+              {/* Break Reminders Settings */}
+              {settingsView === 'breakReminders' && (
+                <div style={{ minWidth: 260 }}>
+                  {/* Back */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setSettingsView('main')}
+                      style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: theme.borderRadius, padding: '8px 10px', color: theme.text, cursor: 'pointer', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: theme.text, flex: 1 }}>Break Reminders</span>
+                    {/* Master toggle */}
+                    <button
+                      onClick={toggleBreakReminders}
+                      style={{
+                        background: breakReminderSettings?.enabled ? theme.accent : 'rgba(255,255,255,0.08)',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        padding: '6px 12px',
+                        color: breakReminderSettings?.enabled ? '#fff' : getTextOpacity(theme, 0.7),
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {breakReminderSettings?.enabled ? <BellRing size={13} /> : <BellOff size={13} />}
+                      {breakReminderSettings?.enabled ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+
+                  {/* Notification permission prompt */}
+                  {!notificationsGranted && breakReminderSettings?.enabled && (
+                    <div style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}40`, borderRadius: theme.borderRadius, padding: '8px 10px', marginBottom: 10, fontSize: 11, color: theme.text, lineHeight: 1.45 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 3 }}>Enable browser notifications for reminders</div>
+                      <div style={{ color: getTextOpacity(theme, 0.65), marginBottom: 6 }}>Without permission, reminders appear as in-app banners only.</div>
+                      <button
+                        onClick={requestNotificationPermission}
+                        style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '5px 10px', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+                      >
+                        Allow notifications
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Suppress during timer toggle */}
+                  {breakReminderSettings?.enabled && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: '6px 2px' }}>
+                      <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.65) }}>Pause during active timer</span>
+                      <button
+                        onClick={() => updateBreakReminderSettings({ suppressDuringTimer: !breakReminderSettings.suppressDuringTimer })}
+                        style={{
+                          background: breakReminderSettings.suppressDuringTimer ? theme.accent : 'rgba(255,255,255,0.1)',
+                          border: 'none',
+                          borderRadius: 20,
+                          width: 40,
+                          height: 22,
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'all 0.2s',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span style={{
+                          position: 'absolute',
+                          top: 3, left: breakReminderSettings.suppressDuringTimer ? 20 : 3,
+                          width: 16, height: 16,
+                          borderRadius: '50%',
+                          background: '#fff',
+                          transition: 'left 0.2s',
+                        }} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reminder list */}
+                  {breakReminderSettings?.enabled && (BREAK_REMINDERS || []).map(def => {
+                    const cfg = breakReminderSettings.reminders?.find(r => r.id === def.id);
+                    if (!cfg) return null;
+                    const categories = { eyes: '#06b6d4', posture: '#8b5cf6', health: '#10b981', movement: '#f59e0b', mental: '#ec4899' };
+                    const catColor = categories[def.category] || theme.accent;
+                    return (
+                      <div key={def.id} style={{
+                        background: cfg.active ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${cfg.active ? catColor + '40' : 'transparent'}`,
+                        borderRadius: theme.borderRadius,
+                        padding: '9px 10px',
+                        marginBottom: 6,
+                        opacity: cfg.active ? 1 : 0.5,
+                        transition: 'all 0.2s',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: cfg.active ? 7 : 0 }}>
+                          <span style={{ fontSize: 16, flexShrink: 0 }}>{def.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, lineHeight: 1.2 }}>{def.label}</div>
+                            <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.5), lineHeight: 1.3, marginTop: 1 }}>{def.description}</div>
+                          </div>
+                          <button
+                            onClick={() => toggleBreakReminder(def.id)}
+                            style={{
+                              background: cfg.active ? catColor : 'rgba(255,255,255,0.1)',
+                              border: 'none',
+                              borderRadius: 12,
+                              width: 36,
+                              height: 20,
+                              cursor: 'pointer',
+                              position: 'relative',
+                              transition: 'all 0.2s',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span style={{
+                              position: 'absolute',
+                              top: 2, left: cfg.active ? 18 : 2,
+                              width: 16, height: 16,
+                              borderRadius: '50%',
+                              background: '#fff',
+                              transition: 'left 0.2s',
+                            }} />
+                          </button>
+                        </div>
+                        {cfg.active && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Clock size={11} style={{ color: getTextOpacity(theme, 0.45), flexShrink: 0 }} />
+                            <span style={{ fontSize: 10, color: getTextOpacity(theme, 0.5), flexShrink: 0 }}>Every</span>
+                            <input
+                              type="range"
+                              min={5}
+                              max={120}
+                              step={5}
+                              value={cfg.intervalMin}
+                              onChange={(e) => setBreakReminderInterval(def.id, parseInt(e.target.value, 10))}
+                              style={{ flex: 1, accentColor: catColor, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 11, fontWeight: 600, color: catColor, minWidth: 34, textAlign: 'right' }}>
+                              {cfg.intervalMin}m
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {!breakReminderSettings?.enabled && (
+                    <div style={{ textAlign: 'center', padding: '18px 0', color: getTextOpacity(theme, 0.35), fontSize: 12, lineHeight: 1.5 }}>
+                      Enable reminders to protect your<br />eyes, posture, and focus.
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Timer Visualization Settings */}
@@ -1589,6 +1842,7 @@ const Header = ({
             </div>
           )}
         </div>
+        </>)}
       </div>
 
       {/* Opacity Modal */}
@@ -1835,6 +2089,147 @@ const Header = ({
         </div>
       )}
     </div>
+
+    {/* Music Mini-Player — floating bar at bottom, visible when a sound is selected */}
+    {ambientSound && ambientSound !== 'None' && (
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 52,
+        background: `${theme.card}ee`,
+        backdropFilter: 'blur(12px)',
+        borderTop: `1px solid rgba(255,255,255,0.1)`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '0 20px',
+        zIndex: 9999,
+      }}>
+        {/* Track name */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {ambientSound.startsWith('custom_')
+              ? (customMusicFiles.find(f => f.id === ambientSound.replace('custom_', ''))?.name || 'Custom Track')
+              : ambientSound}
+          </div>
+          {musicDuration > 0 && (
+            <div style={{ fontSize: 10, color: `${theme.text}80`, marginTop: 1 }}>
+              {Math.floor(musicCurrentTime / 60)}:{String(Math.floor(musicCurrentTime % 60)).padStart(2, '0')} / {Math.floor(musicDuration / 60)}:{String(Math.floor(musicDuration % 60)).padStart(2, '0')}
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        {musicDuration > 0 && (
+          <div
+            style={{ width: 80, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, cursor: 'pointer', flexShrink: 0 }}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const percent = (e.clientX - rect.left) / rect.width;
+              if (audioRef.current) audioRef.current.currentTime = percent * audioRef.current.duration;
+              if (ambientAudioRef?.current) ambientAudioRef.current.currentTime = percent * ambientAudioRef.current.duration;
+            }}
+          >
+            <div style={{ height: '100%', width: `${(musicCurrentTime / musicDuration) * 100}%`, background: theme.accent, borderRadius: 2, transition: 'width 0.2s ease-out' }} />
+          </div>
+        )}
+
+        {/* Play/Pause */}
+        <button
+          onClick={async () => {
+            if (isHeaderMusicPlaying) {
+              if (audioRef.current) audioRef.current.pause();
+              if (ambientAudioRef?.current) ambientAudioRef.current.pause();
+              setIsHeaderMusicPlaying(false);
+            } else {
+              if (ambientSound.startsWith('custom_')) {
+                const id = ambientSound.replace('custom_', '');
+                const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
+                if (url && audioRef.current) {
+                  audioRef.current.src = url;
+                  await audioRef.current.play().catch(() => {});
+                  setIsHeaderMusicPlaying(true);
+                }
+              } else {
+                const soundFile = getSoundFile(ambientSound);
+                if (soundFile && ambientAudioRef?.current) {
+                  startAmbient(soundFile);
+                  setIsHeaderMusicPlaying(true);
+                }
+              }
+            }
+          }}
+          style={{
+            background: isHeaderMusicPlaying ? theme.accent : 'rgba(255,255,255,0.1)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: isHeaderMusicPlaying ? '#fff' : theme.text,
+            flexShrink: 0,
+          }}
+        >
+          {isHeaderMusicPlaying ? <Pause size={14} /> : <Play size={14} />}
+        </button>
+
+        {/* Stop */}
+        <button
+          onClick={() => {
+            if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+            stopAmbient();
+            setAmbientSound('None');
+            setIsHeaderMusicPlaying(false);
+          }}
+          style={{
+            background: 'rgba(239,68,68,0.15)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: '#ef4444',
+            flexShrink: 0,
+          }}
+        >
+          <X size={14} />
+        </button>
+
+        {/* Repeat mode */}
+        <button
+          onClick={() => {
+            const modes = ['sequential', 'random', 'repeat-one'];
+            const next = modes[(modes.indexOf(headerMusicRepeatMode) + 1) % modes.length];
+            setHeaderMusicRepeatMode(next);
+          }}
+          title={`Mode: ${headerMusicRepeatMode}`}
+          style={{
+            background: headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: headerMusicRepeatMode !== 'sequential' ? theme.accent : `${theme.text}80`,
+            flexShrink: 0,
+          }}
+        >
+          {headerMusicRepeatMode === 'random' ? <Shuffle size={14} /> : <Repeat2 size={14} />}
+        </button>
+      </div>
+    )}
+    </>
   );
 };
 
