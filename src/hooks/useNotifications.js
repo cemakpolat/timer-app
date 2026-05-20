@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supportsFeature } from '../utils/helpers';
+import logger from '../utils/logger';
 
 /**
  * Custom hook for managing browser notifications
