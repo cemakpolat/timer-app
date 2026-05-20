@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
@@ -51,6 +51,11 @@ const Header = ({
   getBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
+  remoteBackgroundImageSources,
+  remoteBackgroundImageSourceStatuses,
+  addRemoteBackgroundImageSource,
+  deleteRemoteBackgroundImageSource,
+  refreshRemoteBackgroundImages,
   // Slide sets
   slideSets,
   activeSlideSetId,
@@ -69,6 +74,11 @@ const Header = ({
   getBackgroundVideoUrl,
   uploadBackgroundVideo,
   deleteBackgroundVideo,
+  remoteBackgroundVideoSources,
+  remoteBackgroundVideoSourceStatuses,
+  addRemoteBackgroundVideoSource,
+  deleteRemoteBackgroundVideoSource,
+  refreshRemoteBackgroundVideos,
   // Break reminders
   breakReminderSettings,
   updateBreakReminderSettings,
@@ -123,6 +133,7 @@ const Header = ({
   const [headerMusicRepeatMode, setHeaderMusicRepeatMode] = useState('sequential'); // sequential, random, repeat-one
   const [musicCurrentTime, setMusicCurrentTime] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
+  const [savedPlaybackPositions, setSavedPlaybackPositions] = useState({}); // Track playback position for each song
   const audioRef = useRef(null);
   const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
   const playbackCheckIntervalRef = useRef(null); // Timer for checking playback end
@@ -327,11 +338,188 @@ const Header = ({
     };
   }, [isHeaderMusicPlaying, handleSongEnd, ambientAudioRef]);
 
+  // Dispatch music state to footer via custom event whenever state changes
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('music-player-state', {
+      detail: { isPlaying: isHeaderMusicPlaying, repeatMode: headerMusicRepeatMode }
+    }));
+  }, [isHeaderMusicPlaying, headerMusicRepeatMode]);
+
   const stripExtension = (name) => {
     if (!name) return '';
     const idx = name.lastIndexOf('.');
     return idx > 0 ? name.slice(0, idx) : name;
   };
+
+  // Get list of available sounds based on current type (custom or built-in)
+  const getSoundList = useCallback(() => {
+    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
+    let soundList = [];
+
+    if (isPlayingCustom) {
+      soundList = customMusicFiles.map(f => f.id);
+    } else {
+      soundList = AMBIENT_SOUNDS.filter(s => s.name !== 'None').map(s => s.name);
+    }
+
+    return soundList;
+  }, [ambientSound, customMusicFiles, AMBIENT_SOUNDS]);
+
+  // Skip to next song in current playlist
+  const skipToNextSong = useCallback(async () => {
+    const soundList = getSoundList();
+    if (soundList.length === 0) {
+      console.log('[SKIP] No sounds available');
+      return;
+    }
+
+    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
+    const currentSoundName = isPlayingCustom ? ambientSound.replace('custom_', '') : ambientSound;
+    const currentIndex = soundList.findIndex(s => s === currentSoundName);
+    const nextIndex = currentIndex >= 0 && currentIndex < soundList.length - 1 ? currentIndex + 1 : 0;
+    const nextId = soundList[nextIndex];
+
+    console.log('[SKIP NEXT] currentIndex:', currentIndex, 'nextIndex:', nextIndex, 'nextId:', nextId);
+
+    if (isPlayingCustom) {
+      // Custom file skip
+      const url = await ensureCustomMusicUrl(nextId) || getCustomMusicUrl(nextId);
+      if (url && audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.currentTime = savedPlaybackPositions[nextId] || 0;
+        await audioRef.current.play().catch(e => console.error('Play error:', e));
+        currentPlayingIdRef.current = nextId;
+        setSelectedMusicId(nextId);
+        setAmbientSound(`custom_${nextId}`);
+        setIsHeaderMusicPlaying(true);
+      }
+    } else {
+      // Built-in sound skip
+      const soundFile = getSoundFile(nextId);
+      if (soundFile && ambientAudioRef?.current) {
+        stopAmbient();
+        setAmbientSound(nextId);
+        startAmbient(soundFile);
+        setIsHeaderMusicPlaying(true);
+      }
+    }
+  }, [ambientSound, ambientAudioRef, ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, getSoundList, startAmbient, stopAmbient, savedPlaybackPositions, setAmbientSound]);
+
+  // Skip to previous song in current playlist
+  const skipToPreviousSong = useCallback(async () => {
+    const soundList = getSoundList();
+    if (soundList.length === 0) {
+      console.log('[SKIP] No sounds available');
+      return;
+    }
+
+    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
+    const currentSoundName = isPlayingCustom ? ambientSound.replace('custom_', '') : ambientSound;
+    const currentIndex = soundList.findIndex(s => s === currentSoundName);
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : soundList.length - 1;
+    const prevId = soundList[prevIndex];
+
+    console.log('[SKIP PREV] currentIndex:', currentIndex, 'prevIndex:', prevIndex, 'prevId:', prevId);
+
+    if (isPlayingCustom) {
+      // Custom file skip
+      const url = await ensureCustomMusicUrl(prevId) || getCustomMusicUrl(prevId);
+      if (url && audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.currentTime = savedPlaybackPositions[prevId] || 0;
+        await audioRef.current.play().catch(e => console.error('Play error:', e));
+        currentPlayingIdRef.current = prevId;
+        setSelectedMusicId(prevId);
+        setAmbientSound(`custom_${prevId}`);
+        setIsHeaderMusicPlaying(true);
+      }
+    } else {
+      // Built-in sound skip
+      const soundFile = getSoundFile(prevId);
+      if (soundFile && ambientAudioRef?.current) {
+        stopAmbient();
+        setAmbientSound(prevId);
+        startAmbient(soundFile);
+        setIsHeaderMusicPlaying(true);
+      }
+    }
+  }, [ambientSound, ambientAudioRef, ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, getSoundList, startAmbient, stopAmbient, savedPlaybackPositions, setAmbientSound]);
+
+  // Register global music player controls so MusicPlayerFooter can call them
+  useEffect(() => {
+    const playPause = async () => {
+      const active = ambientSound;
+      if (isHeaderMusicPlaying) {
+        if (audioRef.current) {
+          const id = currentPlayingIdRef.current;
+          if (id) {
+            setSavedPlaybackPositions(prev => ({
+              ...prev,
+              [id]: audioRef.current.currentTime
+            }));
+          }
+          audioRef.current.pause();
+        }
+        if (ambientAudioRef?.current) {
+          ambientAudioRef.current.pause();
+        }
+        setIsHeaderMusicPlaying(false);
+        return;
+      }
+      if (!active || active === 'None') return;
+      if (active.startsWith('custom_')) {
+        const id = active.replace('custom_', '');
+        const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
+        if (url && audioRef.current) {
+          audioRef.current.src = url;
+          audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
+          await audioRef.current.play().catch(e => console.error('Play error:', e));
+          currentPlayingIdRef.current = id;
+          setSelectedMusicId(id);
+          startAmbient(getSoundFile(`custom_${id}`));
+          setIsHeaderMusicPlaying(true);
+        }
+        return;
+      }
+      const soundFile = getSoundFile(active);
+      if (soundFile && ambientAudioRef?.current) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        startAmbient(soundFile);
+        setIsHeaderMusicPlaying(true);
+      }
+    };
+
+    const stop = () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsHeaderMusicPlaying(false);
+      }
+      setAmbientSound('None');
+      stopAmbient();
+    };
+
+    window.__musicPlayerControls = {
+      playPause,
+      stop,
+      skipNext: skipToNextSong,
+      skipPrev: skipToPreviousSong,
+      setRepeatMode: setHeaderMusicRepeatMode
+    };
+
+    return () => {
+      window.__musicPlayerControls = null;
+    };
+  }, [
+    ambientSound, isHeaderMusicPlaying, savedPlaybackPositions,
+    audioRef, ambientAudioRef, currentPlayingIdRef,
+    ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, startAmbient, stopAmbient,
+    setAmbientSound, setSavedPlaybackPositions, setSelectedMusicId, setIsHeaderMusicPlaying,
+    setHeaderMusicRepeatMode, skipToNextSong, skipToPreviousSong
+  ]);
 
   const onGlobalDelete = async (fileId) => {
     const id = fileId || selectedMusicId;
@@ -607,11 +795,17 @@ const Header = ({
                 borderRadius: theme.borderRadius,
                 padding: settingsView === 'main' ? 4 : 8,
                 minWidth: settingsView === 'main' ? 'auto' : 200,
+                width: settingsView === 'backgroundImages' ? '360px' : 'auto',
+                maxWidth: 'calc(100vw - 24px)',
+                maxHeight: settingsView === 'backgroundImages' ? 'calc(100vh - 84px)' : 'none',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
                 zIndex: 1000,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: settingsView === 'main' ? 2 : 4
+                gap: settingsView === 'main' ? 2 : 4,
+                overflowY: settingsView === 'backgroundImages' ? 'auto' : 'visible',
+                overflowX: 'hidden',
+                boxSizing: 'border-box',
               }}
             >
               {settingsView === 'main' && (
@@ -1462,16 +1656,54 @@ const Header = ({
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 8 }}>
                         <button
                           type="button"
+                          onClick={skipToPreviousSong}
+                          disabled={false}
+                          title="Previous song"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: getTextOpacity(theme, 0.7),
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            opacity: 1,
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.1)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.05)'; }}
+                        >
+                          <SkipBack size={16} />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={async () => {
                             // Play/pause based on currently selected ambientSound (supports built-in and custom)
                             const active = ambientSound;
                             console.log('[DEBUG] Play clicked. active=', active, 'isHeaderMusicPlaying=', isHeaderMusicPlaying);
 
-                            // If currently playing, pause it
+                            // If currently playing, pause it and save position
                             if (isHeaderMusicPlaying) {
                               console.log('[DEBUG] Pausing playback');
-                              if (audioRef.current) audioRef.current.pause();
-                              if (ambientAudioRef?.current) ambientAudioRef.current.pause();
+                              if (audioRef.current) {
+                                // Save custom music position
+                                const id = currentPlayingIdRef.current;
+                                if (id) {
+                                  setSavedPlaybackPositions(prev => ({
+                                    ...prev,
+                                    [id]: audioRef.current.currentTime
+                                  }));
+                                }
+                                audioRef.current.pause();
+                              }
+                              if (ambientAudioRef?.current) {
+                                ambientAudioRef.current.pause();
+                              }
                               setIsHeaderMusicPlaying(false);
                               return;
                             }
@@ -1488,10 +1720,10 @@ const Header = ({
                               console.log('[DEBUG] Playing custom music id=', id);
                               const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
                               if (url && audioRef.current) {
-                                // Always start fresh
                                 console.log('[DEBUG] Starting custom file:', url);
                                 audioRef.current.src = url;
-                                audioRef.current.currentTime = 0;
+                                // Resume from saved position or start at 0
+                                audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
                                 await audioRef.current.play().catch(e => console.error('Play error:', e));
                                 currentPlayingIdRef.current = id;
                                 setSelectedMusicId(id);
@@ -1591,8 +1823,36 @@ const Header = ({
                             opacity: 1,
                             transition: 'all 0.2s'
                           }}
+                          onMouseEnter={(e) => { e.target.style.background = headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.1)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.05)'; }}
                         >
                           {headerMusicRepeatMode === 'random' ? <Shuffle size={16} /> : <Repeat2 size={16} />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={skipToNextSong}
+                          disabled={false}
+                          title="Next song"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: getTextOpacity(theme, 0.7),
+                            cursor: 'pointer',
+                            fontSize: 16,
+                            opacity: 1,
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.1)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.05)'; }}
+                        >
+                          <SkipForward size={16} />
                         </button>
                       </div>
                       <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), textAlign: 'center' }}>
@@ -1623,6 +1883,11 @@ const Header = ({
                   getBackgroundImageUrl={getBackgroundImageUrl}
                   uploadBackgroundImage={uploadBackgroundImage}
                   deleteBackgroundImage={deleteBackgroundImage}
+                  remoteBackgroundImageSources={remoteBackgroundImageSources}
+                  remoteBackgroundImageSourceStatuses={remoteBackgroundImageSourceStatuses}
+                  addRemoteBackgroundImageSource={addRemoteBackgroundImageSource}
+                  deleteRemoteBackgroundImageSource={deleteRemoteBackgroundImageSource}
+                  refreshRemoteBackgroundImages={refreshRemoteBackgroundImages}
                   onBack={() => setSettingsView('main')}
                   slideSets={slideSets}
                   activeSlideSetId={activeSlideSetId}
@@ -1640,6 +1905,11 @@ const Header = ({
                   getBackgroundVideoUrl={getBackgroundVideoUrl}
                   uploadBackgroundVideo={uploadBackgroundVideo}
                   deleteBackgroundVideo={deleteBackgroundVideo}
+                  remoteBackgroundVideoSources={remoteBackgroundVideoSources}
+                  remoteBackgroundVideoSourceStatuses={remoteBackgroundVideoSourceStatuses}
+                  addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
+                  deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
+                  refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
                 />
               )}
 
@@ -2136,11 +2406,42 @@ const Header = ({
           </div>
         )}
 
+        {/* Previous */}
+        <button
+          onClick={skipToPreviousSong}
+          title="Previous song"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: theme.text,
+            flexShrink: 0,
+          }}
+        >
+          <SkipBack size={14} />
+        </button>
+
         {/* Play/Pause */}
         <button
           onClick={async () => {
             if (isHeaderMusicPlaying) {
-              if (audioRef.current) audioRef.current.pause();
+              // Save position before pausing
+              if (audioRef.current) {
+                const id = currentPlayingIdRef.current;
+                if (id) {
+                  setSavedPlaybackPositions(prev => ({
+                    ...prev,
+                    [id]: audioRef.current.currentTime
+                  }));
+                }
+                audioRef.current.pause();
+              }
               if (ambientAudioRef?.current) ambientAudioRef.current.pause();
               setIsHeaderMusicPlaying(false);
             } else {
@@ -2148,15 +2449,26 @@ const Header = ({
                 const id = ambientSound.replace('custom_', '');
                 const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
                 if (url && audioRef.current) {
-                  audioRef.current.src = url;
+                  // Only reload src if track changed, otherwise just resume
+                  if (!audioRef.current.src || currentPlayingIdRef.current !== id) {
+                    audioRef.current.src = url;
+                    audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
+                  }
                   await audioRef.current.play().catch(() => {});
+                  currentPlayingIdRef.current = id;
                   setIsHeaderMusicPlaying(true);
                 }
               } else {
-                const soundFile = getSoundFile(ambientSound);
-                if (soundFile && ambientAudioRef?.current) {
-                  startAmbient(soundFile);
+                // Resume built-in sound from where it was paused
+                if (ambientAudioRef?.current && ambientAudioRef.current.src && ambientAudioRef.current.paused) {
+                  await ambientAudioRef.current.play().catch(() => {});
                   setIsHeaderMusicPlaying(true);
+                } else {
+                  const soundFile = getSoundFile(ambientSound);
+                  if (soundFile && ambientAudioRef?.current) {
+                    startAmbient(soundFile);
+                    setIsHeaderMusicPlaying(true);
+                  }
                 }
               }
             }
@@ -2176,6 +2488,27 @@ const Header = ({
           }}
         >
           {isHeaderMusicPlaying ? <Pause size={14} /> : <Play size={14} />}
+        </button>
+
+        {/* Next */}
+        <button
+          onClick={skipToNextSong}
+          title="Next song"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: theme.text,
+            flexShrink: 0,
+          }}
+        >
+          <SkipForward size={14} />
         </button>
 
         {/* Stop */}

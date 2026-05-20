@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
+import {
+  addRemoteMediaSource as persistRemoteMediaSource,
+  deleteRemoteMediaSource as removePersistedRemoteMediaSource,
+  filterSourcesByAssetType,
+  getRemoteMediaSources,
+  REMOTE_MEDIA_SOURCES_EVENT,
+} from '../services/remoteMediaSourcesService';
 import { BUILT_IN_BACKGROUND_IMAGES } from '../utils/constants';
 
 /**
@@ -32,6 +40,10 @@ const useBackgroundImages = () => {
     }
   });
 
+  const [remoteBackgroundImages, setRemoteBackgroundImages] = useState([]);
+  const [remoteBackgroundImageSources, setRemoteBackgroundImageSources] = useState([]);
+  const [remoteBackgroundImageSourceStatuses, setRemoteBackgroundImageSourceStatuses] = useState([]);
+
   // Persist selectedBackgroundId to localStorage
   useEffect(() => {
     localStorage.setItem('selectedBackgroundId', selectedBackgroundId);
@@ -42,15 +54,76 @@ const useBackgroundImages = () => {
     localStorage.setItem('customBackgroundImages', JSON.stringify(customBackgroundImages));
   }, [customBackgroundImages]);
 
+  const refreshRemoteBackgroundImages = useCallback(async () => {
+    const sources = filterSourcesByAssetType(getRemoteMediaSources(), 'image');
+    setRemoteBackgroundImageSources(sources);
+
+    if (sources.length === 0) {
+      setRemoteBackgroundImages([]);
+      setRemoteBackgroundImageSourceStatuses([]);
+      return { remoteAssets: [], sourceStatuses: [] };
+    }
+
+    const { remoteAssets, sourceStatuses } = await loadRemoteMediaAssets(sources, 'image');
+    setRemoteBackgroundImages(remoteAssets);
+    setRemoteBackgroundImageSourceStatuses(sourceStatuses);
+    return { remoteAssets, sourceStatuses };
+  }, []);
+
+  useEffect(() => {
+    refreshRemoteBackgroundImages();
+  }, [refreshRemoteBackgroundImages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleSourcesChanged = () => {
+      refreshRemoteBackgroundImages();
+    };
+
+    window.addEventListener(REMOTE_MEDIA_SOURCES_EVENT, handleSourcesChanged);
+
+    return () => {
+      window.removeEventListener(REMOTE_MEDIA_SOURCES_EVENT, handleSourcesChanged);
+    };
+  }, [refreshRemoteBackgroundImages]);
+
+  useEffect(() => {
+    if (selectedBackgroundId === 'None') {
+      return;
+    }
+
+    const selectedExists = BUILT_IN_BACKGROUND_IMAGES.some((img) => img.id === selectedBackgroundId)
+      || customBackgroundImages.some((img) => img.id === selectedBackgroundId)
+      || remoteBackgroundImages.some((img) => img.id === selectedBackgroundId);
+
+    if (!selectedExists) {
+      setSelectedBackgroundId('None');
+    }
+  }, [selectedBackgroundId, customBackgroundImages, remoteBackgroundImages]);
+
   // Get all available background images (built-in + custom)
   const getAllBackgroundImages = useCallback(() => {
     const all = [
       { id: 'None', name: 'None', isBuiltIn: true, path: null },
       ...BUILT_IN_BACKGROUND_IMAGES,
-      ...customBackgroundImages
+      ...customBackgroundImages,
+      ...remoteBackgroundImages.map((image) => ({
+        id: image.id,
+        name: image.name,
+        isBuiltIn: false,
+        isRemote: true,
+        provider: image.provider,
+        sourceId: image.sourceId,
+        sourceName: image.sourceName,
+        bytes: image.bytes,
+        mimeType: image.mimeType,
+      })),
     ];
     return all;
-  }, [customBackgroundImages]);
+  }, [customBackgroundImages, remoteBackgroundImages]);
 
   // Get image URL (file or built-in path)
   const getBackgroundImageUrl = useCallback(async (id) => {
@@ -77,8 +150,13 @@ const useBackgroundImages = () => {
       console.error('Failed to fetch background image from IndexedDB:', error);
     }
 
+    const remoteImage = remoteBackgroundImages.find((image) => image.id === id);
+    if (remoteImage) {
+      return remoteImage.url;
+    }
+
     return null;
-  }, []);
+  }, [remoteBackgroundImages]);
 
   // Upload custom background image
   const uploadBackgroundImage = useCallback(async (file) => {
@@ -119,6 +197,11 @@ const useBackgroundImages = () => {
       throw new Error('Cannot delete None background');
     }
 
+    const remoteImage = remoteBackgroundImages.find((image) => image.id === id);
+    if (remoteImage) {
+      throw new Error('Remote background images are removed by deleting their source');
+    }
+
     // Check if built-in image (cannot delete)
     const builtIn = BUILT_IN_BACKGROUND_IMAGES.find(img => img.id === id);
     if (builtIn) {
@@ -155,7 +238,32 @@ const useBackgroundImages = () => {
       console.error('Failed to delete background image:', error);
       throw error;
     }
-  }, [selectedBackgroundId]);
+  }, [remoteBackgroundImages, selectedBackgroundId]);
+
+  const addRemoteBackgroundImageSource = useCallback(async (sourceInput) => {
+    const assetTypes = Array.from(new Set([...(sourceInput.assetTypes || []), 'image']));
+    const source = persistRemoteMediaSource({
+      ...sourceInput,
+      assetTypes,
+    });
+
+    await refreshRemoteBackgroundImages();
+    return source;
+  }, [refreshRemoteBackgroundImages]);
+
+  const deleteRemoteBackgroundImageSource = useCallback(async (sourceId) => {
+    const selectedSourceMatch = remoteBackgroundImages.some(
+      (image) => image.sourceId === sourceId && image.id === selectedBackgroundId
+    );
+
+    removePersistedRemoteMediaSource(sourceId);
+    if (selectedSourceMatch) {
+      setSelectedBackgroundId('None');
+    }
+
+    await refreshRemoteBackgroundImages();
+    return true;
+  }, [remoteBackgroundImages, refreshRemoteBackgroundImages, selectedBackgroundId]);
 
   // Rename background image
   const renameBackgroundImage = useCallback((id, newName) => {
@@ -171,10 +279,15 @@ const useBackgroundImages = () => {
     selectedBackgroundId,
     setSelectedBackgroundId,
     customBackgroundImages,
+    remoteBackgroundImageSources,
+    remoteBackgroundImageSourceStatuses,
     getAllBackgroundImages,
     getBackgroundImageUrl,
     uploadBackgroundImage,
     deleteBackgroundImage,
+    addRemoteBackgroundImageSource,
+    deleteRemoteBackgroundImageSource,
+    refreshRemoteBackgroundImages,
     renameBackgroundImage,
   };
 };

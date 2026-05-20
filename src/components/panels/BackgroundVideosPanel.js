@@ -109,7 +109,7 @@ export default function BackgroundVideosPanel({
             opacity: uploading ? 0.6 : 1,
           }}
         >
-          <Plus size={13} /> {uploading ? 'Uploading…' : 'Add'}
+          <Plus size={13} /> {uploading ? 'Uploading…' : 'Upload'}
         </button>
         <input
           ref={fileInputRef}
@@ -123,7 +123,7 @@ export default function BackgroundVideosPanel({
       {/* Size hint */}
       <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.45), margin: '0 0 10px', lineHeight: 1.4 }}>
         MP4 · WebM · OGG &nbsp;|&nbsp; Max 50 MB per video.
-        Videos are stored locally in your browser.
+        Videos are stored locally in your browser. Remote sources are managed in the Sources tab.
       </p>
 
       {/* Error */}
@@ -181,37 +181,39 @@ export default function BackgroundVideosPanel({
                 {video.name}
               </div>
               <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.45) }}>
-                {formatBytes(video.size)}
+                {video.isRemote ? `Remote${video.sourceName ? ` · ${video.sourceName}` : ''} · ${formatBytes(video.size)}` : `Stored locally · ${formatBytes(video.size)}`}
               </div>
             </div>
             {isSelected && (
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
             )}
-            <button
-              onClick={(e) => { e.stopPropagation(); handleDelete(video.id); }}
-              style={{
-                background: 'rgba(239,68,68,0.12)',
-                border: 'none',
-                borderRadius: 4,
-                padding: '4px 6px',
-                color: '#ef4444',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                flexShrink: 0,
-              }}
-              title="Delete video"
-            >
-              <Trash2 size={12} />
-            </button>
+            {!video.isRemote && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(video.id); }}
+                style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '4px 6px',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}
+                title="Delete video"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
           </div>
         );
       })}
 
       {videos.filter(v => v.id !== 'None').length === 0 && (
         <div style={{ textAlign: 'center', padding: '20px 0', color: getTextOpacity(theme, 0.35), fontSize: 12 }}>
-          No videos uploaded yet.
-          <br />Click <strong>Add</strong> to upload your first background video.
+          No videos available yet.
+          <br />Upload a local file or connect a remote source.
         </div>
       )}
     </div>

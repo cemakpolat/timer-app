@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
+import {
+  addRemoteMediaSource as persistRemoteMediaSource,
+  deleteRemoteMediaSource as removePersistedRemoteMediaSource,
+  filterSourcesByAssetType,
+  getRemoteMediaSources,
+  REMOTE_MEDIA_SOURCES_EVENT,
+} from '../services/remoteMediaSourcesService';
 
 const MAX_VIDEO_SIZE = 52_428_800; // 50 MB
 const ACCEPTED_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
@@ -24,6 +32,10 @@ const useBackgroundVideos = () => {
     }
   });
 
+  const [remoteBackgroundVideos, setRemoteBackgroundVideos] = useState([]);
+  const [remoteBackgroundVideoSources, setRemoteBackgroundVideoSources] = useState([]);
+  const [remoteBackgroundVideoSourceStatuses, setRemoteBackgroundVideoSourceStatuses] = useState([]);
+
   useEffect(() => {
     localStorage.setItem('selectedVideoId', selectedVideoId);
   }, [selectedVideoId]);
@@ -32,12 +44,71 @@ const useBackgroundVideos = () => {
     localStorage.setItem('customBackgroundVideos', JSON.stringify(customBackgroundVideos));
   }, [customBackgroundVideos]);
 
+  const refreshRemoteBackgroundVideos = useCallback(async () => {
+    const sources = filterSourcesByAssetType(getRemoteMediaSources(), 'video');
+    setRemoteBackgroundVideoSources(sources);
+
+    if (sources.length === 0) {
+      setRemoteBackgroundVideos([]);
+      setRemoteBackgroundVideoSourceStatuses([]);
+      return { remoteAssets: [], sourceStatuses: [] };
+    }
+
+    const { remoteAssets, sourceStatuses } = await loadRemoteMediaAssets(sources, 'video');
+    setRemoteBackgroundVideos(remoteAssets);
+    setRemoteBackgroundVideoSourceStatuses(sourceStatuses);
+    return { remoteAssets, sourceStatuses };
+  }, []);
+
+  useEffect(() => {
+    refreshRemoteBackgroundVideos();
+  }, [refreshRemoteBackgroundVideos]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleSourcesChanged = () => {
+      refreshRemoteBackgroundVideos();
+    };
+
+    window.addEventListener(REMOTE_MEDIA_SOURCES_EVENT, handleSourcesChanged);
+    return () => {
+      window.removeEventListener(REMOTE_MEDIA_SOURCES_EVENT, handleSourcesChanged);
+    };
+  }, [refreshRemoteBackgroundVideos]);
+
+  useEffect(() => {
+    if (selectedVideoId === 'None') {
+      return;
+    }
+
+    const selectedExists = customBackgroundVideos.some((video) => video.id === selectedVideoId)
+      || remoteBackgroundVideos.some((video) => video.id === selectedVideoId);
+
+    if (!selectedExists) {
+      setSelectedVideoId('None');
+    }
+  }, [customBackgroundVideos, remoteBackgroundVideos, selectedVideoId]);
+
   const getAllBackgroundVideos = useCallback(() => {
     return [
       { id: 'None', name: 'None', size: 0 },
       ...customBackgroundVideos,
+      ...remoteBackgroundVideos.map((video) => ({
+        id: video.id,
+        name: video.name,
+        size: video.bytes || 0,
+        mimeType: video.mimeType,
+        duration: video.duration,
+        isRemote: true,
+        sourceId: video.sourceId,
+        sourceName: video.sourceName,
+        provider: video.provider,
+      })),
     ];
-  }, [customBackgroundVideos]);
+  }, [customBackgroundVideos, remoteBackgroundVideos]);
 
   const getBackgroundVideoUrl = useCallback(async (id) => {
     if (id === 'None' || !id) return null;
@@ -57,8 +128,13 @@ const useBackgroundVideos = () => {
       console.error('Failed to fetch background video from IndexedDB:', error);
     }
 
+    const remoteVideo = remoteBackgroundVideos.find((video) => video.id === id);
+    if (remoteVideo) {
+      return remoteVideo.url;
+    }
+
     return null;
-  }, []);
+  }, [remoteBackgroundVideos]);
 
   const uploadBackgroundVideo = useCallback(async (file) => {
     if (!file) throw new Error('No file selected.');
@@ -99,6 +175,11 @@ const useBackgroundVideos = () => {
   const deleteBackgroundVideo = useCallback(async (id) => {
     if (id === 'None') throw new Error('Cannot delete None.');
 
+    const remoteVideo = remoteBackgroundVideos.find((video) => video.id === id);
+    if (remoteVideo) {
+      throw new Error('Remote videos are removed by deleting their source');
+    }
+
     try {
       await deleteFileBlob(`vid_${id}`);
       setCustomBackgroundVideos(prev => prev.filter(v => v.id !== id));
@@ -118,16 +199,46 @@ const useBackgroundVideos = () => {
       console.error('Failed to delete background video:', error);
       throw error;
     }
-  }, [selectedVideoId]);
+  }, [remoteBackgroundVideos, selectedVideoId]);
+
+  const addRemoteBackgroundVideoSource = useCallback(async (sourceInput) => {
+    const assetTypes = Array.from(new Set([...(sourceInput.assetTypes || []), 'video']));
+    const source = persistRemoteMediaSource({
+      ...sourceInput,
+      assetTypes,
+    });
+
+    await refreshRemoteBackgroundVideos();
+    return source;
+  }, [refreshRemoteBackgroundVideos]);
+
+  const deleteRemoteBackgroundVideoSource = useCallback(async (sourceId) => {
+    const selectedSourceMatch = remoteBackgroundVideos.some(
+      (video) => video.sourceId === sourceId && video.id === selectedVideoId
+    );
+
+    removePersistedRemoteMediaSource(sourceId);
+    if (selectedSourceMatch) {
+      setSelectedVideoId('None');
+    }
+
+    await refreshRemoteBackgroundVideos();
+    return true;
+  }, [remoteBackgroundVideos, refreshRemoteBackgroundVideos, selectedVideoId]);
 
   return {
     selectedVideoId,
     setSelectedVideoId,
     customBackgroundVideos,
+    remoteBackgroundVideoSources,
+    remoteBackgroundVideoSourceStatuses,
     getAllBackgroundVideos,
     getBackgroundVideoUrl,
     uploadBackgroundVideo,
     deleteBackgroundVideo,
+    addRemoteBackgroundVideoSource,
+    deleteRemoteBackgroundVideoSource,
+    refreshRemoteBackgroundVideos,
   };
 };
 

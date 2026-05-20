@@ -838,7 +838,12 @@ export default function TimerApp() {
     getAllBackgroundImages,
     getBackgroundImageUrl,
     uploadBackgroundImage,
-    deleteBackgroundImage
+    deleteBackgroundImage,
+    remoteBackgroundImageSources,
+    remoteBackgroundImageSourceStatuses,
+    addRemoteBackgroundImageSource,
+    deleteRemoteBackgroundImageSource,
+    refreshRemoteBackgroundImages,
   } = useBackgroundImages();
 
   // Slide set / slideshow
@@ -869,6 +874,11 @@ export default function TimerApp() {
     getBackgroundVideoUrl,
     uploadBackgroundVideo,
     deleteBackgroundVideo,
+    remoteBackgroundVideoSources,
+    remoteBackgroundVideoSourceStatuses,
+    addRemoteBackgroundVideoSource,
+    deleteRemoteBackgroundVideoSource,
+    refreshRemoteBackgroundVideos,
   } = useBackgroundVideos();
 
   // Resolve video URL whenever selectedVideoId changes
@@ -2125,8 +2135,9 @@ export default function TimerApp() {
         background: activeBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
+        paddingBottom: ambientSoundType && ambientSoundType !== 'None' ? '72px' : '20px',
         fontFamily: 'system-ui',
-        transition: 'background     1s ease-in-out, color 0.3s ease-in-out',
+        transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
         zIndex: 1,
         '--theme-opacity': themeOpacity
@@ -3272,6 +3283,11 @@ export default function TimerApp() {
           getBackgroundImageUrl={getBackgroundImageUrl}
           uploadBackgroundImage={uploadBackgroundImage}
           deleteBackgroundImage={deleteBackgroundImage}
+          remoteBackgroundImageSources={remoteBackgroundImageSources}
+          remoteBackgroundImageSourceStatuses={remoteBackgroundImageSourceStatuses}
+          addRemoteBackgroundImageSource={addRemoteBackgroundImageSource}
+          deleteRemoteBackgroundImageSource={deleteRemoteBackgroundImageSource}
+          refreshRemoteBackgroundImages={refreshRemoteBackgroundImages}
           // Slide set props
           slideSets={slideSets}
           activeSlideSetId={activeSlideSetId}
@@ -3290,6 +3306,11 @@ export default function TimerApp() {
           getBackgroundVideoUrl={getBackgroundVideoUrl}
           uploadBackgroundVideo={uploadBackgroundVideo}
           deleteBackgroundVideo={deleteBackgroundVideo}
+          remoteBackgroundVideoSources={remoteBackgroundVideoSources}
+          remoteBackgroundVideoSourceStatuses={remoteBackgroundVideoSourceStatuses}
+          addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
+          deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
+          refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
           // Break reminder props
           breakReminderSettings={breakReminderSettings}
           updateBreakReminderSettings={updateBreakReminderSettings}
@@ -4397,6 +4418,7 @@ export default function TimerApp() {
           </div>
         </div>
       )}
+
       </ToastProvider>
       </ModalProvider>
     </div>
