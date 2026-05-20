@@ -7,6 +7,10 @@ import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
 import useBackgroundImages from './hooks/useBackgroundImages';
+import useSlideSets from './hooks/useSlideSets';
+import useBackgroundVideos from './hooks/useBackgroundVideos';
+import useBreakReminders from './hooks/useBreakReminders';
+import { useNotifications } from './hooks/useNotifications';
 import { performMigration, migrateLegacySavedTimers } from './services/migrationService';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
 import FeedbackModal from './components/FeedbackModal';
@@ -834,8 +838,124 @@ export default function TimerApp() {
     getAllBackgroundImages,
     getBackgroundImageUrl,
     uploadBackgroundImage,
-    deleteBackgroundImage
+    deleteBackgroundImage,
+    remoteBackgroundImageSources,
+    remoteBackgroundImageSourceStatuses,
+    addRemoteBackgroundImageSource,
+    deleteRemoteBackgroundImageSource,
+    refreshRemoteBackgroundImages,
   } = useBackgroundImages();
+
+  // Slide set / slideshow
+  const {
+    slideSets,
+    activeSlideSetId,
+    createSlideSet,
+    deleteSlideSet,
+    renameSlideSet,
+    setSlideInterval,
+    setSlideTransition,
+    addImageToSet,
+    removeImageFromSet,
+    setActiveSlideSetId,
+    getActiveSlideSet,
+  } = useSlideSets();
+
+  // Standalone clean mode toggle (independent of theme)
+  const [cleanMode, setCleanMode] = useState(() => localStorage.getItem('cleanMode') === 'true');
+  useEffect(() => { localStorage.setItem('cleanMode', cleanMode); }, [cleanMode]);
+  const toggleCleanMode = () => setCleanMode(v => !v);
+
+  // Background videos
+  const {
+    selectedVideoId,
+    setSelectedVideoId,
+    getAllBackgroundVideos,
+    getBackgroundVideoUrl,
+    uploadBackgroundVideo,
+    deleteBackgroundVideo,
+    remoteBackgroundVideoSources,
+    remoteBackgroundVideoSourceStatuses,
+    addRemoteBackgroundVideoSource,
+    deleteRemoteBackgroundVideoSource,
+    refreshRemoteBackgroundVideos,
+  } = useBackgroundVideos();
+
+  // Resolve video URL whenever selectedVideoId changes
+  const [videoBackgroundUrl, setVideoBackgroundUrl] = useState(null);
+  useEffect(() => {
+    if (!selectedVideoId || selectedVideoId === 'None') {
+      setVideoBackgroundUrl(null);
+      return;
+    }
+    getBackgroundVideoUrl(selectedVideoId).then(url => setVideoBackgroundUrl(url || null));
+  }, [selectedVideoId, getBackgroundVideoUrl]);
+
+  // Notifications (used by break reminders for browser notifications)
+  const { isGranted: notificationsGranted, sendNotification, requestPermission: requestNotificationPermission } = useNotifications();
+
+  // Break reminders
+  const {
+    settings: breakReminderSettings,
+    updateSettings: updateBreakReminderSettings,
+    toggleEnabled: toggleBreakReminders,
+    toggleReminder: toggleBreakReminder,
+    setReminderInterval: setBreakReminderInterval,
+    pendingReminder,
+    resetReminder,
+    dismissReminder,
+    BREAK_REMINDERS,
+  } = useBreakReminders(isRunning, notificationsGranted ? sendNotification : null);
+
+  // Track the current slide index and URL for the active slide set
+  const currentSlideIndexRef = useRef(0);
+  const [slideshowImageUrl, setSlideshowImageUrl] = useState(null);
+  const slideshowTimerRef = useRef(null);
+
+  // Slideshow effect: advance slides on interval whenever a slide set is active
+  useEffect(() => {
+    const activeSet = getActiveSlideSet();
+
+    // Clear any running timer first
+    if (slideshowTimerRef.current) {
+      clearTimeout(slideshowTimerRef.current);
+      slideshowTimerRef.current = null;
+    }
+
+    if (!activeSet || activeSet.imageIds.length === 0) {
+      setSlideshowImageUrl(null);
+      return;
+    }
+
+    let index = 0;
+
+    const showSlide = async (idx) => {
+      const imageId = activeSet.imageIds[idx % activeSet.imageIds.length];
+      try {
+        const url = await getBackgroundImageUrl(imageId);
+        setSlideshowImageUrl(url || null);
+      } catch {
+        setSlideshowImageUrl(null);
+      }
+      // Schedule next slide
+      slideshowTimerRef.current = setTimeout(() => {
+        index = (idx + 1) % activeSet.imageIds.length;
+        currentSlideIndexRef.current = index;
+        showSlide(index);
+      }, (activeSet.intervalSec || 5) * 1000);
+    };
+
+    showSlide(0);
+    currentSlideIndexRef.current = 0;
+
+    return () => {
+      if (slideshowTimerRef.current) {
+        clearTimeout(slideshowTimerRef.current);
+        slideshowTimerRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlideSetId, getActiveSlideSet]);
 
   // State to hold the currently loaded background image URL
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
@@ -1992,11 +2112,15 @@ export default function TimerApp() {
   // Determine if we should show a scene background
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
   
-  // Construct background with proper layering: background image > scene > theme
+  // Slideshow takes priority over single static background image; both take priority over video
+  const effectiveBackgroundUrl = slideshowImageUrl || backgroundImageUrl;
+
+  // Construct background with proper layering: slideshow/image > video > scene > theme
   let activeBackground;
-  if (backgroundImageUrl) {
-    // Use background image as the main background
-    activeBackground = `url(${backgroundImageUrl}) center/cover no-repeat fixed`;
+  if (effectiveBackgroundUrl) {
+    activeBackground = `url(${effectiveBackgroundUrl}) center/cover no-repeat fixed`;
+  } else if (videoBackgroundUrl) {
+    activeBackground = 'transparent'; // video element handles the visual
   } else if (shouldShowScene) {
     activeBackground = SCENES[activeScene].bg;
   } else {
@@ -2011,13 +2135,35 @@ export default function TimerApp() {
         background: activeBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
+        paddingBottom: ambientSoundType && ambientSoundType !== 'None' ? '72px' : '20px',
         fontFamily: 'system-ui',
-        transition: 'background     1s ease-in-out, color 0.3s ease-in-out',
+        transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
         zIndex: 1,
         '--theme-opacity': themeOpacity
       }}
     >
+      {/* Video background layer — only when no image/slideshow is active */}
+      {videoBackgroundUrl && !effectiveBackgroundUrl && (
+        <video
+          key={videoBackgroundUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            position: 'fixed',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+          src={videoBackgroundUrl}
+        />
+      )}
+
       <ModalProvider theme={effectiveTheme}>
       <ToastProvider theme={effectiveTheme}>
       <style>{`
@@ -2130,6 +2276,72 @@ export default function TimerApp() {
               style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 15, color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
             >
               Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Smart Break Reminder Banner */}
+      {pendingReminder && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0,
+          zIndex: 10002,
+          background: `linear-gradient(135deg, ${effectiveTheme.card}f5, ${effectiveTheme.card}ee)`,
+          backdropFilter: 'blur(16px)',
+          borderBottom: `2px solid ${effectiveTheme.accent}60`,
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          animation: 'slideDown 0.3s ease-out',
+        }}>
+          <span style={{ fontSize: 26, flexShrink: 0 }}>{pendingReminder.icon}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: effectiveTheme.text, marginBottom: 2 }}>
+              {pendingReminder.label}
+            </div>
+            <div style={{ fontSize: 12, color: `${effectiveTheme.text}cc`, lineHeight: 1.4 }}>
+              {pendingReminder.description}
+            </div>
+            {pendingReminder.tip && (
+              <div style={{ fontSize: 11, color: effectiveTheme.accent, marginTop: 3, fontStyle: 'italic' }}>
+                💡 {pendingReminder.tip}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => { resetReminder(pendingReminder.id); }}
+              style={{
+                background: effectiveTheme.accent,
+                border: 'none',
+                borderRadius: effectiveTheme.borderRadius,
+                padding: '7px 12px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✓ Done
+            </button>
+            <button
+              onClick={dismissReminder}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: 'none',
+                borderRadius: effectiveTheme.borderRadius,
+                padding: '7px 10px',
+                color: `${effectiveTheme.text}99`,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              Later
             </button>
           </div>
         </div>
@@ -3038,6 +3250,8 @@ export default function TimerApp() {
           setShowSettings={setShowSettings}
           settingsView={settingsView}
           setSettingsView={setSettingsView}
+          cleanMode={cleanMode}
+          toggleCleanMode={toggleCleanMode}
           themes={themes}
           setTheme={setTheme}
           setEditingTheme={setEditingTheme}
@@ -3069,6 +3283,43 @@ export default function TimerApp() {
           getBackgroundImageUrl={getBackgroundImageUrl}
           uploadBackgroundImage={uploadBackgroundImage}
           deleteBackgroundImage={deleteBackgroundImage}
+          remoteBackgroundImageSources={remoteBackgroundImageSources}
+          remoteBackgroundImageSourceStatuses={remoteBackgroundImageSourceStatuses}
+          addRemoteBackgroundImageSource={addRemoteBackgroundImageSource}
+          deleteRemoteBackgroundImageSource={deleteRemoteBackgroundImageSource}
+          refreshRemoteBackgroundImages={refreshRemoteBackgroundImages}
+          // Slide set props
+          slideSets={slideSets}
+          activeSlideSetId={activeSlideSetId}
+          createSlideSet={createSlideSet}
+          deleteSlideSet={deleteSlideSet}
+          renameSlideSet={renameSlideSet}
+          setSlideInterval={setSlideInterval}
+          setSlideTransition={setSlideTransition}
+          addImageToSet={addImageToSet}
+          removeImageFromSet={removeImageFromSet}
+          setActiveSlideSetId={setActiveSlideSetId}
+          // Video background props
+          selectedVideoId={selectedVideoId}
+          setSelectedVideoId={setSelectedVideoId}
+          getAllBackgroundVideos={getAllBackgroundVideos}
+          getBackgroundVideoUrl={getBackgroundVideoUrl}
+          uploadBackgroundVideo={uploadBackgroundVideo}
+          deleteBackgroundVideo={deleteBackgroundVideo}
+          remoteBackgroundVideoSources={remoteBackgroundVideoSources}
+          remoteBackgroundVideoSourceStatuses={remoteBackgroundVideoSourceStatuses}
+          addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
+          deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
+          refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
+          // Break reminder props
+          breakReminderSettings={breakReminderSettings}
+          updateBreakReminderSettings={updateBreakReminderSettings}
+          toggleBreakReminders={toggleBreakReminders}
+          toggleBreakReminder={toggleBreakReminder}
+          setBreakReminderInterval={setBreakReminderInterval}
+          notificationsGranted={notificationsGranted}
+          requestNotificationPermission={requestNotificationPermission}
+          BREAK_REMINDERS={BREAK_REMINDERS}
           // Timer visualization props
           timerVisualization={timerVisualization}
           setTimerVisualization={setTimerVisualization}
@@ -3079,7 +3330,7 @@ export default function TimerApp() {
 
         {/* Primary Navigation Tabs - RESTRUCTURED */}
         {/* Hide navigation in Clean Mode when not running */}
-        {!theme.isCleanMode && !isRunning && time === 0 && !isTransitioning && (
+        {!(theme.isCleanMode || cleanMode) && !isRunning && time === 0 && !isTransitioning && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: theme.card, borderRadius: theme.borderRadius, padding: 6 }}>
             {[
               { label: 'Focus Rooms', value: 'rooms', icon: Users },
@@ -3118,7 +3369,7 @@ export default function TimerApp() {
 
         {/* Secondary Navigation Tabs - Timer Sub-tabs */}
         {/* Hide in Clean Mode when not running */}
-        {!theme.isCleanMode && !isRunning && time === 0 && !isTransitioning && activeMainTab === 'timer' && (
+        {!(theme.isCleanMode || cleanMode) && !isRunning && time === 0 && !isTransitioning && activeMainTab === 'timer' && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
             {[
               { label: 'Interval', value: 'interval', icon: Zap },
@@ -3160,7 +3411,7 @@ export default function TimerApp() {
 
         {/* Secondary Navigation Tabs - Other Features */}
         {/* Hide in Clean Mode when not running */}
-        {!theme.isCleanMode && !isRunning && time === 0 && !isTransitioning && activeMainTab !== 'timer' && (
+        {!(theme.isCleanMode || cleanMode) && !isRunning && time === 0 && !isTransitioning && activeMainTab !== 'timer' && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }}>
             {activeMainTab === 'rooms' && [].map(tab => (
               <button
@@ -3192,7 +3443,7 @@ export default function TimerApp() {
         )}
 
         {/* Active Now Indicator - Only show in Focus Rooms tab and not in Clean Mode */}
-        {activeMainTab === 'rooms' && !theme.isCleanMode && (
+        {activeMainTab === 'rooms' && !(theme.isCleanMode || cleanMode) && (
           <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s ease-in-out infinite' }} />
             <div style={{ fontSize: 14, color: getTextOpacity(theme, 0.7) }}>
@@ -3674,7 +3925,7 @@ export default function TimerApp() {
 
             {/* Main Content - Suspense Boundary for Lazy-Loaded Components */}
             {/* Hide all main content in Clean Mode when not running */}
-            {!theme.isCleanMode && (
+            {!(theme.isCleanMode || cleanMode) && (
             <Suspense fallback={<LazyLoadingFallback theme={theme} />}>
               {/* Focus Rooms Main Tab */}
               {activeMainTab === 'rooms' && !activeFeatureTab && !(isRunning || time > 0 || isTransitioning) && (
@@ -4167,6 +4418,7 @@ export default function TimerApp() {
           </div>
         </div>
       )}
+
       </ToastProvider>
       </ModalProvider>
     </div>
