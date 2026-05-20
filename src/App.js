@@ -183,6 +183,14 @@ const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,
 export default function TimerApp() {
   // Track if service is ready
   const [serviceReady, setServiceReady] = useState(false);
+  const [isMusicFooterVisible, setIsMusicFooterVisible] = useState(false);
+
+  // Sync music footer visibility with Header's play state
+  useEffect(() => {
+    const handler = (e) => setIsMusicFooterVisible(e.detail.isPlaying);
+    window.addEventListener('music-player-state', handler);
+    return () => window.removeEventListener('music-player-state', handler);
+  }, []);
 
   // Do not initialize realtime service on page load.
   // Firebase connection will be created on-demand when the user creates or joins a focus room.
@@ -2135,7 +2143,7 @@ export default function TimerApp() {
         background: activeBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
-        paddingBottom: ambientSoundType && ambientSoundType !== 'None' ? '72px' : '20px',
+        paddingBottom: isMusicFooterVisible ? '72px' : '20px',
         fontFamily: 'system-ui',
         transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
