@@ -9,6 +9,7 @@ import {
   REMOTE_MEDIA_SOURCES_EVENT,
 } from '../services/remoteMediaSourcesService';
 import { BUILT_IN_BACKGROUND_IMAGES } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook to manage background images
@@ -24,7 +25,7 @@ const useBackgroundImages = () => {
     try {
       return localStorage.getItem('selectedBackgroundId') || 'None';
     } catch (error) {
-      console.error('Failed to load selectedBackgroundId:', error);
+      logger.error('Failed to load selectedBackgroundId:', error);
       return 'None';
     }
   });
@@ -35,7 +36,7 @@ const useBackgroundImages = () => {
       const stored = localStorage.getItem('customBackgroundImages');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('Failed to load customBackgroundImages:', error);
+      logger.error('Failed to load customBackgroundImages:', error);
       return [];
     }
   });
@@ -147,7 +148,7 @@ const useBackgroundImages = () => {
         return url;
       }
     } catch (error) {
-      console.error('Failed to fetch background image from IndexedDB:', error);
+      logger.error('Failed to fetch background image from IndexedDB:', error);
     }
 
     const remoteImage = remoteBackgroundImages.find((image) => image.id === id);
@@ -186,7 +187,7 @@ const useBackgroundImages = () => {
       setCustomBackgroundImages(prev => [...prev, newImage]);
       return newImage;
     } catch (error) {
-      console.error('Failed to upload background image:', error);
+      logger.error('Failed to upload background image:', error);
       throw error;
     }
   }, []);
@@ -235,7 +236,7 @@ const useBackgroundImages = () => {
 
       return true;
     } catch (error) {
-      console.error('Failed to delete background image:', error);
+      logger.error('Failed to delete background image:', error);
       throw error;
     }
   }, [remoteBackgroundImages, selectedBackgroundId]);

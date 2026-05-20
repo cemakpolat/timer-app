@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import RealtimeServiceFactory from '../services/RealtimeServiceFactory';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing user presence and active users count
@@ -31,7 +32,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       setActiveUsers(count);
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch active users:', err);
+      logger.error('Failed to fetch active users:', err);
       setError(err.message);
     }
   }, []);
@@ -47,7 +48,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       setIsOnline(true);
       setError(null);
     } catch (err) {
-      console.error('Failed to update presence:', err);
+      logger.error('Failed to update presence:', err);
       setError(err.message);
       setIsOnline(false);
     }
@@ -63,7 +64,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
       await service.removePresence();
       setIsOnline(false);
     } catch (err) {
-      console.error('Failed to remove presence:', err);
+      logger.error('Failed to remove presence:', err);
     }
   }, []);
 
@@ -95,7 +96,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
         pollIntervalId = setInterval(fetchActiveUsers, pollInterval);
 
       } catch (err) {
-        console.error('Failed to initialize presence:', err);
+        logger.error('Failed to initialize presence:', err);
         setError(err.message);
       }
     };
@@ -104,7 +105,7 @@ const usePresence = ({ enableHeartbeat = true, heartbeatInterval = 60000, pollIn
 
     // If the factory initializes later, run initialize again
     const onInit = () => {
-      initialize().catch(console.error);
+      initialize().catch(logger.error);
     };
     RealtimeServiceFactory.onInit(onInit);
 

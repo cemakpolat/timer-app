@@ -7,6 +7,7 @@ import {
   getTemplatesByType,
   createRoomPayloadFromTemplate
 } from '../services/timerService';
+import { logger } from '../utils/logger';
 
 /**
  * useTimers Hook
@@ -42,7 +43,7 @@ export const useTimers = (filterType = null) => {
         setAllTimers(timers);
         setError(null);
       } catch (err) {
-        console.error('Error loading timers:', err);
+        logger.error('Error loading timers:', err);
         setError(err.message);
       } finally {
         setIsLoading(false);

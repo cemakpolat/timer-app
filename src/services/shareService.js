@@ -1,4 +1,5 @@
 import { copyToClipboard } from '../utils/helpers';
+import { logger } from '../utils/logger';
 
 /**
  * Service for sharing timers and generating share links
@@ -30,7 +31,7 @@ class ShareService {
 
       return url;
     } catch (error) {
-      console.error('Error generating share link:', error);
+      logger.error('Error generating share link:', error);
       return null;
     }
   }
@@ -45,7 +46,7 @@ class ShareService {
       const url = `${window.location.origin}${window.location.pathname}?joinRoom=${roomId}`;
       return url;
     } catch (error) {
-      console.error('Error generating room share link:', error);
+      logger.error('Error generating room share link:', error);
       return null;
     }
   }
@@ -77,7 +78,7 @@ class ShareService {
 
       return data;
     } catch (error) {
-      console.error('Error parsing share link:', error);
+      logger.error('Error parsing share link:', error);
       return null;
     }
   }
@@ -99,7 +100,7 @@ class ShareService {
       return true;
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Error sharing via Web Share API:', error);
+        logger.error('Error sharing via Web Share API:', error);
       }
       return false;
     }
@@ -148,7 +149,7 @@ class ShareService {
     try {
       return JSON.stringify(timer, null, 2);
     } catch (error) {
-      console.error('Error exporting timer as JSON:', error);
+      logger.error('Error exporting timer as JSON:', error);
       return null;
     }
   }
@@ -171,7 +172,7 @@ class ShareService {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error downloading file:', error);
+      logger.error('Error downloading file:', error);
     }
   }
 }

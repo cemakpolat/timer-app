@@ -4,6 +4,7 @@ import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Tra
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
+import { logger } from '../utils/logger';
 
 const Header = ({
   theme,
@@ -579,7 +580,7 @@ const Header = ({
       a.click();
       document.body.removeChild(a);
     } catch (err) {
-      console.warn('Download failed', err);
+      logger.warn('Download failed', err);
       modal.alert('Download failed.', 'Error');
     }
   };
@@ -599,7 +600,7 @@ const Header = ({
       }
       setIsFullscreen(!!document.fullscreenElement);
     } catch (err) {
-      console.warn('Fullscreen toggle failed', err);
+      logger.warn('Fullscreen toggle failed', err);
     }
   };
 
@@ -2360,8 +2361,8 @@ const Header = ({
       )}
     </div>
 
-    {/* Music Mini-Player — floating bar at bottom, visible when a sound is selected */}
-    {ambientSound && ambientSound !== 'None' && (
+    {/* Music Mini-Player — floating bar at bottom, visible only when actively playing */}
+    {ambientSound && ambientSound !== 'None' && isHeaderMusicPlaying && (
       <div style={{
         position: 'fixed',
         bottom: 0,

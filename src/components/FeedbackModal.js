@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useModal } from '../context/ModalContext';
 import { X, Send, Lightbulb } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 // Utility function to get contrasting text color
 const getContrastColor = (bgColor) => {
@@ -76,7 +77,7 @@ const FeedbackModal = ({ theme, onClose }) => {
       }, 2000);
 
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      logger.error('Error submitting feedback:', error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);

@@ -36,6 +36,11 @@ import {
   CardStackTimerVisualization,
   TimelineTimerVisualization
 } from './components/TimerVisualizations';
+// Import utility functions from dedicated modules
+import { getContrastColor, getTextOpacity } from './utils/colorUtils';
+import { SCENES } from './utils/scenes';
+import { inputStyle } from './utils/styleHelpers';
+import { logger } from './utils/logger';
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -43,119 +48,12 @@ const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPan
 const RoomTemplateSelector = lazy(() => import('./components/panels/RoomTemplateSelector'));
 const RoutinesPanel = lazy(() => import('./components/panels/RoutinesPanel'));
 
-// Utility function to calculate relative luminance of a color
-const getLuminance = (hexColor) => {
-  // Convert hex to RGB
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16) / 255;
-  const g = parseInt(hex.substr(2, 2), 16) / 255;
-  const b = parseInt(hex.substr(4, 2), 16) / 255;
-
-  // Apply gamma correction
-  const [rs, gs, bs] = [r, g, b].map(c =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-  );
-
-  // Calculate relative luminance
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-};
-
-// Determine if a color is light (returns true for light colors)
-const isLightColor = (hexColor) => {
-  return getLuminance(hexColor) > 0.5;
-};
-
-// Get contrasting text color for a given background
-const getContrastColor = (bgColor) => {
-  return isLightColor(bgColor) ? '#000000' : '#ffffff';
-};
-
-// Get semi-transparent text color based on theme
-const getTextOpacity = (theme, opacity = 0.7) => {
-  const baseColor = theme.text || (isLightColor(theme.bg) ? '#000000' : '#ffffff');
-  // Convert hex to rgba
-  const hex = baseColor.replace('#', '');
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-
 // Use themes from constants with isDefault flag
 const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
   ...theme,
   text: theme.text || '#ffffff',
   isDefault: true
 }));
-
-// Immersive scenes for different timer types
-const SCENES = {
-  none: { name: "None", bg: null, card: null, emoji: "🚫" },
-  coffee: {
-    name: "Coffee Break",
-    bg: "linear-gradient(135deg, #6F4E37 0%, #4A342B 50%, #2D1F1A 100%)",
-    card: "rgba(111, 78, 55, 0.3)",
-    accent: "#D2691E",
-    emoji: "☕",
-    description: "Warm brown tones for your coffee break"
-  },
-  deepWork: {
-    name: "Deep Work",
-    bg: "linear-gradient(135deg, #1a0033 0%, #0a001a 50%, #000000 100%)",
-    card: "rgba(74, 0, 128, 0.3)",
-    accent: "#9333ea",
-    emoji: "🧠",
-    description: "Deep purple focus environment"
-  },
-  exercise: {
-    name: "Exercise",
-    bg: "linear-gradient(135deg, #DC143C 0%, #8B0000 50%, #4B0000 100%)",
-    card: "rgba(220, 20, 60, 0.3)",
-    accent: "#FF6B6B",
-    emoji: "💪",
-    description: "Energizing red for physical activity"
-  },
-  reading: {
-    name: "Reading",
-    bg: "linear-gradient(135deg, #2C5F2D 0%, #1B4332 50%, #081C15 100%)",
-    card: "rgba(44, 95, 45, 0.3)",
-    accent: "#52B788",
-    emoji: "📚",
-    description: "Calm green for focused reading"
-  },
-  meditation: {
-    name: "Meditation",
-    bg: "linear-gradient(135deg, #4A5568 0%, #2D3748 50%, #1A202C 100%)",
-    card: "rgba(74, 85, 104, 0.3)",
-    accent: "#90CDF4",
-    emoji: "🧘",
-    description: "Peaceful grey for mindfulness"
-  },
-  creative: {
-    name: "Creative Work",
-    bg: "linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FDC830 100%)",
-    card: "rgba(255, 107, 53, 0.3)",
-    accent: "#F7931E",
-    emoji: "🎨",
-    description: "Vibrant orange for creativity"
-  },
-  study: {
-    name: "Study Session",
-    bg: "linear-gradient(135deg, #1E3A8A 0%, #1E40AF 50%, #3B82F6 100%)",
-    card: "rgba(30, 58, 138, 0.3)",
-    accent: "#60A5FA",
-    emoji: "📖",
-    description: "Blue tones for concentration"
-  },
-  meeting: {
-    name: "Meeting",
-    bg: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)",
-    card: "rgba(124, 58, 237, 0.3)",
-    accent: "#A78BFA",
-    emoji: "👥",
-    description: "Professional purple for meetings"
-  }
-};
 
 // Initial default timers for local storage
 const defaultSavedTimers = [
@@ -165,24 +63,20 @@ const defaultSavedTimers = [
   { name: "Routine", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
 ];
 
-// Centralized styles for inputs for consistency and easier modification
-const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)', borderRadius = 0) => ({
-    width: '100%',
-    background: 'rgba(255,255,255,0.05)',
-    border: `1px solid ${borderColor}`,
-    borderRadius: borderRadius,
-    padding: 12,
-    color: textColor,
-    fontSize: 14,
-    boxSizing: 'border-box', // Ensure padding doesn't add to total width
-});
-
 // accentInputStyle removed (unused) to satisfy lint rules
 
 
 export default function TimerApp() {
   // Track if service is ready
   const [serviceReady, setServiceReady] = useState(false);
+  const [isMusicFooterVisible, setIsMusicFooterVisible] = useState(false);
+
+  // Sync music footer visibility with Header's play state
+  useEffect(() => {
+    const handler = (e) => setIsMusicFooterVisible(e.detail.isPlaying);
+    window.addEventListener('music-player-state', handler);
+    return () => window.removeEventListener('music-player-state', handler);
+  }, []);
 
   // Do not initialize realtime service on page load.
   // Firebase connection will be created on-demand when the user creates or joins a focus room.
@@ -268,7 +162,7 @@ export default function TimerApp() {
       setShowRoomExpirationModal(false);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Timer extended successfully', type: 'success', ttl: 3000 } }));
     } catch (err) {
-      console.error('Failed to extend timer:', err);
+      logger.error('Failed to extend timer:', err);
       showRealtimeErrorToast(err, 'Extend timer');
     }
   };
@@ -280,7 +174,7 @@ export default function TimerApp() {
       await leaveRoom();
       setTimerExpired(false);
     } catch (err) {
-      console.error('Failed to close room:', err);
+      logger.error('Failed to close room:', err);
       showRealtimeErrorToast(err, 'Close room');
     }
   };
@@ -291,7 +185,7 @@ export default function TimerApp() {
       const stored = localStorage.getItem('deletedDefaultThemes');
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error("Failed to load deleted default themes:", error);
+      logger.error('Failed to load deleted default themes:', error);
       return [];
     }
   });
@@ -304,7 +198,7 @@ export default function TimerApp() {
       const availableDefaultThemes = DEFAULT_THEMES.filter(t => !deletedDefaultThemes.includes(t.name));
       return [...availableDefaultThemes, ...customThemes];
     } catch (error) {
-      console.error("Failed to load custom themes:", error);
+      logger.error('Failed to load custom themes:', error);
       return DEFAULT_THEMES;
     }
   });
@@ -315,7 +209,7 @@ export default function TimerApp() {
       const storedThemeName = localStorage.getItem('selectedThemeName');
       return storedThemeName ? themes.find(t => t.name === storedThemeName) || themes[0] : themes[0];
     } catch (error) {
-      console.error("Failed to load theme from localStorage:", error);
+      logger.error('Failed to load theme from localStorage:', error);
       return themes[0];
     }
   });
@@ -337,7 +231,7 @@ export default function TimerApp() {
       const stored = localStorage.getItem('themeOpacity');
       return stored !== null ? parseFloat(stored) : 1;
     } catch (error) {
-      console.error('Failed to load themeOpacity:', error);
+      logger.error('Failed to load themeOpacity:', error);
       return 1;
     }
   });
@@ -465,7 +359,7 @@ export default function TimerApp() {
       setShowColorPicker(false);
       setEditingTheme(null);
     } catch (error) {
-      console.error('Error saving custom theme:', error);
+      logger.error('Error saving custom theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
     }
   };
@@ -504,7 +398,7 @@ export default function TimerApp() {
       setThemeToDelete(null);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme deleted!', type: 'success', ttl: 3000 } }));
     } catch (error) {
-      console.error('Error deleting theme:', error);
+      logger.error('Error deleting theme:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to delete theme', type: 'error', ttl: 3000 } }));
     }
   };
@@ -566,7 +460,7 @@ export default function TimerApp() {
       const storedSaved = localStorage.getItem('savedTimers');
       return storedSaved ? JSON.parse(storedSaved) : defaultSavedTimers;
     } catch (error) {
-      console.error("Failed to load saved timers from localStorage:", error);
+      logger.error("Failed to load saved timers from localStorage:", error);
       return defaultSavedTimers;
     }
   });
@@ -577,7 +471,7 @@ export default function TimerApp() {
           const storedHistory = localStorage.getItem('timerHistory');
           return storedHistory ? JSON.parse(storedHistory) : [];
       } catch (error) {
-          console.error("Failed to load history from localStorage:", error);
+          logger.error("Failed to load history from localStorage:", error);
           return [];
       }
   });
@@ -616,7 +510,7 @@ export default function TimerApp() {
       if (legacySavedSequences.length > 0) {
         const result = performMigration(legacySavedSequences);
         if (result.success) {
-          console.log(`✓ Migration successful: ${result.migratedCount} sequences migrated to customTimers`);
+          logger.info(`Migration successful: ${result.migratedCount} sequences migrated to customTimers`);
         }
       }
 
@@ -626,14 +520,14 @@ export default function TimerApp() {
         try {
           const res2 = migrateLegacySavedTimers(legacySimple);
           if (res2.migrated && res2.migrated > 0) {
-            console.log(`✓ Migrated ${res2.migrated} legacy simple timers into customTimers`);
+            logger.info(`Migrated ${res2.migrated} legacy simple timers into customTimers`);
           }
         } catch (err) {
-          console.warn('Legacy simple timers migration failed:', err);
+          logger.warn('Legacy simple timers migration failed:', err);
         }
       }
     } catch (err) {
-      console.error('Error during migration:', err);
+      logger.error('Error during migration:', err);
     }
   }, []); // Only run once on mount
 
@@ -688,12 +582,12 @@ export default function TimerApp() {
         startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
       }
     } catch (err) {
-      console.error('Join room error (UI):', err);
+      logger.error('Join room error (UI):', err);
       showRealtimeErrorToast(err, 'Joining room');
     }
   }, [joinRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
 
-  const handleCreateRoom = async (roomData) => {
+  const handleCreateRoom = useCallback(async (roomData) => {
     // Validate unique room name (case-insensitive)
     if (rooms.some(r => r.name && roomData.name && r.name.trim().toLowerCase() === roomData.name.trim().toLowerCase())) {
       const msg = 'Room name already in use. Please choose a different name.';
@@ -712,58 +606,58 @@ export default function TimerApp() {
         startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
       }
     } catch (err) {
-      console.error('Create room error (UI):', err);
+      logger.error('Create room error (UI):', err);
       showRealtimeErrorToast(err, 'Creating room');
       throw err; // rethrow if callers expect it
     }
-  };
+  }, [rooms, createRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
 
   // Task 5: Calendar export handlers
-  const handleExportToICS = (room) => {
-    console.log('handleExportToICS called with room:', room?.name);
+  const handleExportToICS = useCallback((room) => {
+    logger.debug('handleExportToICS called with room:', room?.name);
     try {
       downloadICSFile(room);
-      console.log('downloadICSFile completed successfully');
+      logger.debug('downloadICSFile completed successfully');
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Calendar file downloaded', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error exporting to ICS:', err);
+      logger.error('Error exporting to ICS:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to export calendar file: ' + err.message, type: 'error', ttl: 5000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
-  const handleExportToGoogleCalendar = (room) => {
+  const handleExportToGoogleCalendar = useCallback((room) => {
     try {
       const url = generateGoogleCalendarURL(room);
       window.open(url, '_blank');
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Opening Google Calendar', type: 'info', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error exporting to Google Calendar:', err);
+      logger.error('Error exporting to Google Calendar:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to open Google Calendar', type: 'error', ttl: 3000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
-  const handleShareRoomLink = (room) => {
+  const handleShareRoomLink = useCallback((room) => {
     try {
       const link = shareService.generateRoomShareLink(room.id);
       navigator.clipboard.writeText(link);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room link copied to clipboard', type: 'success', ttl: 3000 } }));
       setCalendarExportRoom(null);
     } catch (err) {
-      console.error('Error sharing room link:', err);
+      logger.error('Error sharing room link:', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to copy link', type: 'error', ttl: 3000 } }));
     }
-  };
+  }, [setCalendarExportRoom]);
 
   // Room template handlers
-  const handleSelectTemplate = (template) => {
+  const handleSelectTemplate = useCallback((template) => {
     setSelectedTemplate(template);
     setShowTemplateSelector(false);
     window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Selected template: ${template.name}`, type: 'info', ttl: 2000 } }));
-  };
+  }, [setSelectedTemplate, setShowTemplateSelector]);
 
-  const handleCreateRoomFromTemplate = async () => {
+  const handleCreateRoomFromTemplate = useCallback(async () => {
     if (!selectedTemplate) return;
 
     try {
@@ -784,17 +678,17 @@ export default function TimerApp() {
       setShowTemplateSelector(false);
       setSelectedTemplate(null);
     } catch (err) {
-      console.error('Template room creation error:', err);
+      logger.error('Template room creation error:', err);
       // Error handling is done in handleCreateRoom
     }
-  };
+  }, [selectedTemplate, handleCreateRoom, setShowTemplateSelector, setSelectedTemplate]);
 
   // Load repeat preference from localStorage
   const [repeatEnabled, setRepeatEnabled] = useState(() => {
       try {
           return localStorage.getItem('repeatEnabled') === 'true';
       } catch (error) {
-          console.error("Failed to load repeatEnabled from localStorage:", error);
+          logger.error("Failed to load repeatEnabled from localStorage:", error);
           return false;
       }
   });
@@ -804,7 +698,7 @@ export default function TimerApp() {
       try {
           return localStorage.getItem('timerVisualization') || 'default';
       } catch (error) {
-          console.error("Failed to load timerVisualization from localStorage:", error);
+          logger.error("Failed to load timerVisualization from localStorage:", error);
           return 'default';
       }
   });
@@ -970,7 +864,7 @@ export default function TimerApp() {
           const url = await getBackgroundImageUrl(selectedBackgroundId);
           setBackgroundImageUrl(url);
         } catch (error) {
-          console.error('Failed to load background image:', error);
+          logger.error('Failed to load background image:', error);
           setBackgroundImageUrl(null);
         }
       }
@@ -1169,11 +1063,21 @@ export default function TimerApp() {
   const [, setCurrentTimerScene] = useState('none');
 
   const colorOptions = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
-  const groups = [...new Set(saved.map(t => t.group).filter(Boolean))];
-  // When creating new timers, exclude "Sequences" from the dropdown since sequences are special
-  const filteredGroups = groups
-    .filter(g => g !== 'Sequences')
-    .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase()));
+  
+  // Memoize groups computation to avoid recalculating on every render
+  const groups = React.useMemo(() => 
+    [...new Set(saved.map(t => t.group).filter(Boolean))], 
+    [saved]
+  );
+  
+  // Memoize filtered groups for dropdown
+  const filteredGroups = React.useMemo(() => 
+    groups
+      .filter(g => g !== 'Sequences')
+      .filter(g => g.toLowerCase().includes(newTimerGroup.toLowerCase())),
+    [groups, newTimerGroup]
+  );
+  
   const intervalRef = useRef(null);
   const lastActiveTimeRef = useRef(null);
   const handleCompleteRef = useRef(null);
@@ -1245,7 +1149,7 @@ export default function TimerApp() {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (error) {
-        console.error('Failed to parse shared timer:', error);
+        logger.error('Failed to parse shared timer:', error);
       }
     }
 
@@ -1258,7 +1162,7 @@ export default function TimerApp() {
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (error) {
-        console.error('Failed to join room from URL:', error);
+        logger.error('Failed to join room from URL:', error);
       }
     }
   }, [handleJoinRoom]);
@@ -1983,7 +1887,7 @@ export default function TimerApp() {
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Cache cleared! App reset to initial state.', type: 'success', ttl: 3000 } }));
       setShowClearCacheModal(false);
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      logger.error('Failed to clear cache:', error);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '❌ Failed to clear cache', type: 'error', ttl: 3000 } }));
     }
   };
@@ -2135,7 +2039,7 @@ export default function TimerApp() {
         background: activeBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
-        paddingBottom: ambientSoundType && ambientSoundType !== 'None' ? '72px' : '20px',
+        paddingBottom: isMusicFooterVisible ? '72px' : '20px',
         fontFamily: 'system-ui',
         transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
         position: 'relative',
@@ -4094,7 +3998,7 @@ export default function TimerApp() {
                         setShowEditTimerModal(true);
                         return newTimer;
                       } catch (err) {
-                        console.error('Failed to clone template:', err);
+                        logger.error('Failed to clone template:', err);
                         throw err;
                       }
                     }}
@@ -4204,7 +4108,7 @@ export default function TimerApp() {
               window.dispatchEvent(new CustomEvent('timers-updated'));
               window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Workout updated', type: 'success', ttl: 3000 } }));
             } catch (err) {
-              console.error('Failed to save edited timer:', err);
+              logger.error('Failed to save edited timer:', err);
               window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save workout', type: 'error', ttl: 3000 } }));
             } finally {
               setShowEditTimerModal(false);
