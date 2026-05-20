@@ -2361,8 +2361,8 @@ const Header = ({
       )}
     </div>
 
-    {/* Music Mini-Player — floating bar at bottom, visible when a sound is selected */}
-    {ambientSound && ambientSound !== 'None' && (
+    {/* Music Mini-Player — floating bar at bottom, visible only when actively playing */}
+    {ambientSound && ambientSound !== 'None' && isHeaderMusicPlaying && (
       <div style={{
         position: 'fixed',
         bottom: 0,
