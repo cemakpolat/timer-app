@@ -38,6 +38,7 @@ import {
 } from './components/TimerVisualizations';
 
 const BACKGROUND_CROSSFADE_MS = 480;
+const EMPTY_BACKGROUND_LAYER = { type: 'none', src: '', assetId: null, visible: false };
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -847,6 +848,7 @@ export default function TimerApp() {
     setSelectedBackgroundId,
     getAllBackgroundImages,
     getBackgroundImageUrl,
+    releaseBackgroundImageUrl,
     uploadBackgroundImage,
     deleteBackgroundImage,
     remoteBackgroundImageSources,
@@ -884,6 +886,7 @@ export default function TimerApp() {
     setSelectedVideoId,
     getAllBackgroundVideos,
     getBackgroundVideoUrl,
+    releaseBackgroundVideoUrl,
     uploadBackgroundVideo,
     deleteBackgroundVideo,
     remoteBackgroundVideoSources,
@@ -895,13 +898,39 @@ export default function TimerApp() {
 
   // Resolve video URL whenever selectedVideoId changes
   const [videoBackgroundUrl, setVideoBackgroundUrl] = useState(null);
+  const [videoBackgroundAssetId, setVideoBackgroundAssetId] = useState(null);
   useEffect(() => {
+    let cancelled = false;
+
     if (!selectedVideoId || selectedVideoId === 'None') {
       setVideoBackgroundUrl(null);
-      return;
+      setVideoBackgroundAssetId(null);
+      return undefined;
     }
-    getBackgroundVideoUrl(selectedVideoId).then(url => setVideoBackgroundUrl(url || null));
-  }, [selectedVideoId, getBackgroundVideoUrl]);
+
+    getBackgroundVideoUrl(selectedVideoId)
+      .then((url) => {
+        if (cancelled) {
+          if (url) {
+            releaseBackgroundVideoUrl(selectedVideoId);
+          }
+          return;
+        }
+
+        setVideoBackgroundUrl(url || null);
+        setVideoBackgroundAssetId(url ? selectedVideoId : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVideoBackgroundUrl(null);
+          setVideoBackgroundAssetId(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getBackgroundVideoUrl, releaseBackgroundVideoUrl, selectedVideoId]);
 
   const ensureBackgroundVideoLoop = useCallback((videoElement, shouldLoop = true) => {
     if (!videoElement) {
@@ -961,7 +990,9 @@ export default function TimerApp() {
   // Track the current slide index and URL for the active slide set
   const currentSlideIndexRef = useRef(0);
   const [slideshowImageUrl, setSlideshowImageUrl] = useState(null);
+  const [slideshowImageAssetId, setSlideshowImageAssetId] = useState(null);
   const [slideshowVideoUrl, setSlideshowVideoUrl] = useState(null);
+  const [slideshowVideoAssetId, setSlideshowVideoAssetId] = useState(null);
   const slideshowTimerRef = useRef(null);
   const activeSlideSetRef = useRef(null);
   const advanceSlideRef = useRef(null);
@@ -970,6 +1001,7 @@ export default function TimerApp() {
   useEffect(() => {
     const activeSet = getActiveSlideSet();
     activeSlideSetRef.current = activeSet;
+    let cancelled = false;
 
     // Clear any running timer first
     if (slideshowTimerRef.current) {
@@ -979,7 +1011,9 @@ export default function TimerApp() {
 
     if (!activeSet || activeSet.mediaItems.length === 0) {
       setSlideshowImageUrl(null);
+      setSlideshowImageAssetId(null);
       setSlideshowVideoUrl(null);
+      setSlideshowVideoAssetId(null);
       advanceSlideRef.current = null;
       return;
     }
@@ -997,8 +1031,18 @@ export default function TimerApp() {
       try {
         if (mediaItem.type === 'video') {
           const url = await getBackgroundVideoUrl(mediaItem.assetId);
+
+          if (cancelled) {
+            if (url) {
+              releaseBackgroundVideoUrl(mediaItem.assetId);
+            }
+            return;
+          }
+
           setSlideshowVideoUrl(url || null);
+          setSlideshowVideoAssetId(url ? mediaItem.assetId : null);
           setSlideshowImageUrl(null);
+          setSlideshowImageAssetId(null);
 
           // Video slides advance on ended event, not by interval timer.
           if (slideshowTimerRef.current) {
@@ -1007,8 +1051,18 @@ export default function TimerApp() {
           }
         } else {
           const url = await getBackgroundImageUrl(mediaItem.assetId);
+
+          if (cancelled) {
+            if (url) {
+              releaseBackgroundImageUrl(mediaItem.assetId);
+            }
+            return;
+          }
+
           setSlideshowImageUrl(url || null);
+          setSlideshowImageAssetId(url ? mediaItem.assetId : null);
           setSlideshowVideoUrl(null);
+          setSlideshowVideoAssetId(null);
 
           // Image slides still use configured interval.
           if (slideshowTimerRef.current) {
@@ -1021,8 +1075,12 @@ export default function TimerApp() {
           }, (liveSet.intervalSec || 5) * 1000);
         }
       } catch {
-        setSlideshowImageUrl(null);
-        setSlideshowVideoUrl(null);
+        if (!cancelled) {
+          setSlideshowImageUrl(null);
+          setSlideshowImageAssetId(null);
+          setSlideshowVideoUrl(null);
+          setSlideshowVideoAssetId(null);
+        }
       }
     };
 
@@ -1047,6 +1105,8 @@ export default function TimerApp() {
     currentSlideIndexRef.current = 0;
 
     return () => {
+      cancelled = true;
+
       if (slideshowTimerRef.current) {
         clearTimeout(slideshowTimerRef.current);
         slideshowTimerRef.current = null;
@@ -1056,31 +1116,57 @@ export default function TimerApp() {
       activeSlideSetRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSlideSetId, getActiveSlideSet, getBackgroundImageUrl, getBackgroundVideoUrl]);
+  }, [
+    activeSlideSetId,
+    getActiveSlideSet,
+    getBackgroundImageUrl,
+    getBackgroundVideoUrl,
+    releaseBackgroundImageUrl,
+    releaseBackgroundVideoUrl,
+  ]);
 
   // State to hold the currently loaded background image URL
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
+  const [backgroundImageAssetId, setBackgroundImageAssetId] = useState(null);
 
   // Load background image URL when selectedBackgroundId changes
   useEffect(() => {
+    let cancelled = false;
+
     const loadBackgroundImage = async () => {
       if (selectedBackgroundId === 'None' || !selectedBackgroundId) {
         setBackgroundImageUrl(null);
+        setBackgroundImageAssetId(null);
       } else {
         try {
           const url = await getBackgroundImageUrl(selectedBackgroundId);
+
+          if (cancelled) {
+            if (url) {
+              releaseBackgroundImageUrl(selectedBackgroundId);
+            }
+            return;
+          }
+
           setBackgroundImageUrl(url);
+          setBackgroundImageAssetId(url ? selectedBackgroundId : null);
         } catch (error) {
           console.error('Failed to load background image:', error);
-          setBackgroundImageUrl(null);
+          if (!cancelled) {
+            setBackgroundImageUrl(null);
+            setBackgroundImageAssetId(null);
+          }
         }
       }
     };
 
     loadBackgroundImage();
-  }, [selectedBackgroundId, getBackgroundImageUrl]);
+    return () => {
+      cancelled = true;
+    };
+  }, [getBackgroundImageUrl, releaseBackgroundImageUrl, selectedBackgroundId]);
 
-  const [currentBackgroundLayer, setCurrentBackgroundLayer] = useState({ type: 'none', src: '', visible: false });
+  const [currentBackgroundLayer, setCurrentBackgroundLayer] = useState(EMPTY_BACKGROUND_LAYER);
   const [incomingBackgroundLayer, setIncomingBackgroundLayer] = useState(null);
   const [incomingBackgroundReady, setIncomingBackgroundReady] = useState(false);
   const crossfadeTimeoutRef = useRef(null);
@@ -1094,6 +1180,18 @@ export default function TimerApp() {
   useEffect(() => {
     incomingBackgroundLayerRef.current = incomingBackgroundLayer;
   }, [incomingBackgroundLayer]);
+
+  const releaseBackgroundLayer = useCallback((layer) => {
+    if (!layer?.assetId) {
+      return;
+    }
+
+    if (layer.type === 'image') {
+      releaseBackgroundImageUrl(layer.assetId);
+    } else if (layer.type === 'video') {
+      releaseBackgroundVideoUrl(layer.assetId);
+    }
+  }, [releaseBackgroundImageUrl, releaseBackgroundVideoUrl]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -2229,22 +2327,38 @@ export default function TimerApp() {
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
   
   const hasActiveSlideMedia = Boolean(slideshowImageUrl || slideshowVideoUrl);
-  const effectiveBackgroundUrl = slideshowImageUrl || (!hasActiveSlideMedia ? backgroundImageUrl : null);
-  const activeVideoBackgroundUrl = slideshowVideoUrl || (!hasActiveSlideMedia && !backgroundImageUrl ? videoBackgroundUrl : null);
   const baseBackground = shouldShowScene ? SCENES[activeScene].bg : (previewTheme || theme).bg;
   const activeBackground = baseBackground;
 
   const targetBackgroundLayer = useMemo(() => {
-    if (effectiveBackgroundUrl) {
-      return { type: 'image', src: effectiveBackgroundUrl };
+    if (slideshowImageUrl) {
+      return { type: 'image', src: slideshowImageUrl, assetId: slideshowImageAssetId };
     }
 
-    if (activeVideoBackgroundUrl) {
-      return { type: 'video', src: activeVideoBackgroundUrl };
+    if (!hasActiveSlideMedia && backgroundImageUrl) {
+      return { type: 'image', src: backgroundImageUrl, assetId: backgroundImageAssetId };
     }
 
-    return { type: 'none', src: '' };
-  }, [activeVideoBackgroundUrl, effectiveBackgroundUrl]);
+    if (slideshowVideoUrl) {
+      return { type: 'video', src: slideshowVideoUrl, assetId: slideshowVideoAssetId };
+    }
+
+    if (!hasActiveSlideMedia && !backgroundImageUrl && videoBackgroundUrl) {
+      return { type: 'video', src: videoBackgroundUrl, assetId: videoBackgroundAssetId };
+    }
+
+    return { type: 'none', src: '', assetId: null };
+  }, [
+    backgroundImageAssetId,
+    backgroundImageUrl,
+    hasActiveSlideMedia,
+    slideshowImageAssetId,
+    slideshowImageUrl,
+    slideshowVideoAssetId,
+    slideshowVideoUrl,
+    videoBackgroundAssetId,
+    videoBackgroundUrl,
+  ]);
 
   useEffect(() => {
     const current = currentBackgroundLayerRef.current;
@@ -2257,9 +2371,11 @@ export default function TimerApp() {
     }
 
     if (target.type === 'none') {
+      releaseBackgroundLayer(incoming);
+      releaseBackgroundLayer(current);
       setIncomingBackgroundLayer(null);
       setIncomingBackgroundReady(false);
-      setCurrentBackgroundLayer((prev) => ({ ...prev, visible: false }));
+      setCurrentBackgroundLayer(EMPTY_BACKGROUND_LAYER);
       return;
     }
 
@@ -2271,20 +2387,38 @@ export default function TimerApp() {
       return;
     }
 
+    if (incoming && (incoming.type !== target.type || incoming.src !== target.src)) {
+      releaseBackgroundLayer(incoming);
+    }
+
     setIncomingBackgroundLayer({ ...target, visible: false });
     setIncomingBackgroundReady(target.type === 'image');
-  }, [targetBackgroundLayer]);
+  }, [releaseBackgroundLayer, targetBackgroundLayer]);
 
   useEffect(() => {
     if (!incomingBackgroundLayer || !incomingBackgroundReady) {
       return;
     }
 
+    const previousCurrentLayer = currentBackgroundLayerRef.current;
+
     setIncomingBackgroundLayer((prev) => (prev ? { ...prev, visible: true } : prev));
     setCurrentBackgroundLayer((prev) => ({ ...prev, visible: false }));
 
     const promotedLayer = { ...incomingBackgroundLayer, visible: true };
     crossfadeTimeoutRef.current = setTimeout(() => {
+      if (
+        previousCurrentLayer
+        && previousCurrentLayer.type !== 'none'
+        && (
+          previousCurrentLayer.type !== promotedLayer.type
+          || previousCurrentLayer.src !== promotedLayer.src
+          || previousCurrentLayer.assetId !== promotedLayer.assetId
+        )
+      ) {
+        releaseBackgroundLayer(previousCurrentLayer);
+      }
+
       setCurrentBackgroundLayer(promotedLayer);
       setIncomingBackgroundLayer(null);
       setIncomingBackgroundReady(false);
@@ -2297,14 +2431,17 @@ export default function TimerApp() {
         crossfadeTimeoutRef.current = null;
       }
     };
-  }, [incomingBackgroundLayer, incomingBackgroundReady]);
+  }, [incomingBackgroundLayer, incomingBackgroundReady, releaseBackgroundLayer]);
 
   useEffect(() => () => {
     if (crossfadeTimeoutRef.current) {
       clearTimeout(crossfadeTimeoutRef.current);
       crossfadeTimeoutRef.current = null;
     }
-  }, []);
+
+    releaseBackgroundLayer(currentBackgroundLayerRef.current);
+    releaseBackgroundLayer(incomingBackgroundLayerRef.current);
+  }, [releaseBackgroundLayer]);
 
   const renderBackgroundLayer = useCallback((layer, key, isIncoming = false) => {
     if (!layer || layer.type === 'none' || !layer.src) {
@@ -3527,6 +3664,7 @@ export default function TimerApp() {
           setSelectedBackgroundId={setSelectedBackgroundId}
           getAllBackgroundImages={getAllBackgroundImages}
           getBackgroundImageUrl={getBackgroundImageUrl}
+          releaseBackgroundImageUrl={releaseBackgroundImageUrl}
           uploadBackgroundImage={uploadBackgroundImage}
           deleteBackgroundImage={deleteBackgroundImage}
           remoteBackgroundImageSources={remoteBackgroundImageSources}
@@ -3552,6 +3690,7 @@ export default function TimerApp() {
           setSelectedVideoId={setSelectedVideoId}
           getAllBackgroundVideos={getAllBackgroundVideos}
           getBackgroundVideoUrl={getBackgroundVideoUrl}
+          releaseBackgroundVideoUrl={releaseBackgroundVideoUrl}
           uploadBackgroundVideo={uploadBackgroundVideo}
           deleteBackgroundVideo={deleteBackgroundVideo}
           remoteBackgroundVideoSources={remoteBackgroundVideoSources}

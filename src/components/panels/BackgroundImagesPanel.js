@@ -34,6 +34,7 @@ export default function BackgroundImagesPanel({
   setSelectedBackgroundId,
   getAllBackgroundImages,
   getBackgroundImageUrl,
+  releaseBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
   remoteBackgroundImageSources = [],
@@ -60,6 +61,7 @@ export default function BackgroundImagesPanel({
   setSelectedVideoId,
   getAllBackgroundVideos,
   getBackgroundVideoUrl,
+  releaseBackgroundVideoUrl,
   uploadBackgroundVideo,
   deleteBackgroundVideo,
   remoteBackgroundVideoSources = [],
@@ -77,9 +79,11 @@ export default function BackgroundImagesPanel({
 
   // Load all images and their URLs
   useEffect(() => {
+    let cancelled = false;
+    const acquiredImageIds = [];
+
     const loadImages = async () => {
       const images = getAllBackgroundImages();
-      setAllImages(images);
 
       // Preload URLs for visible images
       const urls = {};
@@ -87,12 +91,28 @@ export default function BackgroundImagesPanel({
         if (img.id !== 'None') {
           try {
             const url = await getBackgroundImageUrl(img.id);
-            if (url) urls[img.id] = url;
+            if (!url) {
+              continue;
+            }
+
+            if (cancelled) {
+              releaseBackgroundImageUrl?.(img.id);
+              continue;
+            }
+
+            urls[img.id] = url;
+            acquiredImageIds.push(img.id);
           } catch (e) {
             console.error(`Failed to load URL for ${img.id}:`, e);
           }
         }
       }
+
+      if (cancelled) {
+        return;
+      }
+
+      setAllImages(images);
       setImageUrls(urls);
 
       // Get selected image name
@@ -101,7 +121,14 @@ export default function BackgroundImagesPanel({
     };
 
     loadImages();
-  }, [getAllBackgroundImages, getBackgroundImageUrl, selectedBackgroundId]);
+
+    return () => {
+      cancelled = true;
+      acquiredImageIds.forEach((id) => {
+        releaseBackgroundImageUrl?.(id);
+      });
+    };
+  }, [getAllBackgroundImages, getBackgroundImageUrl, releaseBackgroundImageUrl, selectedBackgroundId]);
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -422,6 +449,7 @@ export default function BackgroundImagesPanel({
           activeSlideSetId={activeSlideSetId}
           getAllBackgroundImages={getAllBackgroundImages}
           getBackgroundImageUrl={getBackgroundImageUrl}
+          releaseBackgroundImageUrl={releaseBackgroundImageUrl}
           createSlideSet={createSlideSet}
           deleteSlideSet={deleteSlideSet}
           renameSlideSet={renameSlideSet}
@@ -434,6 +462,7 @@ export default function BackgroundImagesPanel({
           setActiveSlideSetId={handleSelectSlideSet}
           getAllBackgroundVideos={getAllBackgroundVideos}
           getBackgroundVideoUrl={getBackgroundVideoUrl}
+          releaseBackgroundVideoUrl={releaseBackgroundVideoUrl}
         />
       )}
 

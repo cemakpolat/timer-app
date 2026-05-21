@@ -49,6 +49,7 @@ const Header = ({
   setSelectedBackgroundId,
   getAllBackgroundImages,
   getBackgroundImageUrl,
+  releaseBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
   remoteBackgroundImageSources,
@@ -74,6 +75,7 @@ const Header = ({
   setSelectedVideoId,
   getAllBackgroundVideos,
   getBackgroundVideoUrl,
+  releaseBackgroundVideoUrl,
   uploadBackgroundVideo,
   deleteBackgroundVideo,
   remoteBackgroundVideoSources,
@@ -1883,6 +1885,7 @@ const Header = ({
                   setSelectedBackgroundId={setSelectedBackgroundId}
                   getAllBackgroundImages={getAllBackgroundImages}
                   getBackgroundImageUrl={getBackgroundImageUrl}
+                  releaseBackgroundImageUrl={releaseBackgroundImageUrl}
                   uploadBackgroundImage={uploadBackgroundImage}
                   deleteBackgroundImage={deleteBackgroundImage}
                   remoteBackgroundImageSources={remoteBackgroundImageSources}
@@ -1907,6 +1910,7 @@ const Header = ({
                   setSelectedVideoId={setSelectedVideoId}
                   getAllBackgroundVideos={getAllBackgroundVideos}
                   getBackgroundVideoUrl={getBackgroundVideoUrl}
+                  releaseBackgroundVideoUrl={releaseBackgroundVideoUrl}
                   uploadBackgroundVideo={uploadBackgroundVideo}
                   deleteBackgroundVideo={deleteBackgroundVideo}
                   remoteBackgroundVideoSources={remoteBackgroundVideoSources}

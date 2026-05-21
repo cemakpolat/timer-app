@@ -15,6 +15,19 @@ const ACCEPTED_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
 const useBackgroundVideos = () => {
   const fileStorageRef = useRef(new Map()); // id → { url, blob }
 
+  const revokeStoredVideoUrl = useCallback((id) => {
+    const entry = fileStorageRef.current.get(id);
+    if (entry?.url) {
+      try {
+        URL.revokeObjectURL(entry.url);
+      } catch (error) {
+        console.warn('Failed to revoke background video URL:', error);
+      }
+    }
+
+    fileStorageRef.current.delete(id);
+  }, []);
+
   const [selectedVideoId, setSelectedVideoId] = useState(() => {
     try {
       return localStorage.getItem('selectedVideoId') || 'None';
@@ -114,14 +127,16 @@ const useBackgroundVideos = () => {
     if (id === 'None' || !id) return null;
 
     if (fileStorageRef.current.has(id)) {
-      return fileStorageRef.current.get(id).url;
+      const entry = fileStorageRef.current.get(id);
+      entry.refCount = (entry.refCount ?? 0) + 1;
+      return entry.url;
     }
 
     try {
       const blob = await getFileBlob(`vid_${id}`);
       if (blob) {
         const url = URL.createObjectURL(blob);
-        fileStorageRef.current.set(id, { url, blob });
+        fileStorageRef.current.set(id, { url, blob, refCount: 1 });
         return url;
       }
     } catch (error) {
@@ -154,7 +169,7 @@ const useBackgroundVideos = () => {
     try {
       await saveFileBlob(`vid_${fileId}`, file);
       const url = URL.createObjectURL(file);
-      fileStorageRef.current.set(fileId, { url, blob: file });
+      fileStorageRef.current.set(fileId, { url, blob: file, refCount: 0 });
 
       const newVideo = {
         id: fileId,
@@ -185,11 +200,7 @@ const useBackgroundVideos = () => {
       setCustomBackgroundVideos(prev => prev.filter(v => v.id !== id));
 
       if (fileStorageRef.current.has(id)) {
-        const entry = fileStorageRef.current.get(id);
-        if (entry?.url) {
-          try { URL.revokeObjectURL(entry.url); } catch { /* ignore */ }
-        }
-        fileStorageRef.current.delete(id);
+        revokeStoredVideoUrl(id);
       }
 
       if (selectedVideoId === id) {
@@ -199,7 +210,29 @@ const useBackgroundVideos = () => {
       console.error('Failed to delete background video:', error);
       throw error;
     }
-  }, [remoteBackgroundVideos, selectedVideoId]);
+  }, [remoteBackgroundVideos, revokeStoredVideoUrl, selectedVideoId]);
+
+  const releaseBackgroundVideoUrl = useCallback((id) => {
+    if (!id || !fileStorageRef.current.has(id)) {
+      return;
+    }
+
+    const entry = fileStorageRef.current.get(id);
+    const nextRefCount = Math.max(0, (entry?.refCount ?? 0) - 1);
+
+    if (nextRefCount > 0) {
+      entry.refCount = nextRefCount;
+      return;
+    }
+
+    revokeStoredVideoUrl(id);
+  }, [revokeStoredVideoUrl]);
+
+  useEffect(() => () => {
+    Array.from(fileStorageRef.current.keys()).forEach((id) => {
+      revokeStoredVideoUrl(id);
+    });
+  }, [revokeStoredVideoUrl]);
 
   const addRemoteBackgroundVideoSource = useCallback(async (sourceInput) => {
     const assetTypes = Array.from(new Set([...(sourceInput.assetTypes || []), 'video']));
@@ -234,6 +267,7 @@ const useBackgroundVideos = () => {
     remoteBackgroundVideoSourceStatuses,
     getAllBackgroundVideos,
     getBackgroundVideoUrl,
+    releaseBackgroundVideoUrl,
     uploadBackgroundVideo,
     deleteBackgroundVideo,
     addRemoteBackgroundVideoSource,
