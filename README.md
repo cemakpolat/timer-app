@@ -56,8 +56,16 @@ npm test           # Run tests
 ### Personalization & Immersion
 - **🎨 Custom Themes**: Unlimited color schemes, Minimal/Clean modes
 - **🎬 Immersive Scenes**: Coffee shop, gym, forest, and more
+- **🖼️ Background Images + Videos**: Upload and use local media backgrounds (plus remote media sources)
+- **🧩 Mixed-Media Slide Sets**: Build ordered slide sets with both images and videos in one sequence
+- **🌊 Universal Crossfade Transitions**: Smooth transitions for image→image, video→video, and image↔video
+- **🎞️ Smart Slide Playback**: Image slides use the configured interval, video slides play full duration then auto-advance
 - **🔊 Ambient Music**: Built-in and custom audio for focus or relaxation
 - **📱 Mobile Optimized**: Fully responsive for all devices
+
+### Input & Editing UX
+- **⌨️ Better Numeric Editing**: Timer, interval, and slide interval fields now allow temporary empty edits while typing
+- **✅ Safe Value Commit**: Numeric values are normalized on blur/confirm instead of forcing immediate 0 while editing
 
 ### Engagement & Tracking
 - **🏆 Achievements**: Badges for milestones, streaks, and challenges
@@ -78,7 +86,7 @@ npm test           # Run tests
 - **Infrastructure**: Google Cloud Platform (Terraform)
 - **CI/CD**: GitHub Actions
 - **Hosting**: Firebase Hosting
-- **Storage**: Cloud Storage, IndexedDB (for music)
+- **Storage**: Cloud Storage, IndexedDB (for music and uploaded background media)
 
 ### Layered Architecture
 1. **Presentation**: React components (TimerPanel, IntervalPanel, StopwatchPanel, FocusRooms, etc.)

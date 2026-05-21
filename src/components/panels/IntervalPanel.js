@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Share, Zap } from 'lucide-react';
 
 /**
@@ -16,6 +16,27 @@ const IntervalPanel = ({
   startInterval,
   shareCurrentTimer
 }) => {
+  const [workInput, setWorkInput] = useState(String(work ?? ''));
+  const [restInput, setRestInput] = useState(String(rest ?? ''));
+  const [roundsInput, setRoundsInput] = useState(String(rounds ?? ''));
+
+  useEffect(() => {
+    setWorkInput(String(work ?? ''));
+  }, [work]);
+
+  useEffect(() => {
+    setRestInput(String(rest ?? ''));
+  }, [rest]);
+
+  useEffect(() => {
+    setRoundsInput(String(rounds ?? ''));
+  }, [rounds]);
+
+  const applyNumber = (raw, setter, fallback = 0) => {
+    const parsed = parseInt(raw, 10);
+    setter(Number.isNaN(parsed) ? fallback : Math.max(0, parsed));
+  };
+
   const inputStyle = (accentColor) => ({
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
@@ -64,8 +85,20 @@ const IntervalPanel = ({
           </label>
           <input 
             type="number" 
-            value={work} 
-            onChange={(e) => setWork(Math.max(0, parseInt(e.target.value) || 0))} 
+            value={workInput}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setWorkInput(raw);
+              if (raw !== '') applyNumber(raw, setWork);
+            }}
+            onBlur={() => {
+              if (workInput === '') {
+                setWorkInput('0');
+                setWork(0);
+                return;
+              }
+              applyNumber(workInput, setWork);
+            }}
             style={inputStyle(theme.accent)} 
           />
         </div>
@@ -75,8 +108,20 @@ const IntervalPanel = ({
           </label>
           <input 
             type="number" 
-            value={rest} 
-            onChange={(e) => setRest(Math.max(0, parseInt(e.target.value) || 0))} 
+            value={restInput}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setRestInput(raw);
+              if (raw !== '') applyNumber(raw, setRest);
+            }}
+            onBlur={() => {
+              if (restInput === '') {
+                setRestInput('0');
+                setRest(0);
+                return;
+              }
+              applyNumber(restInput, setRest);
+            }}
             style={inputStyle(theme.accent)} 
           />
         </div>
@@ -86,8 +131,20 @@ const IntervalPanel = ({
           </label>
           <input 
             type="number" 
-            value={rounds} 
-            onChange={(e) => setRounds(Math.max(0, parseInt(e.target.value) || 0))} 
+            value={roundsInput}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setRoundsInput(raw);
+              if (raw !== '') applyNumber(raw, setRounds);
+            }}
+            onBlur={() => {
+              if (roundsInput === '') {
+                setRoundsInput('0');
+                setRounds(0);
+                return;
+              }
+              applyNumber(roundsInput, setRounds);
+            }}
             style={inputStyle(theme.accent)} 
           />
         </div>
