@@ -65,7 +65,9 @@ const Header = ({
   setSlideInterval,
   setSlideTransition,
   addImageToSet,
+  addVideoToSet,
   removeImageFromSet,
+  removeMediaItemFromSet,
   setActiveSlideSetId,
   // Video background
   selectedVideoId,
@@ -1489,7 +1491,7 @@ const Header = ({
                         min="0"
                         max="1"
                         step="0.1"
-                        value={alarmVolume}
+                        value={alarmVolume ?? 0.5}
                         onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
                         style={{
                           flex: 1,
@@ -1897,7 +1899,9 @@ const Header = ({
                   setSlideInterval={setSlideInterval}
                   setSlideTransition={setSlideTransition}
                   addImageToSet={addImageToSet}
+                  addVideoToSet={addVideoToSet}
                   removeImageFromSet={removeImageFromSet}
+                  removeMediaItemFromSet={removeMediaItemFromSet}
                   setActiveSlideSetId={setActiveSlideSetId}
                   selectedVideoId={selectedVideoId}
                   setSelectedVideoId={setSelectedVideoId}
@@ -2047,12 +2051,12 @@ const Header = ({
                               min={5}
                               max={120}
                               step={5}
-                              value={cfg.intervalMin}
+                              value={cfg.intervalMin ?? 30}
                               onChange={(e) => setBreakReminderInterval(def.id, parseInt(e.target.value, 10))}
                               style={{ flex: 1, accentColor: catColor, cursor: 'pointer' }}
                             />
                             <span style={{ fontSize: 11, fontWeight: 600, color: catColor, minWidth: 34, textAlign: 'right' }}>
-                              {cfg.intervalMin}m
+                              {cfg.intervalMin ?? 30}m
                             </span>
                           </div>
                         )}
@@ -2155,7 +2159,7 @@ const Header = ({
                 min="0"
                 max="100"
                 step="5"
-                value={themeOpacity * 100}
+                value={Number.isFinite(themeOpacity) ? themeOpacity * 100 : 100}
                 onChange={(e) => setThemeOpacity(e.target.value / 100)}
                 style={{
                   width: '100%',
@@ -2279,7 +2283,7 @@ const Header = ({
                 min="0"
                 max="32"
                 step="2"
-                value={customBorderRadius}
+                value={customBorderRadius ?? 12}
                 onChange={(e) => setCustomBorderRadius(parseInt(e.target.value))}
                 style={{
                   width: '100%',

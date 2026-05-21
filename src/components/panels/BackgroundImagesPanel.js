@@ -51,7 +51,9 @@ export default function BackgroundImagesPanel({
   setSlideInterval,
   setSlideTransition,
   addImageToSet,
+  addVideoToSet,
   removeImageFromSet,
+  removeMediaItemFromSet,
   setActiveSlideSetId,
   // Video props
   selectedVideoId = 'None',
@@ -260,6 +262,54 @@ export default function BackgroundImagesPanel({
     }
   };
 
+  const handleSelectBackground = (backgroundId) => {
+    if (backgroundId && backgroundId !== 'None') {
+      if (typeof setSelectedVideoId === 'function' && selectedVideoId !== 'None') {
+        setSelectedVideoId('None');
+      }
+
+      if (typeof setActiveSlideSetId === 'function' && activeSlideSetId) {
+        setActiveSlideSetId(null);
+      }
+    }
+
+    if (typeof setSelectedBackgroundId === 'function') {
+      setSelectedBackgroundId(backgroundId);
+    }
+  };
+
+  const handleSelectVideo = (videoId) => {
+    if (videoId && videoId !== 'None') {
+      if (typeof setSelectedBackgroundId === 'function' && selectedBackgroundId !== 'None') {
+        setSelectedBackgroundId('None');
+      }
+
+      if (typeof setActiveSlideSetId === 'function' && activeSlideSetId) {
+        setActiveSlideSetId(null);
+      }
+    }
+
+    if (typeof setSelectedVideoId === 'function') {
+      setSelectedVideoId(videoId);
+    }
+  };
+
+  const handleSelectSlideSet = (slideSetId) => {
+    if (slideSetId) {
+      if (typeof setSelectedVideoId === 'function' && selectedVideoId !== 'None') {
+        setSelectedVideoId('None');
+      }
+
+      if (typeof setSelectedBackgroundId === 'function' && selectedBackgroundId !== 'None') {
+        setSelectedBackgroundId('None');
+      }
+    }
+
+    if (typeof setActiveSlideSetId === 'function') {
+      setActiveSlideSetId(slideSetId);
+    }
+  };
+
   const isDeleteDisabled = selectedBackgroundId === 'None' || 
                           !allImages.find(img => img.id === selectedBackgroundId && !img.isBuiltIn && !img.isRemote);
 
@@ -350,7 +400,7 @@ export default function BackgroundImagesPanel({
           theme={theme}
           getTextOpacity={getTextOpacity}
           selectedVideoId={selectedVideoId}
-          setSelectedVideoId={setSelectedVideoId}
+          setSelectedVideoId={handleSelectVideo}
           getAllBackgroundVideos={getAllBackgroundVideos}
           getBackgroundVideoUrl={getBackgroundVideoUrl}
           uploadBackgroundVideo={uploadBackgroundVideo}
@@ -378,8 +428,12 @@ export default function BackgroundImagesPanel({
           setSlideInterval={setSlideInterval}
           setSlideTransition={setSlideTransition}
           addImageToSet={addImageToSet}
+          addVideoToSet={addVideoToSet}
           removeImageFromSet={removeImageFromSet}
-          setActiveSlideSetId={setActiveSlideSetId}
+          removeMediaItemFromSet={removeMediaItemFromSet}
+          setActiveSlideSetId={handleSelectSlideSet}
+          getAllBackgroundVideos={getAllBackgroundVideos}
+          getBackgroundVideoUrl={getBackgroundVideoUrl}
         />
       )}
 
@@ -549,7 +603,7 @@ export default function BackgroundImagesPanel({
         {allImages.map(img => (
           <div
             key={img.id}
-            onClick={() => setSelectedBackgroundId(img.id)}
+            onClick={() => handleSelectBackground(img.id)}
             style={{
               position: 'relative',
               borderRadius: theme.borderRadius,
