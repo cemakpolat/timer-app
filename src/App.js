@@ -42,6 +42,8 @@ import { SCENES } from './utils/scenes';
 import { inputStyle } from './utils/styleHelpers';
 import { logger } from './utils/logger';
 
+const BACKGROUND_CROSSFADE_MS = 480;
+
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
 const AchievementsPanel = lazy(() => import('./components/panels/AchievementsPanel'));
@@ -750,7 +752,9 @@ export default function TimerApp() {
     setSlideInterval,
     setSlideTransition,
     addImageToSet,
+    addVideoToSet,
     removeImageFromSet,
+    removeMediaItemFromSet,
     setActiveSlideSetId,
     getActiveSlideSet,
   } = useSlideSets();
@@ -785,6 +789,45 @@ export default function TimerApp() {
     getBackgroundVideoUrl(selectedVideoId).then(url => setVideoBackgroundUrl(url || null));
   }, [selectedVideoId, getBackgroundVideoUrl]);
 
+  const ensureBackgroundVideoLoop = useCallback((videoElement, shouldLoop = true) => {
+    if (!videoElement) {
+      return;
+    }
+
+    videoElement.loop = shouldLoop;
+    videoElement.defaultMuted = true;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+
+    if (videoElement.ended) {
+      videoElement.currentTime = 0;
+    }
+
+    if (videoElement.paused) {
+      videoElement.play().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedVideoId || selectedVideoId === 'None') {
+      return;
+    }
+
+    if (selectedBackgroundId && selectedBackgroundId !== 'None') {
+      setSelectedBackgroundId('None');
+    }
+
+    if (activeSlideSetId) {
+      setActiveSlideSetId(null);
+    }
+  }, [
+    activeSlideSetId,
+    selectedBackgroundId,
+    selectedVideoId,
+    setActiveSlideSetId,
+    setSelectedBackgroundId,
+  ]);
+
   // Notifications (used by break reminders for browser notifications)
   const { isGranted: notificationsGranted, sendNotification, requestPermission: requestNotificationPermission } = useNotifications();
 
@@ -804,11 +847,15 @@ export default function TimerApp() {
   // Track the current slide index and URL for the active slide set
   const currentSlideIndexRef = useRef(0);
   const [slideshowImageUrl, setSlideshowImageUrl] = useState(null);
+  const [slideshowVideoUrl, setSlideshowVideoUrl] = useState(null);
   const slideshowTimerRef = useRef(null);
+  const activeSlideSetRef = useRef(null);
+  const advanceSlideRef = useRef(null);
 
   // Slideshow effect: advance slides on interval whenever a slide set is active
   useEffect(() => {
     const activeSet = getActiveSlideSet();
+    activeSlideSetRef.current = activeSet;
 
     // Clear any running timer first
     if (slideshowTimerRef.current) {
@@ -816,28 +863,71 @@ export default function TimerApp() {
       slideshowTimerRef.current = null;
     }
 
-    if (!activeSet || activeSet.imageIds.length === 0) {
+    if (!activeSet || activeSet.mediaItems.length === 0) {
       setSlideshowImageUrl(null);
+      setSlideshowVideoUrl(null);
+      advanceSlideRef.current = null;
       return;
     }
 
-    let index = 0;
-
     const showSlide = async (idx) => {
-      const imageId = activeSet.imageIds[idx % activeSet.imageIds.length];
+      const liveSet = activeSlideSetRef.current;
+      if (!liveSet || liveSet.mediaItems.length === 0) {
+        return;
+      }
+
+      const slideIndex = idx % liveSet.mediaItems.length;
+      const mediaItem = liveSet.mediaItems[slideIndex];
+      currentSlideIndexRef.current = slideIndex;
+
       try {
-        const url = await getBackgroundImageUrl(imageId);
-        setSlideshowImageUrl(url || null);
+        if (mediaItem.type === 'video') {
+          const url = await getBackgroundVideoUrl(mediaItem.assetId);
+          setSlideshowVideoUrl(url || null);
+          setSlideshowImageUrl(null);
+
+          // Video slides advance on ended event, not by interval timer.
+          if (slideshowTimerRef.current) {
+            clearTimeout(slideshowTimerRef.current);
+            slideshowTimerRef.current = null;
+          }
+        } else {
+          const url = await getBackgroundImageUrl(mediaItem.assetId);
+          setSlideshowImageUrl(url || null);
+          setSlideshowVideoUrl(null);
+
+          // Image slides still use configured interval.
+          if (slideshowTimerRef.current) {
+            clearTimeout(slideshowTimerRef.current);
+          }
+
+          slideshowTimerRef.current = setTimeout(() => {
+            const nextIndex = (slideIndex + 1) % liveSet.mediaItems.length;
+            showSlide(nextIndex);
+          }, (liveSet.intervalSec || 5) * 1000);
+        }
       } catch {
         setSlideshowImageUrl(null);
+        setSlideshowVideoUrl(null);
       }
-      // Schedule next slide
-      slideshowTimerRef.current = setTimeout(() => {
-        index = (idx + 1) % activeSet.imageIds.length;
-        currentSlideIndexRef.current = index;
-        showSlide(index);
-      }, (activeSet.intervalSec || 5) * 1000);
     };
+
+    const goToNextSlide = () => {
+      const liveSet = activeSlideSetRef.current;
+      if (!liveSet || liveSet.mediaItems.length === 0) {
+        return;
+      }
+
+      if (slideshowTimerRef.current) {
+        clearTimeout(slideshowTimerRef.current);
+        slideshowTimerRef.current = null;
+      }
+
+      const nextIndex = (currentSlideIndexRef.current + 1) % liveSet.mediaItems.length;
+      showSlide(nextIndex);
+    };
+
+    advanceSlideRef.current = goToNextSlide;
 
     showSlide(0);
     currentSlideIndexRef.current = 0;
@@ -847,9 +937,12 @@ export default function TimerApp() {
         clearTimeout(slideshowTimerRef.current);
         slideshowTimerRef.current = null;
       }
+
+      advanceSlideRef.current = null;
+      activeSlideSetRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSlideSetId, getActiveSlideSet]);
+  }, [activeSlideSetId, getActiveSlideSet, getBackgroundImageUrl, getBackgroundVideoUrl]);
 
   // State to hold the currently loaded background image URL
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
@@ -872,6 +965,21 @@ export default function TimerApp() {
 
     loadBackgroundImage();
   }, [selectedBackgroundId, getBackgroundImageUrl]);
+
+  const [currentBackgroundLayer, setCurrentBackgroundLayer] = useState({ type: 'none', src: '', visible: false });
+  const [incomingBackgroundLayer, setIncomingBackgroundLayer] = useState(null);
+  const [incomingBackgroundReady, setIncomingBackgroundReady] = useState(false);
+  const crossfadeTimeoutRef = useRef(null);
+  const currentBackgroundLayerRef = useRef(currentBackgroundLayer);
+  const incomingBackgroundLayerRef = useRef(incomingBackgroundLayer);
+
+  useEffect(() => {
+    currentBackgroundLayerRef.current = currentBackgroundLayer;
+  }, [currentBackgroundLayer]);
+
+  useEffect(() => {
+    incomingBackgroundLayerRef.current = incomingBackgroundLayer;
+  }, [incomingBackgroundLayer]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -2016,57 +2124,187 @@ export default function TimerApp() {
   // Determine if we should show a scene background
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
   
-  // Slideshow takes priority over single static background image; both take priority over video
-  const effectiveBackgroundUrl = slideshowImageUrl || backgroundImageUrl;
+  const hasActiveSlideMedia = Boolean(slideshowImageUrl || slideshowVideoUrl);
+  const effectiveBackgroundUrl = slideshowImageUrl || (!hasActiveSlideMedia ? backgroundImageUrl : null);
+  const activeVideoBackgroundUrl = slideshowVideoUrl || (!hasActiveSlideMedia && !backgroundImageUrl ? videoBackgroundUrl : null);
+  const baseBackground = shouldShowScene ? SCENES[activeScene].bg : (previewTheme || theme).bg;
+  const activeBackground = baseBackground;
 
-  // Construct background with proper layering: slideshow/image > video > scene > theme
-  let activeBackground;
-  if (effectiveBackgroundUrl) {
-    activeBackground = `url(${effectiveBackgroundUrl}) center/cover no-repeat fixed`;
-  } else if (videoBackgroundUrl) {
-    activeBackground = 'transparent'; // video element handles the visual
-  } else if (shouldShowScene) {
-    activeBackground = SCENES[activeScene].bg;
-  } else {
-    activeBackground = (previewTheme || theme).bg;
-  }
+  const targetBackgroundLayer = useMemo(() => {
+    if (effectiveBackgroundUrl) {
+      return { type: 'image', src: effectiveBackgroundUrl };
+    }
+
+    if (activeVideoBackgroundUrl) {
+      return { type: 'video', src: activeVideoBackgroundUrl };
+    }
+
+    return { type: 'none', src: '' };
+  }, [activeVideoBackgroundUrl, effectiveBackgroundUrl]);
+
+  useEffect(() => {
+    const current = currentBackgroundLayerRef.current;
+    const incoming = incomingBackgroundLayerRef.current;
+    const target = targetBackgroundLayer;
+
+    if (crossfadeTimeoutRef.current) {
+      clearTimeout(crossfadeTimeoutRef.current);
+      crossfadeTimeoutRef.current = null;
+    }
+
+    if (target.type === 'none') {
+      setIncomingBackgroundLayer(null);
+      setIncomingBackgroundReady(false);
+      setCurrentBackgroundLayer((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+
+    if (incoming && incoming.type === target.type && incoming.src === target.src) {
+      return;
+    }
+
+    if (!incoming && current.type === target.type && current.src === target.src && current.visible) {
+      return;
+    }
+
+    setIncomingBackgroundLayer({ ...target, visible: false });
+    setIncomingBackgroundReady(target.type === 'image');
+  }, [targetBackgroundLayer]);
+
+  useEffect(() => {
+    if (!incomingBackgroundLayer || !incomingBackgroundReady) {
+      return;
+    }
+
+    setIncomingBackgroundLayer((prev) => (prev ? { ...prev, visible: true } : prev));
+    setCurrentBackgroundLayer((prev) => ({ ...prev, visible: false }));
+
+    const promotedLayer = { ...incomingBackgroundLayer, visible: true };
+    crossfadeTimeoutRef.current = setTimeout(() => {
+      setCurrentBackgroundLayer(promotedLayer);
+      setIncomingBackgroundLayer(null);
+      setIncomingBackgroundReady(false);
+      crossfadeTimeoutRef.current = null;
+    }, BACKGROUND_CROSSFADE_MS + 40);
+
+    return () => {
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current);
+        crossfadeTimeoutRef.current = null;
+      }
+    };
+  }, [incomingBackgroundLayer, incomingBackgroundReady]);
+
+  useEffect(() => () => {
+    if (crossfadeTimeoutRef.current) {
+      clearTimeout(crossfadeTimeoutRef.current);
+      crossfadeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const renderBackgroundLayer = useCallback((layer, key, isIncoming = false) => {
+    if (!layer || layer.type === 'none' || !layer.src) {
+      return null;
+    }
+
+    const isSlideSetVideoLayer = Boolean(
+      activeSlideSetId
+      && slideshowVideoUrl
+      && layer.type === 'video'
+      && layer.src === slideshowVideoUrl
+    );
+
+    if (layer.type === 'image') {
+      return (
+        <div
+          key={key}
+          className="app-background-layer"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundImage: `url(${layer.src})`,
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            opacity: layer.visible ? 1 : 0,
+            transition: `opacity ${BACKGROUND_CROSSFADE_MS}ms ease-in-out`,
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        />
+      );
+    }
+
+    return (
+      <video
+        key={key}
+        className="app-background-layer"
+        autoPlay
+        muted
+        loop={!isSlideSetVideoLayer}
+        playsInline
+        preload="auto"
+        onLoadedMetadata={(e) => {
+          ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+        }}
+        onCanPlay={(e) => {
+          ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+
+          if (
+            isIncoming
+            && incomingBackgroundLayerRef.current
+            && incomingBackgroundLayerRef.current.type === 'video'
+            && incomingBackgroundLayerRef.current.src === layer.src
+          ) {
+            setIncomingBackgroundReady(true);
+          }
+        }}
+        onEnded={() => {
+          if (
+            isSlideSetVideoLayer
+            && layer.visible
+            && currentBackgroundLayerRef.current
+            && currentBackgroundLayerRef.current.type === 'video'
+            && currentBackgroundLayerRef.current.src === layer.src
+          ) {
+            advanceSlideRef.current?.();
+          }
+        }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          opacity: layer.visible ? 1 : 0,
+          transition: `opacity ${BACKGROUND_CROSSFADE_MS}ms ease-in-out`,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+        src={layer.src}
+      />
+    );
+  }, [activeSlideSetId, ensureBackgroundVideoLoop, slideshowVideoUrl]);
 
   return (
     <div
       className="app-container"
       style={{
         minHeight: '100vh',
-        background: activeBackground,
+        background: baseBackground,
         color: (previewTheme || theme).text || 'white',
         padding: '20px',
         paddingBottom: isMusicFooterVisible ? '72px' : '20px',
         fontFamily: 'system-ui',
-        transition: 'background 1s ease-in-out, color 0.3s ease-in-out',
+        transition: 'color 0.3s ease-in-out',
         position: 'relative',
         zIndex: 1,
         '--theme-opacity': themeOpacity
       }}
     >
-      {/* Video background layer — only when no image/slideshow is active */}
-      {videoBackgroundUrl && !effectiveBackgroundUrl && (
-        <video
-          key={videoBackgroundUrl}
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={{
-            position: 'fixed',
-            top: 0, left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-          src={videoBackgroundUrl}
-        />
-      )}
+      {renderBackgroundLayer(currentBackgroundLayer, 'background-current')}
+      {renderBackgroundLayer(incomingBackgroundLayer, 'background-incoming', true)}
 
       <ModalProvider theme={effectiveTheme}>
       <ToastProvider theme={effectiveTheme}>
@@ -2091,7 +2329,7 @@ export default function TimerApp() {
         @media (max-width: 600px) { .app-container { padding: 10px; } }
         
         /* Apply opacity to cards and elements */
-        .app-container > div {
+        .app-container > div:not(.app-background-layer) {
           opacity: var(--theme-opacity, 1);
           transition: opacity 0.3s ease-in-out;
         }
@@ -3201,7 +3439,9 @@ export default function TimerApp() {
           setSlideInterval={setSlideInterval}
           setSlideTransition={setSlideTransition}
           addImageToSet={addImageToSet}
+          addVideoToSet={addVideoToSet}
           removeImageFromSet={removeImageFromSet}
+          removeMediaItemFromSet={removeMediaItemFromSet}
           setActiveSlideSetId={setActiveSlideSetId}
           // Video background props
           selectedVideoId={selectedVideoId}

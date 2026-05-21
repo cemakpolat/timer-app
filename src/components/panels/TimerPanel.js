@@ -17,6 +17,33 @@ const TimerPanel = ({
   shareCurrentTimer
 }) => {
   const timerBorderRadius = (theme && (theme.timerBorderRadius !== undefined)) ? theme.timerBorderRadius : (theme && theme.borderRadius !== undefined ? theme.borderRadius : 12);
+
+  const handleHoursChange = (e) => {
+    const raw = e.target.value;
+    if (raw === '') {
+      setInputHours('');
+      return;
+    }
+
+    const parsed = parseInt(raw, 10);
+    if (!Number.isNaN(parsed)) {
+      setInputHours(Math.max(0, parsed));
+    }
+  };
+
+  const handleMinutesOrSecondsChange = (setter) => (e) => {
+    const raw = e.target.value;
+    if (raw === '') {
+      setter('');
+      return;
+    }
+
+    const parsed = parseInt(raw, 10);
+    if (!Number.isNaN(parsed)) {
+      setter(Math.max(0, Math.min(59, parsed)));
+    }
+  };
+
   const handleStartTimer = () => {
     const h = parseInt(inputHours) || 0;
     const m = parseInt(inputMinutes) || 0;
@@ -73,7 +100,7 @@ const TimerPanel = ({
             type="number"
             placeholder="HH"
             value={inputHours}
-            onChange={(e) => setInputHours(Math.max(0, parseInt(e.target.value) || 0))}
+            onChange={handleHoursChange}
             style={{
               width: '60px',
               textAlign: 'center',
@@ -91,7 +118,7 @@ const TimerPanel = ({
             type="number"
             placeholder="MM"
             value={inputMinutes}
-            onChange={(e) => setInputMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+            onChange={handleMinutesOrSecondsChange(setInputMinutes)}
             style={{
               width: '60px',
               textAlign: 'center',
@@ -109,7 +136,7 @@ const TimerPanel = ({
             type="number"
             placeholder="SS"
             value={inputSeconds}
-            onChange={(e) => setInputSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+            onChange={handleMinutesOrSecondsChange(setInputSeconds)}
             style={{
               width: '60px',
               textAlign: 'center',

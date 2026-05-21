@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Images, Plus, Trash2, ChevronDown, ChevronUp, Play, Square, Clock, Repeat } from 'lucide-react';
+import { Images, Plus, Trash2, ChevronDown, ChevronUp, Play, Square, Clock, Repeat, Film } from 'lucide-react';
 
 /**
- * SlideSetPanel - Manage named collections of background images for slideshow playback.
+ * SlideSetPanel - Manage named collections of background media for slideshow playback.
  *
  * Props:
  *   theme                 - current theme object
@@ -10,14 +10,17 @@ import { Images, Plus, Trash2, ChevronDown, ChevronUp, Play, Square, Clock, Repe
  *   slideSets             - array of slide set objects
  *   activeSlideSetId      - currently active slide set id (null = off)
  *   getAllBackgroundImages - fn() → array of { id, name, isBuiltIn, path }
+ *   getAllBackgroundVideos - fn() → array of { id, name }
  *   getBackgroundImageUrl - async fn(id) → url string
+ *   getBackgroundVideoUrl - async fn(id) → url string
  *   createSlideSet        - fn(name) → id
  *   deleteSlideSet        - fn(id)
  *   renameSlideSet        - fn(id, name)
  *   setSlideInterval      - fn(id, seconds)
  *   setSlideTransition    - fn(id, 'fade'|'instant')
  *   addImageToSet         - fn(setId, imageId)
- *   removeImageFromSet    - fn(setId, imageId)
+ *   addVideoToSet         - fn(setId, videoId)
+ *   removeMediaItemFromSet - fn(setId, mediaItemId)
  *   setActiveSlideSetId   - fn(id | null) — activates/deactivates slideshow
  */
 export default function SlideSetPanel({
@@ -26,41 +29,61 @@ export default function SlideSetPanel({
   slideSets,
   activeSlideSetId,
   getAllBackgroundImages,
+  getAllBackgroundVideos,
   getBackgroundImageUrl,
+  getBackgroundVideoUrl,
   createSlideSet,
   deleteSlideSet,
   renameSlideSet,
   setSlideInterval,
   setSlideTransition,
   addImageToSet,
-  removeImageFromSet,
+  addVideoToSet,
+  removeMediaItemFromSet,
   setActiveSlideSetId,
 }) {
   const [allImages, setAllImages] = useState([]);
+  const [allVideos, setAllVideos] = useState([]);
   const [imageUrls, setImageUrls] = useState({});
+  const [videoUrls, setVideoUrls] = useState({});
   const [expandedSetId, setExpandedSetId] = useState(null);
+  const [intervalDrafts, setIntervalDrafts] = useState({});
   const [newSetName, setNewSetName] = useState('');
   const [creatingSet, setCreatingSet] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
-  // Load all images and their thumbnail URLs
+  // Load all media and their preview URLs.
   useEffect(() => {
     const load = async () => {
       const images = getAllBackgroundImages().filter(img => img.id !== 'None');
+      const videos = (getAllBackgroundVideos ? getAllBackgroundVideos() : []).filter(video => video.id !== 'None');
       setAllImages(images);
+      setAllVideos(videos);
 
-      const urls = {};
+      const nextImageUrls = {};
       for (const img of images) {
         try {
           const url = await getBackgroundImageUrl(img.id);
-          if (url) urls[img.id] = url;
+          if (url) nextImageUrls[img.id] = url;
         } catch {}
       }
-      setImageUrls(urls);
+
+      const nextVideoUrls = {};
+      if (typeof getBackgroundVideoUrl === 'function') {
+        for (const video of videos) {
+          try {
+            const url = await getBackgroundVideoUrl(video.id);
+            if (url) nextVideoUrls[video.id] = url;
+          } catch {}
+        }
+      }
+
+      setImageUrls(nextImageUrls);
+      setVideoUrls(nextVideoUrls);
     };
     load();
-  }, [getAllBackgroundImages, getBackgroundImageUrl]);
+  }, [getAllBackgroundImages, getAllBackgroundVideos, getBackgroundImageUrl, getBackgroundVideoUrl]);
 
   const handleCreate = () => {
     if (!newSetName.trim()) return;
@@ -96,6 +119,54 @@ export default function SlideSetPanel({
     gap: 4,
     transition: 'opacity 0.2s',
   });
+
+  const renderMediaTile = (mediaItem, options = {}) => {
+    const isImage = mediaItem.type === 'image';
+    const previewUrl = isImage ? imageUrls[mediaItem.assetId] : videoUrls[mediaItem.assetId];
+    const fallbackLabel = options.label || mediaItem.assetId.slice(0, 4);
+
+    if (isImage && previewUrl) {
+      return <img src={previewUrl} alt={options.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+    }
+
+    if (!isImage && previewUrl) {
+      return (
+        <video
+          src={previewUrl}
+          muted
+          playsInline
+          loop
+          autoPlay
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      );
+    }
+
+    return (
+      <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 9 }}>
+        {isImage ? <Images size={14} /> : <Film size={14} />}
+        <span>{fallbackLabel}</span>
+      </div>
+    );
+  };
+
+  const commitIntervalDraft = (setId) => {
+    const rawDraft = intervalDrafts[setId];
+    if (rawDraft === undefined) {
+      return;
+    }
+
+    const normalized = String(rawDraft).trim();
+    if (normalized !== '') {
+      setSlideInterval(setId, normalized);
+    }
+
+    setIntervalDrafts((prev) => {
+      const next = { ...prev };
+      delete next[setId];
+      return next;
+    });
+  };
 
   return (
     <div style={{ width: '100%' }}>
@@ -142,7 +213,7 @@ export default function SlideSetPanel({
       {slideSets.length === 0 && !creatingSet && (
         <div style={{ textAlign: 'center', padding: '28px 0', color: getTextOpacity(theme, 0.4), fontSize: 13 }}>
           No slide sets yet.<br />
-          <span style={{ fontSize: 12 }}>Create one and add your background images.</span>
+          <span style={{ fontSize: 12 }}>Create one and add background images or videos.</span>
         </div>
       )}
 
@@ -189,7 +260,7 @@ export default function SlideSetPanel({
                 >
                   {set.name}
                   <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.5, marginLeft: 6 }}>
-                    {set.imageIds.length} image{set.imageIds.length !== 1 ? 's' : ''}
+                    {set.mediaItems.length} item{set.mediaItems.length !== 1 ? 's' : ''}
                   </span>
                 </span>
               )}
@@ -198,8 +269,8 @@ export default function SlideSetPanel({
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                 {/* Play / Stop */}
                 <button
-                  style={{ ...btnStyle(isActive), opacity: set.imageIds.length === 0 ? 0.4 : 1 }}
-                  disabled={set.imageIds.length === 0}
+                  style={{ ...btnStyle(isActive), opacity: set.mediaItems.length === 0 ? 0.4 : 1 }}
+                  disabled={set.mediaItems.length === 0}
                   onClick={() => handleToggleActive(set.id)}
                   title={isActive ? 'Stop slideshow' : 'Start slideshow'}
                 >
@@ -228,19 +299,36 @@ export default function SlideSetPanel({
               </div>
             </div>
 
-            {/* Expanded settings + image picker */}
+            {/* Expanded settings + media picker */}
             {isExpanded && (
               <div style={{ padding: '0 12px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 {/* Interval + transition controls */}
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 0', flexWrap: 'wrap' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
-                    <Clock size={13} /> Interval
+                    <Clock size={13} /> Image Interval
                     <input
                       type="number"
                       min={1}
                       max={60}
-                      value={set.intervalSec}
-                      onChange={e => setSlideInterval(set.id, e.target.value)}
+                      value={intervalDrafts[set.id] ?? String(set.intervalSec ?? '')}
+                      onChange={(e) => {
+                        setIntervalDrafts((prev) => ({ ...prev, [set.id]: e.target.value }));
+                      }}
+                      onBlur={() => commitIntervalDraft(set.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          commitIntervalDraft(set.id);
+                          e.currentTarget.blur();
+                        }
+                        if (e.key === 'Escape') {
+                          setIntervalDrafts((prev) => {
+                            const next = { ...prev };
+                            delete next[set.id];
+                            return next;
+                          });
+                          e.currentTarget.blur();
+                        }
+                      }}
                       style={{
                         width: 48, background: 'rgba(255,255,255,0.08)',
                         border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
@@ -249,11 +337,14 @@ export default function SlideSetPanel({
                     />
                     <span style={{ opacity: 0.5, fontSize: 11 }}>sec</span>
                   </label>
+                  <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.45) }}>
+                    Videos play fully, then advance to the next item.
+                  </span>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
                     <Repeat size={13} /> Transition
                     <select
-                      value={set.transition}
+                      value={set.transition || 'fade'}
                       onChange={e => setSlideTransition(set.id, e.target.value)}
                       style={{
                         background: 'rgba(255,255,255,0.08)',
@@ -268,24 +359,21 @@ export default function SlideSetPanel({
                   </label>
                 </div>
 
-                {/* Images in this set */}
-                {set.imageIds.length > 0 && (
+                {/* Media in this set */}
+                {set.mediaItems.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       In this set
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {set.imageIds.map(imgId => (
+                      {set.mediaItems.map((mediaItem) => (
                         <div
-                          key={imgId}
+                          key={mediaItem.id}
                           style={{ position: 'relative', width: 52, height: 52, borderRadius: 6, overflow: 'hidden', cursor: 'pointer' }}
                           title="Click to remove"
-                          onClick={() => removeImageFromSet(set.id, imgId)}
+                          onClick={() => removeMediaItemFromSet(set.id, mediaItem.id)}
                         >
-                          {imageUrls[imgId]
-                            ? <img src={imageUrls[imgId]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>?</div>
-                          }
+                          {renderMediaTile(mediaItem)}
                           {/* Remove overlay */}
                           <div style={{
                             position: 'absolute', inset: 0, background: 'rgba(239,68,68,0.7)',
@@ -311,7 +399,7 @@ export default function SlideSetPanel({
                   <div style={{ fontSize: 12, opacity: 0.4 }}>Upload background images first to add them here.</div>
                 ) : (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 140, overflowY: 'auto' }}>
-                    {allImages.filter(img => !set.imageIds.includes(img.id)).map(img => (
+                    {allImages.filter(img => !set.mediaItems.some(item => item.type === 'image' && item.assetId === img.id)).map(img => (
                       <div
                         key={img.id}
                         onClick={() => addImageToSet(set.id, img.id)}
@@ -320,10 +408,39 @@ export default function SlideSetPanel({
                         onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                         onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
                       >
-                        {imageUrls[img.id]
-                          ? <img src={imageUrls[img.id]} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>{img.name.slice(0, 4)}</div>
-                        }
+                        {renderMediaTile({ type: 'image', assetId: img.id }, { alt: img.name, label: img.name.slice(0, 4) })}
+                        <div style={{
+                          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          opacity: 0, transition: 'opacity 0.2s',
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                        >
+                          <Plus size={16} color="#fff" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ fontSize: 11, opacity: 0.5, margin: '10px 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Add videos
+                </div>
+                {allVideos.length === 0 ? (
+                  <div style={{ fontSize: 12, opacity: 0.4 }}>Upload background videos first to add them here.</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 140, overflowY: 'auto' }}>
+                    {allVideos.filter(video => !set.mediaItems.some(item => item.type === 'video' && item.assetId === video.id)).map(video => (
+                      <div
+                        key={video.id}
+                        onClick={() => addVideoToSet(set.id, video.id)}
+                        title={`Add "${video.name}"`}
+                        style={{ position: 'relative', width: 52, height: 52, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+                      >
+                        {renderMediaTile({ type: 'video', assetId: video.id }, { alt: video.name, label: video.name.slice(0, 4) })}
                         <div style={{
                           position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
