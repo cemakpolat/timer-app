@@ -14,6 +14,12 @@ import {
 const MAX_VIDEO_SIZE = 52_428_800; // 50 MB
 const ACCEPTED_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
 const LOCAL_VIDEO_FOLDER_KEY = 'videos-folder';
+const BUILT_IN_BACKGROUND_VIDEOS = [
+  { id: 'builtin_cloud', name: 'Cloud', url: '/videos/cloud.mp4', isBuiltIn: true },
+  { id: 'builtin_fire', name: 'Fire', url: '/videos/fire.mp4', isBuiltIn: true },
+  { id: 'builtin_mistic', name: 'Mistic', url: '/videos/mistic.mp4', isBuiltIn: true },
+  { id: 'builtin_sunset', name: 'Sunset', url: '/videos/sunset.mp4', isBuiltIn: true },
+];
 
 function createVideoFolderSource(directoryHandle) {
   return createLocalFolderSource(directoryHandle, ['video'], {
@@ -130,7 +136,8 @@ const useBackgroundVideos = () => {
     }
 
     const selectedExists = customBackgroundVideos.some((video) => video.id === selectedVideoId)
-      || remoteBackgroundVideos.some((video) => video.id === selectedVideoId);
+      || remoteBackgroundVideos.some((video) => video.id === selectedVideoId)
+      || BUILT_IN_BACKGROUND_VIDEOS.some((video) => video.id === selectedVideoId);
 
     if (!selectedExists) {
       setSelectedVideoId('None');
@@ -140,6 +147,12 @@ const useBackgroundVideos = () => {
   const getAllBackgroundVideos = useCallback(() => {
     return [
       { id: 'None', name: 'None', size: 0 },
+      ...BUILT_IN_BACKGROUND_VIDEOS.map((video) => ({
+        id: video.id,
+        name: video.name,
+        size: 0,
+        isBuiltIn: true,
+      })),
       ...customBackgroundVideos,
       ...remoteBackgroundVideos.map((video) => ({
         id: video.id,
@@ -179,6 +192,11 @@ const useBackgroundVideos = () => {
     const remoteVideo = remoteBackgroundVideos.find((video) => video.id === id);
     if (remoteVideo) {
       return remoteVideo.url;
+    }
+
+    const builtInVideo = BUILT_IN_BACKGROUND_VIDEOS.find((video) => video.id === id);
+    if (builtInVideo) {
+      return builtInVideo.url;
     }
 
     return null;
