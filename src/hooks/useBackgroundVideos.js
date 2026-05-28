@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { deleteLocalMediaSourceHandle, getLocalMediaSourceHandle, saveLocalMediaSourceHandle } from '../services/localMediaLibraryService';
 import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
 import {
   addRemoteMediaSource as persistRemoteMediaSource,
+  createLocalFolderSource,
   deleteRemoteMediaSource as removePersistedRemoteMediaSource,
   filterSourcesByAssetType,
   getRemoteMediaSources,
@@ -11,6 +13,15 @@ import {
 
 const MAX_VIDEO_SIZE = 52_428_800; // 50 MB
 const ACCEPTED_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
+const LOCAL_VIDEO_FOLDER_KEY = 'videos-folder';
+
+function createVideoFolderSource(directoryHandle) {
+  return createLocalFolderSource(directoryHandle, ['video'], {
+    id: LOCAL_VIDEO_FOLDER_KEY,
+    directoryHandleKey: LOCAL_VIDEO_FOLDER_KEY,
+    name: directoryHandle?.name ? `${directoryHandle.name} videos` : 'Videos',
+  });
+}
 
 const useBackgroundVideos = () => {
   const fileStorageRef = useRef(new Map()); // id → { url, blob }
@@ -49,6 +60,26 @@ const useBackgroundVideos = () => {
   const [remoteBackgroundVideoSources, setRemoteBackgroundVideoSources] = useState([]);
   const [remoteBackgroundVideoSourceStatuses, setRemoteBackgroundVideoSourceStatuses] = useState([]);
 
+  const restoreLocalVideoFolderSource = useCallback(async () => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const sources = getRemoteMediaSources();
+    if (sources.some((source) => source.provider === 'local-folder' && source.assetTypes?.includes('video'))) {
+      return null;
+    }
+
+    const directoryHandle = await getLocalMediaSourceHandle(LOCAL_VIDEO_FOLDER_KEY);
+    if (!directoryHandle) {
+      return null;
+    }
+
+    const source = createVideoFolderSource(directoryHandle);
+    persistRemoteMediaSource(source);
+    return source;
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('selectedVideoId', selectedVideoId);
   }, [selectedVideoId]);
@@ -74,8 +105,9 @@ const useBackgroundVideos = () => {
   }, []);
 
   useEffect(() => {
+    restoreLocalVideoFolderSource();
     refreshRemoteBackgroundVideos();
-  }, [refreshRemoteBackgroundVideos]);
+  }, [refreshRemoteBackgroundVideos, restoreLocalVideoFolderSource]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -115,7 +147,8 @@ const useBackgroundVideos = () => {
         size: video.bytes || 0,
         mimeType: video.mimeType,
         duration: video.duration,
-        isRemote: true,
+        isRemote: video.isRemote === true,
+        isLocal: video.isLocal === true,
         sourceId: video.sourceId,
         sourceName: video.sourceName,
         provider: video.provider,
@@ -249,15 +282,28 @@ const useBackgroundVideos = () => {
     const selectedSourceMatch = remoteBackgroundVideos.some(
       (video) => video.sourceId === sourceId && video.id === selectedVideoId
     );
+    const sourceToDelete = remoteBackgroundVideoSources.find((source) => source.id === sourceId);
 
     removePersistedRemoteMediaSource(sourceId);
+    if (sourceToDelete?.provider === 'local-folder') {
+      await deleteLocalMediaSourceHandle(sourceToDelete.directoryHandleKey || sourceToDelete.id);
+    }
     if (selectedSourceMatch) {
       setSelectedVideoId('None');
     }
 
     await refreshRemoteBackgroundVideos();
     return true;
-  }, [remoteBackgroundVideos, refreshRemoteBackgroundVideos, selectedVideoId]);
+  }, [remoteBackgroundVideoSources, remoteBackgroundVideos, refreshRemoteBackgroundVideos, selectedVideoId]);
+
+  const addLocalVideoSource = useCallback(async (directoryHandle) => {
+    const source = createVideoFolderSource(directoryHandle);
+
+    await saveLocalMediaSourceHandle(source.directoryHandleKey || source.id, directoryHandle);
+    persistRemoteMediaSource(source);
+    await refreshRemoteBackgroundVideos();
+    return source;
+  }, [refreshRemoteBackgroundVideos]);
 
   return {
     selectedVideoId,
@@ -271,6 +317,7 @@ const useBackgroundVideos = () => {
     uploadBackgroundVideo,
     deleteBackgroundVideo,
     addRemoteBackgroundVideoSource,
+    addLocalVideoSource,
     deleteRemoteBackgroundVideoSource,
     refreshRemoteBackgroundVideos,
   };

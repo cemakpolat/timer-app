@@ -1,15 +1,26 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Play, Pause, RotateCcw, Clock, Zap, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, ChevronUp, ChevronDown, Users, ListChecks } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
 import { ToastProvider } from './context/ToastContext';
-import RealtimeServiceFactory from './services/RealtimeServiceFactory';
 import usePresence from './hooks/usePresence';
 import useFocusRoom from './hooks/useFocusRoom';
 import useBackgroundImages from './hooks/useBackgroundImages';
 import useSlideSets from './hooks/useSlideSets';
 import useBackgroundVideos from './hooks/useBackgroundVideos';
 import useBreakReminders from './hooks/useBreakReminders';
+import useMusicLibrary from './hooks/useMusicLibrary';
+import useMusicPlayerState from './hooks/useMusicPlayerState';
+import useRealtimeServiceReady from './hooks/useRealtimeServiceReady';
+import useRoomFlow from './hooks/useRoomFlow';
+import useThemeManager from './hooks/useThemeManager';
+import useBackgroundTransitionLayers from './hooks/useBackgroundTransitionLayers';
+import useCompletionTracking from './hooks/useCompletionTracking';
+import useAppDataManagement from './hooks/useAppDataManagement';
+import useTimerLogic from './hooks/useTimerLogic';
+import useTimerLibraryManagement from './hooks/useTimerLibraryManagement';
+import useTimerCompletionFlow from './hooks/useTimerCompletionFlow';
+import usePersistentAppState from './hooks/usePersistentAppState';
 import { useNotifications } from './hooks/useNotifications';
 import { performMigration, migrateLegacySavedTimers } from './services/migrationService';
 import CreateRoomModal from './components/FocusRooms/CreateRoomModal';
@@ -29,7 +40,6 @@ import { useSound } from './hooks/useSound';
 import shareService from './services/shareService';
 import useSettings from './hooks/useSettings';
 import WeatherEffect from './components/WeatherEffect';
-import { saveCustomTimer } from './services/timerService';
 import {
   CompactTimerVisualization,
   MinimalTimerVisualization,
@@ -38,7 +48,6 @@ import {
 } from './components/TimerVisualizations';
 
 const BACKGROUND_CROSSFADE_MS = 480;
-const EMPTY_BACKGROUND_LAYER = { type: 'none', src: '', assetId: null, visible: false };
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -48,35 +57,26 @@ const RoutinesPanel = lazy(() => import('./components/panels/RoutinesPanel'));
 
 // Utility function to calculate relative luminance of a color
 const getLuminance = (hexColor) => {
-  // Convert hex to RGB
   const hex = hexColor.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16) / 255;
   const g = parseInt(hex.substr(2, 2), 16) / 255;
   const b = parseInt(hex.substr(4, 2), 16) / 255;
 
-  // Apply gamma correction
-  const [rs, gs, bs] = [r, g, b].map(c =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-  );
+  const [rs, gs, bs] = [r, g, b].map((color) => (
+    color <= 0.03928 ? color / 12.92 : Math.pow((color + 0.055) / 1.055, 2.4)
+  ));
 
-  // Calculate relative luminance
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 };
 
-// Determine if a color is light (returns true for light colors)
-const isLightColor = (hexColor) => {
-  return getLuminance(hexColor) > 0.5;
-};
+const isLightColor = (hexColor) => getLuminance(hexColor) > 0.5;
 
-// Get contrasting text color for a given background
 const getContrastColor = (bgColor) => {
   return isLightColor(bgColor) ? '#000000' : '#ffffff';
 };
 
-// Get semi-transparent text color based on theme
 const getTextOpacity = (theme, opacity = 0.7) => {
   const baseColor = theme.text || (isLightColor(theme.bg) ? '#000000' : '#ffffff');
-  // Convert hex to rgba
   const hex = baseColor.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16);
   const g = parseInt(hex.substr(2, 2), 16);
@@ -85,7 +85,7 @@ const getTextOpacity = (theme, opacity = 0.7) => {
 };
 
 // Use themes from constants with isDefault flag
-const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
+const DEFAULT_THEMES = IMPORTED_THEMES.map((theme) => ({
   ...theme,
   text: theme.text || '#ffffff',
   isDefault: true
@@ -93,134 +93,99 @@ const DEFAULT_THEMES = IMPORTED_THEMES.map(theme => ({
 
 // Immersive scenes for different timer types
 const SCENES = {
-  none: { name: "None", bg: null, card: null, emoji: "🚫" },
+  none: { name: 'None', bg: null, card: null, emoji: '🚫' },
   coffee: {
-    name: "Coffee Break",
-    bg: "linear-gradient(135deg, #6F4E37 0%, #4A342B 50%, #2D1F1A 100%)",
-    card: "rgba(111, 78, 55, 0.3)",
-    accent: "#D2691E",
-    emoji: "☕",
-    description: "Warm brown tones for your coffee break"
+    name: 'Coffee Break',
+    bg: 'linear-gradient(135deg, #6F4E37 0%, #4A342B 50%, #2D1F1A 100%)',
+    card: 'rgba(111, 78, 55, 0.3)',
+    accent: '#D2691E',
+    emoji: '☕',
+    description: 'Warm brown tones for your coffee break'
   },
   deepWork: {
-    name: "Deep Work",
-    bg: "linear-gradient(135deg, #1a0033 0%, #0a001a 50%, #000000 100%)",
-    card: "rgba(74, 0, 128, 0.3)",
-    accent: "#9333ea",
-    emoji: "🧠",
-    description: "Deep purple focus environment"
+    name: 'Deep Work',
+    bg: 'linear-gradient(135deg, #1a0033 0%, #0a001a 50%, #000000 100%)',
+    card: 'rgba(74, 0, 128, 0.3)',
+    accent: '#9333ea',
+    emoji: '🧠',
+    description: 'Deep purple focus environment'
   },
   exercise: {
-    name: "Exercise",
-    bg: "linear-gradient(135deg, #DC143C 0%, #8B0000 50%, #4B0000 100%)",
-    card: "rgba(220, 20, 60, 0.3)",
-    accent: "#FF6B6B",
-    emoji: "💪",
-    description: "Energizing red for physical activity"
+    name: 'Exercise',
+    bg: 'linear-gradient(135deg, #DC143C 0%, #8B0000 50%, #4B0000 100%)',
+    card: 'rgba(220, 20, 60, 0.3)',
+    accent: '#FF6B6B',
+    emoji: '💪',
+    description: 'Energizing red for physical activity'
   },
   reading: {
-    name: "Reading",
-    bg: "linear-gradient(135deg, #2C5F2D 0%, #1B4332 50%, #081C15 100%)",
-    card: "rgba(44, 95, 45, 0.3)",
-    accent: "#52B788",
-    emoji: "📚",
-    description: "Calm green for focused reading"
+    name: 'Reading',
+    bg: 'linear-gradient(135deg, #2C5F2D 0%, #1B4332 50%, #081C15 100%)',
+    card: 'rgba(44, 95, 45, 0.3)',
+    accent: '#52B788',
+    emoji: '📚',
+    description: 'Calm green for focused reading'
   },
   meditation: {
-    name: "Meditation",
-    bg: "linear-gradient(135deg, #4A5568 0%, #2D3748 50%, #1A202C 100%)",
-    card: "rgba(74, 85, 104, 0.3)",
-    accent: "#90CDF4",
-    emoji: "🧘",
-    description: "Peaceful grey for mindfulness"
+    name: 'Meditation',
+    bg: 'linear-gradient(135deg, #4A5568 0%, #2D3748 50%, #1A202C 100%)',
+    card: 'rgba(74, 85, 104, 0.3)',
+    accent: '#90CDF4',
+    emoji: '🧘',
+    description: 'Peaceful grey for mindfulness'
   },
   creative: {
-    name: "Creative Work",
-    bg: "linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FDC830 100%)",
-    card: "rgba(255, 107, 53, 0.3)",
-    accent: "#F7931E",
-    emoji: "🎨",
-    description: "Vibrant orange for creativity"
+    name: 'Creative Work',
+    bg: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FDC830 100%)',
+    card: 'rgba(255, 107, 53, 0.3)',
+    accent: '#F7931E',
+    emoji: '🎨',
+    description: 'Vibrant orange for creativity'
   },
   study: {
-    name: "Study Session",
-    bg: "linear-gradient(135deg, #1E3A8A 0%, #1E40AF 50%, #3B82F6 100%)",
-    card: "rgba(30, 58, 138, 0.3)",
-    accent: "#60A5FA",
-    emoji: "📖",
-    description: "Blue tones for concentration"
+    name: 'Study Session',
+    bg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 50%, #3B82F6 100%)',
+    card: 'rgba(30, 58, 138, 0.3)',
+    accent: '#60A5FA',
+    emoji: '📖',
+    description: 'Blue tones for concentration'
   },
   meeting: {
-    name: "Meeting",
-    bg: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)",
-    card: "rgba(124, 58, 237, 0.3)",
-    accent: "#A78BFA",
-    emoji: "👥",
-    description: "Professional purple for meetings"
+    name: 'Meeting',
+    bg: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%)',
+    card: 'rgba(124, 58, 237, 0.3)',
+    accent: '#A78BFA',
+    emoji: '👥',
+    description: 'Professional purple for meetings'
   }
 };
 
 // Initial default timers for local storage
 const defaultSavedTimers = [
-  { name: "Pomodoro", duration: 25, unit: "min", min: 25, color: "#ef4444", group: "Work", scene: "deepWork" },
-  { name: "Short Break", duration: 5, unit: "min", min: 5, color: "#10b981", group: "Work", scene: "coffee" },
-  { name: "Deep Work", duration: 50, unit: "min", min: 50, color: "#8b5cf6", group: "Work", scene: "deepWork" },
-  { name: "Routine", duration: 30, unit: "min", min: 30, color: "#f59e0b", group: "Fitness", scene: "exercise" }
+  { name: 'Pomodoro', duration: 25, unit: 'min', min: 25, color: '#ef4444', group: 'Work', scene: 'deepWork' },
+  { name: 'Short Break', duration: 5, unit: 'min', min: 5, color: '#10b981', group: 'Work', scene: 'coffee' },
+  { name: 'Deep Work', duration: 50, unit: 'min', min: 50, color: '#8b5cf6', group: 'Work', scene: 'deepWork' },
+  { name: 'Routine', duration: 30, unit: 'min', min: 30, color: '#f59e0b', group: 'Fitness', scene: 'exercise' }
 ];
 
 // Centralized styles for inputs for consistency and easier modification
 const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,255,255,0.1)', borderRadius = 0) => ({
-    width: '100%',
-    background: 'rgba(255,255,255,0.05)',
-    border: `1px solid ${borderColor}`,
-    borderRadius: borderRadius,
-    padding: 12,
-    color: textColor,
-    fontSize: 14,
-    boxSizing: 'border-box', // Ensure padding doesn't add to total width
+  width: '100%',
+  background: 'rgba(255,255,255,0.05)',
+  border: `1px solid ${borderColor}`,
+  borderRadius: borderRadius,
+  padding: 12,
+  color: textColor,
+  fontSize: 14,
+  boxSizing: 'border-box',
 });
 
 // accentInputStyle removed (unused) to satisfy lint rules
 
-
 export default function TimerApp() {
-  // Track if service is ready
-  const [serviceReady, setServiceReady] = useState(false);
-  const [isMusicFooterVisible, setIsMusicFooterVisible] = useState(false);
-
-  // Sync music footer visibility with Header's play state
-  useEffect(() => {
-    const handler = (e) => setIsMusicFooterVisible(e.detail.isPlaying);
-    window.addEventListener('music-player-state', handler);
-    return () => window.removeEventListener('music-player-state', handler);
-  }, []);
-
-  // Do not initialize realtime service on page load.
-  // Firebase connection will be created on-demand when the user creates or joins a focus room.
-  // eslint-disable-next-line react-hooks/exhaustive-deps, no-use-before-define
-  useEffect(() => {
-    // Subscribe to factory init events so we know when the realtime service becomes available
-    if (RealtimeServiceFactory.getServiceSafe()) {
-      setServiceReady(true);
-    }
-
-    const onInit = () => setServiceReady(true);
-    RealtimeServiceFactory.onInit(onInit);
-    // Show a toast when the realtime factory reports an error during init
-    const onError = (err) => {
-      const msg = err && err.message ? `Realtime init failed: ${err.message}` : 'Realtime init failed';
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 5000 } }));
-    };
-    RealtimeServiceFactory.onError(onError);
-
-    return () => {
-      RealtimeServiceFactory.offInit(onInit);
-      RealtimeServiceFactory.offError(onError);
-      // Removed resetService() call to prevent disconnecting service during development
-      // or React StrictMode double-mounting. Service will disconnect naturally on page unload.
-      setServiceReady(false);
-    };
-  }, []);
+  // Track realtime service readiness and music footer visibility via shared hooks.
+  const serviceReady = useRealtimeServiceReady();
+  const { isPlaying: isMusicFooterVisible } = useMusicPlayerState();
 
   // Use real presence hook (only when service is ready)
   const { activeUsers: realActiveUsers } = usePresence({
@@ -248,278 +213,42 @@ export default function TimerApp() {
     isRoomFull
   } = useFocusRoom();
 
-  const [showRoomSettings, setShowRoomSettings] = useState(false);
-  const handleSaveRoomSettings = async (updates) => {
-    if (!currentRoom) return;
-    try {
-      await updateRoomSettings(currentRoom.id, updates);
-      // Refresh room list so list view reflects settings change
-      await fetchRooms();
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room settings saved', type: 'success', ttl: 3000 } }));
-    } catch (err) {
-      showRealtimeErrorToast(err, 'Save settings');
-      throw err;
-    } finally {
-      setShowRoomSettings(false);
-    }
-  };
-  
-
-
   // Force re-render for room timer countdown
   const [, forceUpdate] = useState(0);
-  const [showRoomExpirationModal, setShowRoomExpirationModal] = useState(false);
-  const [timerExpired, setTimerExpired] = useState(false);
-
-  // Handle timer extension
-  const handleExtendTimer = async (extensionMs) => {
-    try {
-      await extendRoomTimer(extensionMs);
-      setTimerExpired(false); // Reset expiration state
-      setShowRoomExpirationModal(false);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Timer extended successfully', type: 'success', ttl: 3000 } }));
-    } catch (err) {
-      console.error('Failed to extend timer:', err);
-      showRealtimeErrorToast(err, 'Extend timer');
-    }
-  };
-
-  // Handle room close (from expiration modal)
-  const handleCloseRoom = async () => {
-    try {
-      setShowRoomExpirationModal(false);
-      await leaveRoom();
-      setTimerExpired(false);
-    } catch (err) {
-      console.error('Failed to close room:', err);
-      showRealtimeErrorToast(err, 'Close room');
-    }
-  };
-
-  // Load deleted default themes from localStorage
-  const [deletedDefaultThemes, setDeletedDefaultThemes] = useState(() => {
-    try {
-      const stored = localStorage.getItem('deletedDefaultThemes');
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Failed to load deleted default themes:", error);
-      return [];
-    }
-  });
-
-  // Load themes from localStorage (default + custom)
-  const [themes, setThemes] = useState(() => {
-    try {
-      const storedCustomThemes = localStorage.getItem('customThemes');
-      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-      const availableDefaultThemes = DEFAULT_THEMES.filter(t => !deletedDefaultThemes.includes(t.name));
-      return [...availableDefaultThemes, ...customThemes];
-    } catch (error) {
-      console.error("Failed to load custom themes:", error);
-      return DEFAULT_THEMES;
-    }
-  });
-
-  // Load initial theme from localStorage
-  const [theme, setTheme] = useState(() => {
-    try {
-      const storedThemeName = localStorage.getItem('selectedThemeName');
-      return storedThemeName ? themes.find(t => t.name === storedThemeName) || themes[0] : themes[0];
-    } catch (error) {
-      console.error("Failed to load theme from localStorage:", error);
-      return themes[0];
-    }
-  });
-  
-  // Load custom border radius from localStorage
-  const [customBorderRadius, setCustomBorderRadius] = useState(() => {
-    try {
-      const stored = localStorage.getItem('customBorderRadius');
-      return stored !== null ? parseInt(stored) : null;
-    } catch (error) {
-      console.error('Failed to load customBorderRadius:', error);
-      return null;
-    }
-  });
-
-  // Load theme opacity from localStorage
-  const [themeOpacity, setThemeOpacity] = useState(() => {
-    try {
-      const stored = localStorage.getItem('themeOpacity');
-      return stored !== null ? parseFloat(stored) : 1;
-    } catch (error) {
-      console.error('Failed to load themeOpacity:', error);
-      return 1;
-    }
-  });
-
-  // Persist custom border radius to localStorage
-  useEffect(() => {
-    if (customBorderRadius !== null) {
-      localStorage.setItem('customBorderRadius', customBorderRadius.toString());
-    } else {
-      localStorage.removeItem('customBorderRadius');
-    }
-  }, [customBorderRadius]);
-
-  // Keep the active `theme` object in sync with `customBorderRadius` so
-  // components that read `theme.borderRadius` (not `effectiveTheme`) update
-  // immediately when the settings slider changes.
-  useEffect(() => {
-    if (customBorderRadius !== null) {
-      setTheme(prev => prev && prev.borderRadius === customBorderRadius ? prev : { ...prev, borderRadius: customBorderRadius });
-    } else {
-      // If the user cleared the custom override, restore the theme's original
-      // borderRadius value from the themes array (if available).
-      try {
-        const original = themes.find(t => t.name === theme?.name);
-        if (original) setTheme(original);
-      } catch (err) {
-        // ignore
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customBorderRadius]);
-
-  // When the selected theme changes, reapply customBorderRadius if present
-  useEffect(() => {
-    if (customBorderRadius !== null && theme) {
-      setTheme(prev => ({ ...prev, borderRadius: customBorderRadius }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme?.name]);
-
-  // Persist theme opacity to localStorage
-  useEffect(() => {
-    localStorage.setItem('themeOpacity', themeOpacity.toString());
-  }, [themeOpacity]);
-
-  // Get effective theme with custom border radius
-  const effectiveTheme = useMemo(() => {
-    return {
-      ...theme,
-      borderRadius: customBorderRadius !== null ? customBorderRadius : (theme.borderRadius !== undefined ? theme.borderRadius : 12)
-    };
-  }, [theme, customBorderRadius]);
-
-  const [, setShowThemes] = useState(false);
-  // eslint-disable-next-line no-unused-vars
-  const [previewTheme, setPreviewTheme] = useState(null);
+  const {
+    themes,
+    setThemes,
+    theme,
+    setTheme,
+    customBorderRadius,
+    setCustomBorderRadius,
+    themeOpacity,
+    setThemeOpacity,
+    effectiveTheme,
+    setShowThemes,
+    previewTheme,
+    showColorPicker,
+    setShowColorPicker,
+    editingTheme,
+    setEditingTheme,
+    newThemeName,
+    setNewThemeName,
+    newThemeBg,
+    setNewThemeBg,
+    newThemeCard,
+    setNewThemeCard,
+    newThemeAccent,
+    setNewThemeAccent,
+    newThemeText,
+    setNewThemeText,
+    showDeleteThemeModal,
+    setShowDeleteThemeModal,
+    themeToDelete,
+    setThemeToDelete,
+    saveCustomTheme,
+    deleteTheme,
+  } = useThemeManager(DEFAULT_THEMES);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-
-  // Save custom theme function
-  const saveCustomTheme = () => {
-    if (!newThemeName.trim()) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Please enter a theme name', type: 'error', ttl: 3000 } }));
-      return;
-    }
-
-    const themeData = {
-      name: newThemeName.trim(),
-      bg: newThemeBg,
-      card: newThemeCard,
-      accent: newThemeAccent,
-      text: newThemeText,
-      isDefault: false
-    };
-
-    try {
-      const storedCustomThemes = localStorage.getItem('customThemes');
-      const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-
-      if (editingTheme) {
-        // Editing existing theme
-        const index = customThemes.findIndex(t => t.name === editingTheme.name);
-        if (index !== -1) {
-          // If name changed, check for duplicates
-          if (editingTheme.name !== themeData.name && customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
-            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
-            return;
-          }
-          customThemes[index] = themeData;
-          localStorage.setItem('customThemes', JSON.stringify(customThemes));
-
-          // Update themes state
-          setThemes(prev => prev.map(t => t.name === editingTheme.name ? themeData : t));
-
-          // If currently selected theme was edited, update it
-          if (theme.name === editingTheme.name) {
-            setTheme(themeData);
-            localStorage.setItem('selectedThemeName', themeData.name);
-          }
-
-          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme updated!', type: 'success', ttl: 3000 } }));
-        }
-      } else {
-        // Creating new theme
-        // Check if theme name already exists
-        if (customThemes.some(t => t.name.toLowerCase() === themeData.name.toLowerCase())) {
-          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme name already exists', type: 'error', ttl: 3000 } }));
-          return;
-        }
-
-        customThemes.push(themeData);
-        localStorage.setItem('customThemes', JSON.stringify(customThemes));
-
-        // Update themes state
-        setThemes(prev => [...prev, themeData]);
-
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Custom theme saved!', type: 'success', ttl: 3000 } }));
-      }
-
-      // Reset form
-      setNewThemeName('');
-      setNewThemeBg('#000000');
-      setNewThemeCard('#1a1a1a');
-      setNewThemeAccent('#3b82f6');
-      setNewThemeText('#ffffff');
-      setShowColorPicker(false);
-      setEditingTheme(null);
-    } catch (error) {
-      console.error('Error saving custom theme:', error);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save theme', type: 'error', ttl: 3000 } }));
-    }
-  };
-
-  // Delete theme function
-  const deleteTheme = (themeToDelete) => {
-    try {
-      if (themeToDelete.isDefault) {
-        // For default themes, add to deleted list
-        const updatedDeleted = [...deletedDefaultThemes, themeToDelete.name];
-        setDeletedDefaultThemes(updatedDeleted);
-        localStorage.setItem('deletedDefaultThemes', JSON.stringify(updatedDeleted));
-
-        // Update themes state to remove the deleted default theme
-        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
-      } else {
-        // For custom themes, remove from localStorage
-        const storedCustomThemes = localStorage.getItem('customThemes');
-        const customThemes = storedCustomThemes ? JSON.parse(storedCustomThemes) : [];
-
-        const updatedThemes = customThemes.filter(t => t.name !== themeToDelete.name);
-        localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
-
-        // Update themes state
-        setThemes(prev => prev.filter(t => t.name !== themeToDelete.name));
-      }
-
-      // If the deleted theme was the current theme, switch to Midnight
-      if (theme.name === themeToDelete.name) {
-        const midnight = themes.find(t => t.name === 'Midnight') || DEFAULT_THEMES[0];
-        setTheme(midnight);
-        localStorage.setItem('selectedThemeName', midnight.name);
-      }
-
-      setShowDeleteThemeModal(false);
-      setThemeToDelete(null);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Theme deleted!', type: 'success', ttl: 3000 } }));
-    } catch (error) {
-      console.error('Error deleting theme:', error);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to delete theme', type: 'error', ttl: 3000 } }));
-    }
-  };
-
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showWorldClocks, setShowWorldClocks] = useState(false);
 
@@ -530,17 +259,6 @@ export default function TimerApp() {
 
   // Ref for settings panel to handle click outside
   const settingsPanelRef = useRef(null);
-
-  // Color picker states
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [editingTheme, setEditingTheme] = useState(null);
-  const [newThemeName, setNewThemeName] = useState('');
-  const [newThemeBg, setNewThemeBg] = useState('#000000');
-  const [newThemeCard, setNewThemeCard] = useState('#1a1a1a');
-  const [newThemeAccent, setNewThemeAccent] = useState('#3b82f6');
-  const [newThemeText, setNewThemeText] = useState('#ffffff');
-  const [showDeleteThemeModal, setShowDeleteThemeModal] = useState(false);
-  const [themeToDelete, setThemeToDelete] = useState(null);
 
   // Accordion state for timer groups
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -571,40 +289,71 @@ export default function TimerApp() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [seqName, setSeqName] = useState('');
 
-  // Load saved timers from localStorage
-  const [saved, setSaved] = useState(() => {
-    try {
-      const storedSaved = localStorage.getItem('savedTimers');
-      return storedSaved ? JSON.parse(storedSaved) : defaultSavedTimers;
-    } catch (error) {
-      console.error("Failed to load saved timers from localStorage:", error);
-      return defaultSavedTimers;
-    }
-  });
+  const {
+    saved,
+    setSaved,
+    history,
+    setHistory,
+    repeatEnabled,
+    setRepeatEnabled,
+    timerVisualization,
+    setTimerVisualization,
+    cleanMode,
+    toggleCleanMode,
+    currentStreak,
+    setCurrentStreak,
+    lastCompletionDate,
+    setLastCompletionDate,
+    totalCompletions,
+    setTotalCompletions,
+    achievements,
+    setAchievements,
+    firstTimerDate,
+    setFirstTimerDate,
+    monthlyStats,
+    setMonthlyStats,
+    dailyChallenge,
+    setDailyChallenge,
+    timeCapsules,
+    setTimeCapsules,
+    resetPersistentState,
+  } = usePersistentAppState(defaultSavedTimers);
 
-  // Load history from localStorage
-  const [history, setHistory] = useState(() => {
-      try {
-          const storedHistory = localStorage.getItem('timerHistory');
-          return storedHistory ? JSON.parse(storedHistory) : [];
-      } catch (error) {
-          console.error("Failed to load history from localStorage:", error);
-          return [];
-      }
+  const {
+    showCreateTimer,
+    setShowCreateTimer,
+    editingTimer,
+    showEditTimerModal,
+    newTimerName,
+    setNewTimerName,
+    newTimerMin,
+    setNewTimerMin,
+    newTimerUnit,
+    setNewTimerUnit,
+    newTimerColor,
+    setNewTimerColor,
+    newTimerGroup,
+    setNewTimerGroup,
+    newTimerScene,
+    setNewTimerScene,
+    showGroupDropdown,
+    setShowGroupDropdown,
+    createTimer,
+    cancelCreateTimer,
+    saveSequence,
+    openEditTimer,
+    closeEditTimer,
+    saveEditedTimer,
+    cloneTemplateForEditing,
+    resetTimerLibraryState,
+  } = useTimerLibraryManagement({
+    seqName,
+    sequence,
+    setSaved,
+    setSequence,
+    setSeqName,
+    setShowBuilder,
   });
-
-  const [showCreateTimer, setShowCreateTimer] = useState(false);
-  const [editingTimer, setEditingTimer] = useState(null);
-  const [showEditTimerModal, setShowEditTimerModal] = useState(false);
-  const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
-  const [prefillTemplateId, setPrefillTemplateId] = useState(null);
-  const [newTimerName, setNewTimerName] = useState('');
-  const [newTimerMin, setNewTimerMin] = useState('');
-  const [newTimerUnit, setNewTimerUnit] = useState('min');
-  const [newTimerColor, setNewTimerColor] = useState('#3b82f6');
-  const [newTimerGroup, setNewTimerGroup] = useState('');
-  const [newTimerScene, setNewTimerScene] = useState('none');
-  const [showGroupDropdown, setShowGroupDropdown] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -647,87 +396,44 @@ export default function TimerApp() {
       console.error('Error during migration:', err);
     }
   }, []); // Only run once on mount
-
-  // Helper to show friendly toasts for realtime permission/init errors
-  const showRealtimeErrorToast = (err, action = 'Operation') => {
-    const raw = err && err.message ? err.message : String(err || 'Unknown error');
-    let msg = raw;
-    // Specific user-friendly messages
-    if (/already in (another )?room|you are already in a room/i.test(raw)) {
-      msg = `You are already in a room. Leave your current room before joining another.`;
-    } else if (/room name already in use|duplicate|already exists/i.test(raw)) {
-      msg = `Room name already in use. Please choose a different name.`;
-    } else if (/permission_denied|permission denied/i.test(raw)) {
-      msg = `${action} failed: permission denied. Please enable Anonymous Auth and update your Realtime DB rules (see FIREBASE-SETUP.md).`;
-    } else if (/auth|not-authorized/i.test(raw)) {
-      msg = `${action} failed: authentication error. Check Firebase Auth settings and authorized domains.`;
-    } else {
-      msg = `${action} failed: ${raw}`;
-    }
-
-    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 6000 } }));
-  };
+  const {
+    showRoomSettings,
+    setShowRoomSettings,
+    showRoomExpirationModal,
+    setShowRoomExpirationModal,
+    timerExpired,
+    setTimerExpired,
+    showCreateRoomModal,
+    setShowCreateRoomModal,
+    prefillTemplateId,
+    setPrefillTemplateId,
+    handleSaveRoomSettings,
+    handleExtendTimer,
+    handleCloseRoom,
+    handleJoinRoom,
+    handleCreateRoom,
+    handleSelectTemplate,
+    handleCreateRoomFromTemplate,
+  } = useRoomFlow({
+    currentRoom,
+    updateRoomSettings,
+    fetchRooms,
+    extendRoomTimer,
+    leaveRoom,
+    joinRoom,
+    createRoom,
+    rooms,
+    mode,
+    isRunning,
+    sequence,
+    currentStep,
+    startRoomTimer,
+    selectedTemplate,
+    setSelectedTemplate,
+    setShowTemplateSelector,
+  });
 
   // NOTE: handleComplete is defined later; we'll update the ref after it's created
-
-  // Wrapped join/create handlers so we can show toasts on failure
-  const handleJoinRoom = useCallback(async (roomId) => {
-    try {
-      // Get or generate display name
-      let displayName = localStorage.getItem('userDisplayName');
-      if (!displayName) {
-        const service = RealtimeServiceFactory.getServiceSafe();
-        // eslint-disable-next-line no-unused-vars
-        const userId = service?.currentUserId || 'anonymous';
-        // Generate a unique display name
-        const adjectives = ['Swift', 'Bright', 'Calm', 'Bold', 'Wise', 'Quick', 'Gentle', 'Sharp'];
-        const nouns = ['Eagle', 'Wolf', 'Bear', 'Fox', 'Owl', 'Lion', 'Tiger', 'Hawk'];
-        const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-        const noun = nouns[Math.floor(Math.random() * nouns.length)];
-        const suffix = Math.random().toString(36).substring(2, 5);
-        displayName = `${adj}${noun}${suffix}`;
-        localStorage.setItem('userDisplayName', displayName);
-      }
-      
-      await joinRoom(roomId, { displayName });
-
-      // If a sequence is running, start composite timer in the room
-      console.log('handleJoinRoom sync check:', { mode, isRunning, sequenceLength: sequence.length, currentStep });
-      if (mode === 'sequence' && isRunning) {
-        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
-        console.log('Starting composite room timer:', firstDuration, sequence);
-        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
-      }
-    } catch (err) {
-      console.error('Join room error (UI):', err);
-      showRealtimeErrorToast(err, 'Joining room');
-    }
-  }, [joinRoom, mode, isRunning, sequence, currentStep, startRoomTimer]);
-
-  const handleCreateRoom = async (roomData) => {
-    // Validate unique room name (case-insensitive)
-    if (rooms.some(r => r.name && roomData.name && r.name.trim().toLowerCase() === roomData.name.trim().toLowerCase())) {
-      const msg = 'Room name already in use. Please choose a different name.';
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: msg, type: 'error', ttl: 4000 } }));
-      // Throw to let callers know it failed
-      throw new Error(msg);
-    }
-    try {
-      await createRoom(roomData);
-      // Feedback on success
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Room created', type: 'success', ttl: 3000 } }));
-
-      // If a sequence is running, start composite timer in the room
-      if (mode === 'sequence' && isRunning) {
-        const firstDuration = sequence[0].unit === 'sec' ? sequence[0].duration : sequence[0].duration * 60;
-        startRoomTimer(firstDuration, 'composite', { steps: sequence, currentStep: currentStep });
-      }
-    } catch (err) {
-      console.error('Create room error (UI):', err);
-      showRealtimeErrorToast(err, 'Creating room');
-      throw err; // rethrow if callers expect it
-    }
-  };
 
   // Task 5: Calendar export handlers
   const handleExportToICS = (room) => {
@@ -767,59 +473,6 @@ export default function TimerApp() {
     }
   };
 
-  // Room template handlers
-  const handleSelectTemplate = (template) => {
-    setSelectedTemplate(template);
-    setShowTemplateSelector(false);
-    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `Selected template: ${template.name}`, type: 'info', ttl: 2000 } }));
-  };
-
-  const handleCreateRoomFromTemplate = async () => {
-    if (!selectedTemplate) return;
-
-    try {
-      // Create room data from template
-      const roomData = {
-        name: selectedTemplate.name,
-        duration: selectedTemplate.duration,
-        maxParticipants: selectedTemplate.maxParticipants,
-        goal: selectedTemplate.goal,
-        breakDuration: selectedTemplate.breakDuration,
-        cycles: selectedTemplate.cycles,
-        tag: selectedTemplate.tag,
-        template: selectedTemplate.id,
-        creatorName: 'You'
-      };
-
-      await handleCreateRoom(roomData);
-      setShowTemplateSelector(false);
-      setSelectedTemplate(null);
-    } catch (err) {
-      console.error('Template room creation error:', err);
-      // Error handling is done in handleCreateRoom
-    }
-  };
-
-  // Load repeat preference from localStorage
-  const [repeatEnabled, setRepeatEnabled] = useState(() => {
-      try {
-          return localStorage.getItem('repeatEnabled') === 'true';
-      } catch (error) {
-          console.error("Failed to load repeatEnabled from localStorage:", error);
-          return false;
-      }
-  });
-
-  // Load timer visualization preference from localStorage
-  const [timerVisualization, setTimerVisualization] = useState(() => {
-      try {
-          return localStorage.getItem('timerVisualization') || 'default';
-      } catch (error) {
-          console.error("Failed to load timerVisualization from localStorage:", error);
-          return 'default';
-      }
-  });
-
   // Use settings hook
   const {
     alarmSoundType,
@@ -841,6 +494,63 @@ export default function TimerApp() {
     getCustomMusicUrl,
     ensureCustomMusicUrl
   } = useSettings();
+
+  const {
+    exportData,
+    importData,
+  } = useAppDataManagement({
+    achievements,
+    alarmSoundType,
+    alarmVolume,
+    ambientSoundType,
+    ambientVolume,
+    currentStreak,
+    firstTimerDate,
+    history,
+    lastCompletionDate,
+    monthlyStats,
+    repeatEnabled,
+    saved,
+    setAchievements,
+    setAlarmSoundType,
+    setAlarmVolume,
+    setAmbientSoundType,
+    setAmbientVolume,
+    setCurrentStreak,
+    setFirstTimerDate,
+    setHistory,
+    setLastCompletionDate,
+    setMonthlyStats,
+    setRepeatEnabled,
+    setSaved,
+    setTheme,
+    setTimeCapsules,
+    setTotalCompletions,
+    setWeatherEffect,
+    themeName: theme.name,
+    themes,
+    timeCapsules,
+    totalCompletions,
+    weatherEffect,
+  });
+
+  const {
+    addLocalMusicSource,
+    addMusicSelection,
+    addRemoteMusicSource,
+    availableMusicAssets,
+    deleteMusicSource,
+    getMusicSelectionStatus,
+    musicSelections,
+    musicSourceStatuses,
+    musicSources,
+    refreshMusicLibrary,
+    releaseMusicSelectionUrl,
+    removeMusicSelection,
+    reorderMusicSelection,
+    resolveMusicSelectionUrl,
+    supportsLocalFolders: supportsLocalMusicFolders,
+  } = useMusicLibrary();
 
   // Use background images hook
   const {
@@ -874,11 +584,6 @@ export default function TimerApp() {
     setActiveSlideSetId,
     getActiveSlideSet,
   } = useSlideSets();
-
-  // Standalone clean mode toggle (independent of theme)
-  const [cleanMode, setCleanMode] = useState(() => localStorage.getItem('cleanMode') === 'true');
-  useEffect(() => { localStorage.setItem('cleanMode', cleanMode); }, [cleanMode]);
-  const toggleCleanMode = () => setCleanMode(v => !v);
 
   // Background videos
   const {
@@ -1166,32 +871,25 @@ export default function TimerApp() {
     };
   }, [getBackgroundImageUrl, releaseBackgroundImageUrl, selectedBackgroundId]);
 
-  const [currentBackgroundLayer, setCurrentBackgroundLayer] = useState(EMPTY_BACKGROUND_LAYER);
-  const [incomingBackgroundLayer, setIncomingBackgroundLayer] = useState(null);
-  const [incomingBackgroundReady, setIncomingBackgroundReady] = useState(false);
-  const crossfadeTimeoutRef = useRef(null);
-  const currentBackgroundLayerRef = useRef(currentBackgroundLayer);
-  const incomingBackgroundLayerRef = useRef(incomingBackgroundLayer);
-
-  useEffect(() => {
-    currentBackgroundLayerRef.current = currentBackgroundLayer;
-  }, [currentBackgroundLayer]);
-
-  useEffect(() => {
-    incomingBackgroundLayerRef.current = incomingBackgroundLayer;
-  }, [incomingBackgroundLayer]);
-
-  const releaseBackgroundLayer = useCallback((layer) => {
-    if (!layer?.assetId) {
-      return;
-    }
-
-    if (layer.type === 'image') {
-      releaseBackgroundImageUrl(layer.assetId);
-    } else if (layer.type === 'video') {
-      releaseBackgroundVideoUrl(layer.assetId);
-    }
-  }, [releaseBackgroundImageUrl, releaseBackgroundVideoUrl]);
+  const {
+    currentBackgroundLayer,
+    incomingBackgroundLayer,
+    setIncomingBackgroundReady,
+    currentBackgroundLayerRef,
+    incomingBackgroundLayerRef,
+  } = useBackgroundTransitionLayers({
+    backgroundImageUrl,
+    backgroundImageAssetId,
+    videoBackgroundUrl,
+    videoBackgroundAssetId,
+    slideshowImageUrl,
+    slideshowImageAssetId,
+    slideshowVideoUrl,
+    slideshowVideoAssetId,
+    releaseBackgroundImageUrl,
+    releaseBackgroundVideoUrl,
+    crossfadeMs: BACKGROUND_CROSSFADE_MS,
+  });
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1317,6 +1015,8 @@ export default function TimerApp() {
     currentRoom?.timer,
     timerExpired,
     startRoomTimer,
+    setTimerExpired,
+    setShowRoomExpirationModal,
     currentRoom?.compositeTimer,
     currentRoom?.currentStep,
     currentRoom?.timerType
@@ -1327,55 +1027,34 @@ export default function TimerApp() {
   // Use real active users from presence hook
   const activeUsers = realActiveUsers;
 
-  // Gamification states
-  const [currentStreak, setCurrentStreak] = useState(() => parseInt(localStorage.getItem('currentStreak')) || 0);
-  const [lastCompletionDate, setLastCompletionDate] = useState(() => localStorage.getItem('lastCompletionDate') || null);
-  const [totalCompletions, setTotalCompletions] = useState(() => parseInt(localStorage.getItem('totalCompletions')) || 0);
-  const [achievements, setAchievements] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('achievements')) || [];
-    } catch { return []; }
-  });
-  const [showAchievement, setShowAchievement] = useState(null);
-  const [firstTimerDate, setFirstTimerDate] = useState(() => localStorage.getItem('firstTimerDate') || null);
-  const [monthlyStats, setMonthlyStats] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('monthlyStats')) || {};
-    } catch { return {}; }
-  });
-
-  // Daily challenges
-  const [dailyChallenge, setDailyChallenge] = useState(() => {
-    try {
-      const stored = localStorage.getItem('dailyChallenge');
-      if (stored) {
-        const challenge = JSON.parse(stored);
-        const today = new Date().toDateString();
-        if (challenge.date === today) return challenge;
-      }
-    } catch {}
-
-    // Generate new daily challenge
-    const challenges = [
-      { type: 'completions', target: 5, text: 'Complete 5 timers today', icon: '🎯' },
-      { type: 'time', target: 120, text: 'Focus for 2 hours total', icon: '⏱️' },
-      { type: 'streak', target: 1, text: 'Maintain your streak', icon: '🔥' },
-      { type: 'morning', target: 1, text: 'Complete a timer before 10 AM', icon: '🌅' },
-      { type: 'pomodoro', target: 4, text: 'Complete 4 Pomodoros (25min each)', icon: '🍅' },
-    ];
-    const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
-    return { ...randomChallenge, date: new Date().toDateString(), progress: 0 };
-  });
-
-  // Time capsule messages
-  const [timeCapsules, setTimeCapsules] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('timeCapsules')) || [];
-    } catch { return []; }
-  });
   const [showCapsuleInput, setShowCapsuleInput] = useState(false);
   const [capsuleMessage, setCapsuleMessage] = useState('');
-  const [showCapsuleNotification, setShowCapsuleNotification] = useState(null);
+  const {
+    achievementDefinitions,
+    showAchievement,
+    showCapsuleNotification,
+    dismissCapsuleNotification,
+    addToHistory,
+    createTimeCapsule: saveTimeCapsule,
+  } = useCompletionTracking({
+    history,
+    setHistory,
+    currentStreak,
+    setCurrentStreak,
+    lastCompletionDate,
+    setLastCompletionDate,
+    totalCompletions,
+    setTotalCompletions,
+    achievements,
+    setAchievements,
+    firstTimerDate,
+    setFirstTimerDate,
+    setMonthlyStats,
+    dailyChallenge,
+    setDailyChallenge,
+    timeCapsules,
+    setTimeCapsules,
+  });
 
   // Active scene state
   const [activeScene, setActiveScene] = useState('none');
@@ -1394,21 +1073,6 @@ export default function TimerApp() {
   const chatInputRef = useRef(null);
   const currentStepRef = useRef(0);
   const sequenceRef = useRef([]);
-
-  // Persistence Effects
-  useEffect(() => localStorage.setItem('selectedThemeName', theme.name), [theme]);
-  useEffect(() => localStorage.setItem('savedTimers', JSON.stringify(saved)), [saved]);
-  useEffect(() => localStorage.setItem('timerHistory', JSON.stringify(history)), [history]);
-  useEffect(() => localStorage.setItem('repeatEnabled', repeatEnabled), [repeatEnabled]);
-  useEffect(() => localStorage.setItem('timerVisualization', timerVisualization), [timerVisualization]);
-  useEffect(() => localStorage.setItem('currentStreak', currentStreak.toString()), [currentStreak]);
-  useEffect(() => localStorage.setItem('lastCompletionDate', lastCompletionDate), [lastCompletionDate]);
-  useEffect(() => localStorage.setItem('totalCompletions', totalCompletions.toString()), [totalCompletions]);
-  useEffect(() => localStorage.setItem('achievements', JSON.stringify(achievements)), [achievements]);
-  useEffect(() => localStorage.setItem('monthlyStats', JSON.stringify(monthlyStats)), [monthlyStats]);
-  useEffect(() => { if (firstTimerDate) localStorage.setItem('firstTimerDate', firstTimerDate); }, [firstTimerDate]);
-  useEffect(() => localStorage.setItem('dailyChallenge', JSON.stringify(dailyChallenge)), [dailyChallenge]);
-  useEffect(() => localStorage.setItem('timeCapsules', JSON.stringify(timeCapsules)), [timeCapsules]);
 
   // Handle clicks outside settings panel to close it
   useEffect(() => {
@@ -1476,17 +1140,6 @@ export default function TimerApp() {
       }
     }
   }, [handleJoinRoom]);
-
-  // Check for ready time capsules whenever timeCapsules changes
-  useEffect(() => {
-    const now = Date.now();
-    timeCapsules.forEach(capsule => {
-      if (capsule.openAt <= now && !capsule.opened) {
-        setShowCapsuleNotification(capsule);
-        setTimeCapsules(prev => prev.map(c => c.id === capsule.id ? { ...c, opened: true } : c));
-      }
-    });
-  }, [timeCapsules]);
 
   // Page Visibility API - Handle tab switching correctly
   useEffect(() => {
@@ -1560,315 +1213,46 @@ export default function TimerApp() {
     }
   }, [currentRoom, currentRoom?.currentStep, currentRoom?.timerType]);
 
-  // Achievement definitions (memoized so checkAchievements can be stable)
-  const ACHIEVEMENTS = React.useMemo(() => ([
-    { id: 'first_timer', name: 'First Steps', description: 'Complete your first timer', icon: '🎯', requirement: 1 },
-    { id: 'early_bird', name: 'Early Bird', description: 'Complete a timer before 7 AM', icon: '🌅', checkTime: true },
-    { id: 'night_owl', name: 'Night Owl', description: 'Complete a timer after 10 PM', icon: '🦉', checkTime: true },
-    { id: 'century_club', name: 'Century Club', description: 'Complete 100 timers', icon: '💯', requirement: 100 },
-    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon: '🔥', streak: 7 },
-    { id: 'streak_30', name: 'Month Master', description: '30-day streak', icon: '👑', streak: 30 },
-    { id: 'speed_demon', name: 'Speed Demon', description: 'Complete 10 timers in one day', icon: '⚡', dailyCount: 10 },
-    { id: 'dedicated', name: 'Dedicated', description: 'Complete 500 timers', icon: '🏆', requirement: 500 },
-  ]), []);
+  const handleComplete = useTimerCompletionFlow({
+    addToHistory,
+    ambientSoundType,
+    currentRound,
+    currentStepRef,
+    formatTime,
+    getSoundFile,
+    initialTime,
+    isWork,
+    mode,
+    playAlarm,
+    repeatEnabled,
+    rest,
+    rounds,
+    saved,
+    seqName,
+    sequenceRef,
+    setActiveFeatureTab,
+    setActiveMainTab,
+    setActiveScene,
+    setCompletedSession,
+    setConfettiActiveDuration,
+    setCurrentRound,
+    setCurrentStep,
+    setCurrentTimerScene,
+    setIsRunning,
+    setIsTransitioning,
+    setIsWork,
+    setShowCelebration,
+    setTheme,
+    setTime,
+    startAmbient,
+    stopAmbient,
+    theme,
+    work,
+  });
 
-  const checkAchievements = useCallback((completionData) => {
-    const newAchievements = [];
-    const currentHour = new Date().getHours();
-
-    // Check each achievement
-    ACHIEVEMENTS.forEach(ach => {
-      if (achievements.includes(ach.id)) return; // Already unlocked
-
-      let unlocked = false;
-
-      if (ach.requirement && totalCompletions + 1 >= ach.requirement) {
-        unlocked = true;
-      }
-
-      if (ach.streak && currentStreak >= ach.streak) {
-        unlocked = true;
-      }
-
-      if (ach.checkTime) {
-        if (ach.id === 'early_bird' && currentHour < 7) unlocked = true;
-        if (ach.id === 'night_owl' && currentHour >= 22) unlocked = true;
-      }
-
-      if (ach.dailyCount) {
-        const today = new Date().toDateString();
-        const todayCompletions = history.filter(h => new Date(h.completedAt).toDateString() === today).length + 1;
-        if (todayCompletions >= ach.dailyCount) unlocked = true;
-      }
-
-      if (unlocked) {
-        newAchievements.push(ach.id);
-        setShowAchievement(ach);
-        setTimeout(() => setShowAchievement(null), 5000);
-      }
-    });
-
-    if (newAchievements.length > 0) {
-      setAchievements(prev => [...prev, ...newAchievements]);
-    }
-  }, [achievements, totalCompletions, currentStreak, history, ACHIEVEMENTS]);
-
-  const playAlarmSound = useCallback(() => {
-    playAlarm();
-  }, [playAlarm]);
-
-  const addToHistory = React.useCallback((entry) => {
-    setHistory(prev => [
-      { ...entry, completedAt: new Date().toISOString(), id: Date.now() },
-      ...prev
-    ].slice(0, 10)); // Keep only last 10 entries
-
-        // Track first timer date
-        if (!firstTimerDate) {
-            setFirstTimerDate(new Date().toISOString());
-        }
-
-        // Update monthly stats
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-        setMonthlyStats(prev => ({
-            ...prev,
-            [currentMonth]: {
-                completions: (prev[currentMonth]?.completions || 0) + 1,
-                totalSeconds: (prev[currentMonth]?.totalSeconds || 0) + (entry.totalSeconds || 0),
-                bestStreak: Math.max(prev[currentMonth]?.bestStreak || 0, currentStreak),
-            }
-        }));
-
-        // Update streak and completions
-        const today = new Date().toDateString();
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayString = yesterday.toDateString();
-
-        setTotalCompletions(prev => {
-            const newTotal = prev + 1;
-            // Check achievements after updating total
-            setTimeout(() => checkAchievements(entry), 100);
-            return newTotal;
-        });
-
-    if (lastCompletionDate === today) {
-            // Already completed today, no streak change
-        } else if (lastCompletionDate === yesterdayString) {
-            // Consecutive day
-            setCurrentStreak(prev => prev + 1);
-            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `🔥 ${currentStreak + 1} day streak!`, type: 'success', ttl: 3000 } }));
-        } else if (!lastCompletionDate) {
-            // First ever completion
-            setCurrentStreak(1);
-        } else {
-            // Streak broken
-            setCurrentStreak(1);
-        }
-        setLastCompletionDate(today);
-
-        // Update daily challenge progress
-        if (dailyChallenge && dailyChallenge.date === today) {
-            let newProgress = dailyChallenge.progress;
-
-            if (dailyChallenge.type === 'completions') {
-                newProgress = dailyChallenge.progress + 1;
-            } else if (dailyChallenge.type === 'time') {
-                newProgress = dailyChallenge.progress + Math.floor((entry.totalSeconds || 0) / 60);
-            } else if (dailyChallenge.type === 'morning') {
-                const hour = new Date().getHours();
-                if (hour < 10) newProgress = 1;
-            } else if (dailyChallenge.type === 'pomodoro') {
-                // Check if this was a ~25 min timer
-                if (entry.totalSeconds >= 1400 && entry.totalSeconds <= 1600) {
-                    newProgress = dailyChallenge.progress + 1;
-                }
-            }
-
-            setDailyChallenge(prev => ({ ...prev, progress: newProgress }));
-
-            // Check if challenge completed
-            if (newProgress >= dailyChallenge.target && dailyChallenge.progress < dailyChallenge.target) {
-                window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `🎯 Daily Challenge Complete!`, type: 'success', ttl: 3000 } }));
-            }
-    }
-  }, [firstTimerDate, currentStreak, lastCompletionDate, dailyChallenge, checkAchievements]);
-
-  const handleComplete = () => {
-    setIsTransitioning(true);
-    setIsRunning(false);
-    // Stop ambient sound when timer completes
-    stopAmbient();
-
-    playAlarmSound();
-
-    let sessionConfettiDuration = 5; // Default for Timer/Interval
-    if (mode === 'sequence') {
-        sessionConfettiDuration = 8; // Longer for sequences
-    }
-    setConfettiActiveDuration(sessionConfettiDuration);
-
-    // Capture mode and other state for use in timeout
-    const localMode = mode;
-    const localIsWork = isWork;
-    const localCurrentRound = currentRound;
-
-    setTimeout(() => {
-      if (localMode === 'interval') {
-        if (localIsWork) {
-          setIsWork(false);
-          setTime(rest);
-          setIsRunning(true);
-          setIsTransitioning(false);
-        } else if (localCurrentRound < rounds) {
-          setCurrentRound(prev => prev + 1);
-          setIsWork(true);
-          setTime(work);
-          setIsRunning(true);
-          setIsTransitioning(false);
-        } else {
-            // Interval Session Completed
-            const totalTime = work * rounds + rest * rounds;
-            const completionData = {
-                type: 'Interval',
-                name: `Interval: ${work}s work / ${rest}s rest`, // More descriptive name
-                totalSeconds: totalTime,
-                details: `${rounds} rounds (${work}s work / ${rest}s rest})`
-            };
-            addToHistory(completionData);
-
-          if (repeatEnabled) {
-            setCurrentRound(1);
-            setIsWork(true);
-            setTime(work);
-            setIsRunning(true);
-            setIsTransitioning(false);
-          } else {
-            setActiveScene('none');
-            setCompletedSession(completionData);
-            setShowCelebration(true);
-            setIsTransitioning(false);
-          }
-        }
-      } else if (localMode === 'sequence') {
-        // Use refs for sequence logic to ensure we have latest values
-        const currentSeq = sequenceRef.current;
-        const currStep = currentStepRef.current;
-
-        if (currStep < currentSeq.length - 1) {
-          const nextStep = currStep + 1;
-          const nextTimer = currentSeq[nextStep];
-          const nextDuration = nextTimer.unit === 'sec' ? nextTimer.duration : nextTimer.duration * 60;
-          
-          // Apply theme for next step
-          if (nextTimer.accent) {
-            setTheme(prevTheme => ({ ...prevTheme, accent: nextTimer.accent }));
-          }
-          
-          // Apply scene for next step in sequence
-          if (nextTimer.scene) {
-            setActiveScene(nextTimer.scene);
-            setCurrentTimerScene(nextTimer.scene);
-          }
-
-          setCurrentStep(nextStep);
-          setTime(nextDuration);
-          
-          // Restart ambient music for next step if enabled
-          if (ambientSoundType !== 'None') {
-            const soundFile = getSoundFile(ambientSoundType);
-            if (soundFile) startAmbient(soundFile);
-          }
-          
-          setIsRunning(true);
-          
-          // Small delay to ensure state updates propagate before hiding transition overlay
-          setTimeout(() => setIsTransitioning(false), 50);
-        } else {
-            // Sequence Completed
-            const totalSeconds = currentSeq.reduce((sum, t) => {
-              return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
-            }, 0);
-            const sequenceName = seqName || 'Unnamed Sequence'; // Use actual sequence name if available
-            // Normalize sequence steps for visualization (duration in seconds, name, color)
-            const normalizedSequence = currentSeq.map(step => ({
-              name: step.name || (step.type || 'Step'),
-              duration: step.unit === 'sec' ? step.duration : step.duration * 60,
-              color: step.color || step.accent || (theme && theme.accent) || '#8b5cf6'
-            }));
-
-            const completionData = {
-                type: 'Sequence',
-                name: sequenceName,
-                totalSeconds: totalSeconds,
-                details: `${currentSeq.length} steps`,
-                sequence: normalizedSequence
-            };
-            addToHistory(completionData);
-
-          if (repeatEnabled) {
-            setCurrentStep(0);
-            const firstTimer = currentSeq[0];
-            const firstDuration = firstTimer.unit === 'sec' ? firstTimer.duration : firstTimer.duration * 60;
-            // Apply theme for first step on repeat
-            if (firstTimer.accent) {
-              setTheme(prevTheme => ({ ...prevTheme, accent: firstTimer.accent }));
-            }
-            setTime(firstDuration);
-            
-            // Restart ambient music for repeat if enabled
-            if (ambientSoundType !== 'None') {
-              const soundFile = getSoundFile(ambientSoundType);
-              if (soundFile) startAmbient(soundFile);
-            }
-            
-            setIsRunning(true);
-            setIsTransitioning(false);
-          } else {
-            setActiveScene('none');
-            setCompletedSession(completionData);
-            setShowCelebration(true);
-            setIsTransitioning(false);
-            // If we came from routines, return to routines tab after celebration
-            if (window.localStorage.getItem('lastRoutineSource') === 'routines') {
-              setTimeout(() => {
-                setActiveMainTab('routines');
-                setActiveFeatureTab(null);
-                window.localStorage.removeItem('lastRoutineSource');
-              }, 3000); // Wait for celebration to show
-            }
-          }
-        }
-      } else if (localMode === 'timer') {
-          // Timer Completed
-          const timerName = saved.find(t => t.isSequence === false && t.duration * (t.unit === 'min' ? 60 : 1) === initialTime)?.name || `Quick Timer`; // Try to find name if it was a saved timer
-          const completionData = {
-              type: 'Timer',
-              name: timerName,
-              totalSeconds: initialTime,
-              details: formatTime(initialTime)
-          };
-          addToHistory(completionData);
-          
-        if (repeatEnabled) {
-          setTime(initialTime);
-          setIsRunning(true);
-          setIsTransitioning(false);
-        } else {
-          setActiveScene('none');
-          setCompletedSession(completionData);
-          setShowCelebration(true);
-          setIsTransitioning(false);
-        }
-      } else {
-    setActiveScene('none');
-            setIsTransitioning(false);
-      }
-    }, 500);
-  };
   useEffect(() => {
     handleCompleteRef.current = handleComplete;
-  });
+  }, [handleComplete]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -1879,84 +1263,41 @@ export default function TimerApp() {
     sequenceRef.current = sequence;
   }, [sequence]);
 
-  const startTimer = (totalSeconds, scene = 'none') => {
-    setMode('timer');
-    setTime(totalSeconds);
-    setInitialTime(totalSeconds);
-    setIsRunning(true);
-    setCurrentTimerScene(scene);
-    setActiveScene(scene);
-    if (inputHours || inputMinutes || inputSeconds) {
-      setInputHours('');
-      setInputMinutes('');
-      setInputSeconds('');
-    }
-    // Start ambient sound if configured
-    if (ambientSoundType !== 'None') {
-      const soundFile = getSoundFile(ambientSoundType);
-      if (soundFile) {
-        startAmbient(soundFile);
-      }
-    }
-  };
-
-  const startStopwatch = () => {
-    setMode('stopwatch');
-    setTime(0);
-    setIsRunning(true);
-    setActiveScene('none');
-    setCurrentTimerScene('none');
-  };
-  const startInterval = () => { setMode('interval'); setTime(work); setCurrentRound(1); setIsWork(true); setIsRunning(true); };
-
-  const pauseTimer = () => { 
-    setIsRunning(false); 
-    // Stop ambient sound when paused
-    stopAmbient();
-  };
-  const resetTimer = () => { 
-    setIsRunning(false); 
-    setTime(initialTime);
-    // Stop ambient sound when reset
-    stopAmbient();
-  };
-  const pauseStopwatch = () => { setIsRunning(false); };
-  const resetStopwatch = () => { setIsRunning(false); setTime(0); };
-
-  // Theme management: Theme UI handled in settings; setters remain for compatibility
-  const startSequence = (sequenceData = null) => {
-    const seqToUse = sequenceData || sequence;
-    if (seqToUse.length === 0) return;
-
-    if (currentRoom) {
-      // Start composite timer in room (pass numeric duration + timerData)
-      const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
-      startRoomTimer(firstDuration, 'composite', { steps: seqToUse, currentStep: 0 });
-      return;
-    }
-
-    setMode('sequence');
-    setCurrentStep(0);
-    const firstDuration = seqToUse[0].unit === 'sec' ? seqToUse[0].duration : seqToUse[0].duration * 60;
-    setTime(firstDuration);
-    setIsRunning(true);
-    // Apply theme for first step - commented out to prevent unwanted theme changes
-    // if (seqToUse[0].accent) {
-    //   setTheme(prevTheme => ({ ...prevTheme, accent: seqToUse[0].accent }));
-    // }
-    // Apply scene from first step
-    if (seqToUse[0].scene) {
-      setActiveScene(seqToUse[0].scene);
-      setCurrentTimerScene(seqToUse[0].scene);
-    }
-    // Start ambient sound if configured
-    if (ambientSoundType !== 'None') {
-      const soundFile = getSoundFile(ambientSoundType);
-      if (soundFile) {
-        startAmbient(soundFile);
-      }
-    }
-  };
+  const {
+    startTimer,
+    startStopwatch,
+    startInterval,
+    pauseTimer,
+    resetTimer,
+    pauseStopwatch,
+    resetStopwatch,
+    startSequence,
+  } = useTimerLogic({
+    ambientSoundType,
+    currentRoom,
+    getSoundFile,
+    initialTime,
+    inputHours,
+    inputMinutes,
+    inputSeconds,
+    sequence,
+    setActiveScene,
+    setCurrentRound,
+    setCurrentStep,
+    setCurrentTimerScene,
+    setInitialTime,
+    setInputHours,
+    setInputMinutes,
+    setInputSeconds,
+    setIsRunning,
+    setIsWork,
+    setMode,
+    setTime,
+    startAmbient,
+    startRoomTimer,
+    stopAmbient,
+    work,
+  });
 
     const moveSequenceStep = (index, direction) => {
         const newSequence = [...sequence];
@@ -1967,188 +1308,6 @@ export default function TimerApp() {
         setSequence(newSequence);
     };
 
-  const saveSequence = (metadata = {}) => {
-    if (sequence.length > 0 && seqName) {
-      const totalMinutes = sequence.reduce((sum, t) => {
-        const mins = t.unit === 'sec' ? t.duration / 60 : t.duration;
-        return sum + mins;
-      }, 0);
-
-      const totalSeconds = sequence.reduce((sum, t) => {
-        return sum + (t.unit === 'sec' ? t.duration : t.duration * 60);
-      }, 0);
-
-      const newRoutine = {
-        name: seqName,
-        duration: Math.ceil(totalMinutes),
-        unit: 'min',
-        min: Math.ceil(totalMinutes),
-        color: sequence[0].color,
-        group: metadata.group || 'Sequences',
-        isSequence: true,
-        steps: sequence,
-        exercises: sequence,
-        // Session type
-        templateType: metadata.sessionType || 'routine',
-        // Routine metadata
-        category: metadata.category || 'mixed',
-        difficulty: metadata.difficulty || 'intermediate',
-        emoji: metadata.emoji || '⭐',
-        description: metadata.description || '',
-        tags: metadata.tags || [],
-        // Room compatibility and recommendations
-        isRoomCompatible: !!metadata.isRoomCompatible,
-        recommendedParticipants: metadata.recommendedParticipants || null,
-        totalSeconds: totalSeconds,
-        exerciseCount: sequence.filter(s => s.type === 'work').length,
-        createdAt: Date.now(),
-        metadata: {
-          source: 'custom',
-          isCustom: true
-        }
-      };
-      
-      // Save to both state (for backward compatibility) and custom timers service
-      setSaved(prev => [newRoutine, ...prev]);
-      saveCustomTimer(newRoutine);
-      
-      // Trigger update event for useTimers hook
-      window.dispatchEvent(new CustomEvent('timers-updated'));
-      
-      setSequence([]);
-      setSeqName('');
-      setShowBuilder(false);
-      window.dispatchEvent(new CustomEvent('app-toast', {
-        detail: {
-          message: `✅ "${seqName}" saved successfully!`,
-          type: 'success',
-          ttl: 3000
-        }
-      }));
-    }
-  };
-
-  const createTimer = () => {
-    if (newTimerName && newTimerMin) {
-      const durationValue = parseInt(newTimerMin);
-      if (isNaN(durationValue) || durationValue < 0) return;
-
-      setSaved(prev => [{
-        name: newTimerName,
-        duration: durationValue,
-        unit: newTimerUnit,
-        min: newTimerUnit === 'min' ? durationValue : Math.ceil(durationValue / 60),
-        color: newTimerColor,
-        group: newTimerGroup || 'Custom',
-        scene: newTimerScene
-      }, ...prev]);
-      setNewTimerName('');
-      setNewTimerMin('');
-      setNewTimerUnit('min');
-      setNewTimerColor('#3b82f6');
-      setNewTimerGroup('');
-      setNewTimerScene('none');
-      setShowCreateTimer(false);
-    }
-  };
-
-  const cancelCreateTimer = () => {
-    // Reset all form fields
-    setNewTimerName('');
-    setNewTimerMin('');
-    setNewTimerUnit('min');
-    setNewTimerColor('#3b82f6');
-    setNewTimerGroup('');
-    setNewTimerScene('none');
-    setShowGroupDropdown(false);
-    // Close the form
-    setShowCreateTimer(false);
-  };
-
-  // Export all data
-  const exportData = () => {
-    const allData = {
-      version: '2.0',
-      exportDate: new Date().toISOString(),
-      saved,
-      history,
-      currentStreak,
-      lastCompletionDate,
-      totalCompletions,
-      achievements,
-      monthlyStats,
-      firstTimerDate,
-      timeCapsules: timeCapsules.filter(c => !c.opened), // Only export unopened capsules
-      theme: theme.name,
-      settings: {
-        alarmSoundType,
-        alarmVolume,
-        repeatEnabled,
-        weatherEffect,
-        ambientSoundType,
-        ambientVolume
-      }
-    };
-
-    const dataStr = JSON.stringify(allData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `timer-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Data exported successfully!', type: 'success', ttl: 3000 } }));
-  };
-
-  // Import data
-  const importData = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const imported = JSON.parse(e.target.result);
-
-        // Validate and import
-        if (imported.version && imported.exportDate) {
-          if (imported.saved) setSaved(imported.saved);
-          if (imported.history) setHistory(imported.history);
-          if (imported.currentStreak !== undefined) setCurrentStreak(imported.currentStreak);
-          if (imported.lastCompletionDate) setLastCompletionDate(imported.lastCompletionDate);
-          if (imported.totalCompletions !== undefined) setTotalCompletions(imported.totalCompletions);
-          if (imported.achievements) setAchievements(imported.achievements);
-          if (imported.monthlyStats) setMonthlyStats(imported.monthlyStats);
-          if (imported.firstTimerDate) setFirstTimerDate(imported.firstTimerDate);
-          if (imported.timeCapsules) setTimeCapsules(imported.timeCapsules);
-          if (imported.theme) {
-            const importedTheme = themes.find(t => t.name === imported.theme);
-            if (importedTheme) setTheme(importedTheme);
-          }
-          // Import settings if present
-          if (imported.settings) {
-            if (imported.settings.alarmSoundType) setAlarmSoundType(imported.settings.alarmSoundType);
-            if (imported.settings.alarmVolume !== undefined) setAlarmVolume(imported.settings.alarmVolume);
-            if (imported.settings.repeatEnabled !== undefined) setRepeatEnabled(imported.settings.repeatEnabled);
-            if (imported.settings.weatherEffect) setWeatherEffect(imported.settings.weatherEffect);
-            if (imported.settings.ambientSoundType) setAmbientSoundType(imported.settings.ambientSoundType);
-            if (imported.settings.ambientVolume !== undefined) setAmbientVolume(imported.settings.ambientVolume);
-          }
-
-          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '✅ Data imported successfully!', type: 'success', ttl: 3000 } }));
-        } else {
-          throw new Error('Invalid backup file');
-        }
-      } catch (error) {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '❌ Failed to import data', type: 'error', ttl: 3000 } }));
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Reset input
-  };
-
   // Clear all cache and reset to default state
   const clearAllCache = () => {
     try {
@@ -2156,18 +1315,10 @@ export default function TimerApp() {
       localStorage.clear();
       
       // Reset all state to defaults
-      setSaved(defaultSavedTimers);
-      setHistory([]);
-      setTheme(themes[0]);
+      resetPersistentState();
+      setTheme(DEFAULT_THEMES[0]);
       setThemes([...DEFAULT_THEMES]);
       setCollapsedGroups({});
-      setAchievements({});
-      setMonthlyStats({});
-      setCurrentStreak(0);
-      setLastCompletionDate(null);
-      setTotalCompletions(0);
-      setFirstTimerDate(null);
-      setTimeCapsules([]);
       
       // Reset timer states
       setMode('timer');
@@ -2189,7 +1340,7 @@ export default function TimerApp() {
       // Reset UI states
       setActiveMainTab('rooms');
       setActiveFeatureTab(null);
-      setShowCreateTimer(false);
+      resetTimerLibraryState();
       setShowThemes(false);
       setShowBuilder(false);
       setShowSettings(false);
@@ -2241,25 +1392,15 @@ export default function TimerApp() {
 
   // Time capsule functions
   const createTimeCapsule = () => {
-    if (!capsuleMessage.trim()) return;
+    if (!saveTimeCapsule(capsuleMessage)) return;
 
-    const newCapsule = {
-      id: Date.now(),
-      message: capsuleMessage,
-      createdAt: Date.now(),
-      openAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days from now
-      opened: false
-    };
-
-    setTimeCapsules(prev => [...prev, newCapsule]);
     setCapsuleMessage('');
     setShowCapsuleInput(false);
-    window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: '📩 Time capsule created! You\'ll see it in 30 days', type: 'success', ttl: 3000 } }));
   };
 
   const confirmDelete = (timer) => { setTimerToDelete(timer); setShowDeleteModal(true); };
   const executeDelete = () => { if (timerToDelete) { setSaved(prev => prev.filter(t => t !== timerToDelete)); setTimerToDelete(null); setShowDeleteModal(false); } };
-  const formatTime = (sec) => { const m = Math.floor(sec / 60); const s = sec % 60; const h = Math.floor(m / 60); const remM = m % 60; return `${h > 0 ? h.toString().padStart(2, '0') + ':' : ''}${remM.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
+  function formatTime(sec) { const m = Math.floor(sec / 60); const s = sec % 60; const h = Math.floor(m / 60); const remM = m % 60; return `${h > 0 ? h.toString().padStart(2, '0') + ':' : ''}${remM.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; }
 
     // Smart suggestions based on history
     const getSmartSuggestions = useCallback(() => {
@@ -2326,122 +1467,8 @@ export default function TimerApp() {
   // Determine if we should show a scene background
   const shouldShowScene = (isRunning || currentRoom?.timer) && activeScene !== 'none' && SCENES[activeScene]?.bg;
   
-  const hasActiveSlideMedia = Boolean(slideshowImageUrl || slideshowVideoUrl);
   const baseBackground = shouldShowScene ? SCENES[activeScene].bg : (previewTheme || theme).bg;
   const activeBackground = baseBackground;
-
-  const targetBackgroundLayer = useMemo(() => {
-    if (slideshowImageUrl) {
-      return { type: 'image', src: slideshowImageUrl, assetId: slideshowImageAssetId };
-    }
-
-    if (!hasActiveSlideMedia && backgroundImageUrl) {
-      return { type: 'image', src: backgroundImageUrl, assetId: backgroundImageAssetId };
-    }
-
-    if (slideshowVideoUrl) {
-      return { type: 'video', src: slideshowVideoUrl, assetId: slideshowVideoAssetId };
-    }
-
-    if (!hasActiveSlideMedia && !backgroundImageUrl && videoBackgroundUrl) {
-      return { type: 'video', src: videoBackgroundUrl, assetId: videoBackgroundAssetId };
-    }
-
-    return { type: 'none', src: '', assetId: null };
-  }, [
-    backgroundImageAssetId,
-    backgroundImageUrl,
-    hasActiveSlideMedia,
-    slideshowImageAssetId,
-    slideshowImageUrl,
-    slideshowVideoAssetId,
-    slideshowVideoUrl,
-    videoBackgroundAssetId,
-    videoBackgroundUrl,
-  ]);
-
-  useEffect(() => {
-    const current = currentBackgroundLayerRef.current;
-    const incoming = incomingBackgroundLayerRef.current;
-    const target = targetBackgroundLayer;
-
-    if (crossfadeTimeoutRef.current) {
-      clearTimeout(crossfadeTimeoutRef.current);
-      crossfadeTimeoutRef.current = null;
-    }
-
-    if (target.type === 'none') {
-      releaseBackgroundLayer(incoming);
-      releaseBackgroundLayer(current);
-      setIncomingBackgroundLayer(null);
-      setIncomingBackgroundReady(false);
-      setCurrentBackgroundLayer(EMPTY_BACKGROUND_LAYER);
-      return;
-    }
-
-    if (incoming && incoming.type === target.type && incoming.src === target.src) {
-      return;
-    }
-
-    if (!incoming && current.type === target.type && current.src === target.src && current.visible) {
-      return;
-    }
-
-    if (incoming && (incoming.type !== target.type || incoming.src !== target.src)) {
-      releaseBackgroundLayer(incoming);
-    }
-
-    setIncomingBackgroundLayer({ ...target, visible: false });
-    setIncomingBackgroundReady(target.type === 'image');
-  }, [releaseBackgroundLayer, targetBackgroundLayer]);
-
-  useEffect(() => {
-    if (!incomingBackgroundLayer || !incomingBackgroundReady) {
-      return;
-    }
-
-    const previousCurrentLayer = currentBackgroundLayerRef.current;
-
-    setIncomingBackgroundLayer((prev) => (prev ? { ...prev, visible: true } : prev));
-    setCurrentBackgroundLayer((prev) => ({ ...prev, visible: false }));
-
-    const promotedLayer = { ...incomingBackgroundLayer, visible: true };
-    crossfadeTimeoutRef.current = setTimeout(() => {
-      if (
-        previousCurrentLayer
-        && previousCurrentLayer.type !== 'none'
-        && (
-          previousCurrentLayer.type !== promotedLayer.type
-          || previousCurrentLayer.src !== promotedLayer.src
-          || previousCurrentLayer.assetId !== promotedLayer.assetId
-        )
-      ) {
-        releaseBackgroundLayer(previousCurrentLayer);
-      }
-
-      setCurrentBackgroundLayer(promotedLayer);
-      setIncomingBackgroundLayer(null);
-      setIncomingBackgroundReady(false);
-      crossfadeTimeoutRef.current = null;
-    }, BACKGROUND_CROSSFADE_MS + 40);
-
-    return () => {
-      if (crossfadeTimeoutRef.current) {
-        clearTimeout(crossfadeTimeoutRef.current);
-        crossfadeTimeoutRef.current = null;
-      }
-    };
-  }, [incomingBackgroundLayer, incomingBackgroundReady, releaseBackgroundLayer]);
-
-  useEffect(() => () => {
-    if (crossfadeTimeoutRef.current) {
-      clearTimeout(crossfadeTimeoutRef.current);
-      crossfadeTimeoutRef.current = null;
-    }
-
-    releaseBackgroundLayer(currentBackgroundLayerRef.current);
-    releaseBackgroundLayer(incomingBackgroundLayerRef.current);
-  }, [releaseBackgroundLayer]);
 
   const renderBackgroundLayer = useCallback((layer, key, isIncoming = false) => {
     if (!layer || layer.type === 'none' || !layer.src) {
@@ -2526,7 +1553,14 @@ export default function TimerApp() {
         src={layer.src}
       />
     );
-  }, [activeSlideSetId, ensureBackgroundVideoLoop, slideshowVideoUrl]);
+  }, [
+    activeSlideSetId,
+    currentBackgroundLayerRef,
+    ensureBackgroundVideoLoop,
+    incomingBackgroundLayerRef,
+    setIncomingBackgroundReady,
+    slideshowVideoUrl,
+  ]);
 
   return (
     <div
@@ -2655,7 +1689,7 @@ export default function TimerApp() {
               "{showCapsuleNotification.message}"
             </div>
             <button
-              onClick={() => setShowCapsuleNotification(null)}
+              onClick={dismissCapsuleNotification}
               style={{ width: '100%', background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: 15, color: getContrastColor(theme.accent), cursor: 'pointer', fontSize: 16, fontWeight: 600 }}
             >
               Close
@@ -3641,6 +2675,8 @@ export default function TimerApp() {
           setShowColorPicker={setShowColorPicker}
           alarmVolume={alarmVolume}
           setAlarmVolume={setAlarmVolume}
+          ambientVolume={ambientVolume}
+          setAmbientVolume={setAmbientVolume}
           getTextOpacity={getTextOpacity}
           weatherEffect={weatherEffect}
           setWeatherEffect={setWeatherEffect}
@@ -3650,6 +2686,21 @@ export default function TimerApp() {
           setAmbientSound={setAmbientSoundType}
           setEditingWeather={setEditingWeather}
           customMusicFiles={customMusicFiles}
+          musicSelections={musicSelections}
+          musicSources={musicSources}
+          musicSourceStatuses={musicSourceStatuses}
+          availableMusicAssets={availableMusicAssets}
+          addRemoteMusicSource={addRemoteMusicSource}
+          addLocalMusicSource={addLocalMusicSource}
+          deleteMusicSource={deleteMusicSource}
+          refreshMusicLibrary={refreshMusicLibrary}
+          addMusicSelection={addMusicSelection}
+          removeMusicSelection={removeMusicSelection}
+          reorderMusicSelection={reorderMusicSelection}
+          resolveMusicSelectionUrl={resolveMusicSelectionUrl}
+          releaseMusicSelectionUrl={releaseMusicSelectionUrl}
+          getMusicSelectionStatus={getMusicSelectionStatus}
+          supportsLocalMusicFolders={supportsLocalMusicFolders}
           uploadCustomMusic={uploadCustomMusic}
           deleteCustomMusic={deleteCustomMusic}
           getCustomMusicUrl={getCustomMusicUrl}
@@ -4297,7 +3348,7 @@ export default function TimerApp() {
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginTop: window.innerWidth <= 480 ? 8 : 0 }}>
                           {activeFeatureTab === 'composite' && !timer.isSequence && <button onClick={() => setSequence(prev => [...prev, timer])} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: theme.text, cursor: 'pointer' }}><Plus size={16} /></button>}
-                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence()) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: getContrastColor(theme.accent), cursor: 'pointer' }}><Play size={16} /></button>
+                          <button onClick={() => timer.isSequence ? (setSequence(timer.steps), startSequence(timer.steps)) : startTimer(timer.duration * (timer.unit === 'min' ? 60 : 1), timer.scene || 'none')} style={{ background: theme.accent, border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: getContrastColor(theme.accent), cursor: 'pointer' }}><Play size={16} /></button>
                           <button onClick={() => confirmDelete(timer)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: theme.borderRadius, padding: '8px 12px', color: getTextOpacity(theme, 0.5), cursor: 'pointer' }}><Trash2 size={16} /></button>
                         </div>
                       </div>
@@ -4472,18 +3523,7 @@ export default function TimerApp() {
                       setShowCreateRoomModal(true);
                     }}
                     onCloneTemplate={async (cloneData) => {
-                      try {
-                        // Persist custom copy and open edit modal
-                        const newTimer = saveCustomTimer(cloneData);
-                        // Trigger immediate update for same-tab listeners
-                        window.dispatchEvent(new CustomEvent('timers-updated'));
-                        setEditingTimer(newTimer);
-                        setShowEditTimerModal(true);
-                        return newTimer;
-                      } catch (err) {
-                        console.error('Failed to clone template:', err);
-                        throw err;
-                      }
+                      return cloneTemplateForEditing(cloneData);
                     }}
                     onDeleteRoutine={(id) => {
                       setSaved(prev => prev.filter(t => t.name.toLowerCase().trim() !== id.toLowerCase().trim()));
@@ -4496,8 +3536,7 @@ export default function TimerApp() {
                       }));
                     }}
                     onEditRoutine={(routine) => {
-                      setEditingTimer(routine);
-                      setShowEditTimerModal(true);
+                      openEditTimer(routine);
                     }}
                     onCreateNewRoutine={() => {
                       setActiveMainTab('timer');
@@ -4512,7 +3551,7 @@ export default function TimerApp() {
               {activeMainTab === 'rooms' && activeFeatureTab === 'achievements' && !(isRunning || time > 0 || isTransitioning) && (
                 <AchievementsPanel
                   theme={theme}
-                  ACHIEVEMENTS={ACHIEVEMENTS}
+                  ACHIEVEMENTS={achievementDefinitions}
                   achievements={achievements}
                   getSmartSuggestions={getSmartSuggestions}
                   dailyChallenge={dailyChallenge}
@@ -4579,25 +3618,8 @@ export default function TimerApp() {
         <EditTimerModal
           theme={theme}
           timer={editingTimer}
-          onClose={() => setShowEditTimerModal(false)}
-          onSave={(updated) => {
-            try {
-              // Deep clone exercises to avoid circular references and ensure serializability
-              const cleanExercises = updated.exercises ? JSON.parse(JSON.stringify(updated.exercises)) : updated.exercises;
-              // Ensure the updated timer remains custom
-              const finalUpdated = { ...updated, exercises: cleanExercises, metadata: { ...updated.metadata, source: 'custom' } };
-              saveCustomTimer(finalUpdated);
-              // Trigger immediate update for same-tab listeners
-              window.dispatchEvent(new CustomEvent('timers-updated'));
-              window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Workout updated', type: 'success', ttl: 3000 } }));
-            } catch (err) {
-              console.error('Failed to save edited timer:', err);
-              window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Failed to save workout', type: 'error', ttl: 3000 } }));
-            } finally {
-              setShowEditTimerModal(false);
-              setEditingTimer(null);
-            }
-          }}
+          onClose={closeEditTimer}
+          onSave={saveEditedTimer}
         />
       )}
 

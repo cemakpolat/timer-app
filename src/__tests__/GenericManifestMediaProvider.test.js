@@ -97,4 +97,33 @@ describe('GenericManifestMediaProvider', () => {
       manifestUrl: 'https://cdn.example.com/catalog/manifest.json',
     })).rejects.toThrow('Remote media manifest must define assets, images, or videos.');
   });
+
+  test('parses audio collections from a manifest', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(createResponse({
+      audios: [
+        {
+          name: 'Focus Loop',
+          url: 'audio/focus.mp3',
+          bytes: 1024,
+          duration: 180,
+        },
+      ],
+    }));
+
+    const provider = new GenericManifestMediaProvider(fetchImpl);
+    const assets = await provider.listAssets({
+      id: 'audio-library',
+      provider: 'generic-manifest',
+      manifestUrl: 'https://cdn.example.com/catalog/manifest.json',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0]).toMatchObject({
+      sourceId: 'audio-library',
+      assetType: 'audio',
+      url: 'https://cdn.example.com/catalog/audio/focus.mp3',
+      mimeType: 'audio/mpeg',
+      duration: 180,
+    });
+  });
 });

@@ -3,7 +3,9 @@ import { useModal } from '../context/ModalContext';
 import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
+import MusicLibraryModal from './MusicLibraryModal';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
+import { buildMusicPlaylist, CUSTOM_MUSIC_SOURCE, getNextPlaylistEntry, getPlaylistEntry, getPreviousPlaylistEntry, LIBRARY_MUSIC_SOURCE } from '../utils/musicPlaylist';
 
 const Header = ({
   theme,
@@ -26,6 +28,8 @@ const Header = ({
   setShowColorPicker,
   alarmVolume,
   setAlarmVolume,
+  ambientVolume,
+  setAmbientVolume,
   getTextOpacity,
   weatherEffect,
   setWeatherEffect,
@@ -35,6 +39,21 @@ const Header = ({
   setAmbientSound,
   setEditingWeather,
   customMusicFiles,
+  musicSelections,
+  musicSources,
+  musicSourceStatuses,
+  availableMusicAssets,
+  addRemoteMusicSource,
+  addLocalMusicSource,
+  deleteMusicSource,
+  refreshMusicLibrary,
+  addMusicSelection,
+  removeMusicSelection,
+  reorderMusicSelection,
+  resolveMusicSelectionUrl,
+  releaseMusicSelectionUrl,
+  getMusicSelectionStatus,
+  supportsLocalMusicFolders,
   uploadCustomMusic,
   deleteCustomMusic,
   getCustomMusicUrl,
@@ -132,15 +151,17 @@ const Header = ({
   const [selectedMusicId, setSelectedMusicId] = useState(null);
   const [showOpacityModal, setShowOpacityModal] = useState(false);
   const [showBorderRadiusModal, setShowBorderRadiusModal] = useState(false);
+  const [showMusicLibraryModal, setShowMusicLibraryModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   const [isHeaderMusicPlaying, setIsHeaderMusicPlaying] = useState(false);
   const [headerMusicRepeatMode, setHeaderMusicRepeatMode] = useState('sequential'); // sequential, random, repeat-one
   const [musicCurrentTime, setMusicCurrentTime] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
+  const [isFooterVolumeVisible, setIsFooterVolumeVisible] = useState(false);
   const [savedPlaybackPositions, setSavedPlaybackPositions] = useState({}); // Track playback position for each song
   const audioRef = useRef(null);
   const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
-  const playbackCheckIntervalRef = useRef(null); // Timer for checking playback end
+  const currentPlayingEntryRef = useRef(null);
   const musicUpdateIntervalRef = useRef(null); // Timer for updating music progress
 
   const truncate = (s, n = 28) => {
@@ -148,105 +169,270 @@ const Header = ({
     return s.length > n ? `${s.slice(0, n - 1)}…` : s;
   };
 
+  const getLibrarySelectionByAmbientValue = useCallback((ambientValue) => {
+    if (!ambientValue || !ambientValue.startsWith('library_')) {
+      return null;
+    }
+
+    const selectionId = ambientValue.replace('library_', '');
+    return musicSelections.find((selection) => selection.selectionId === selectionId) || null;
+  }, [musicSelections]);
+
+  const getAmbientTrackLabel = useCallback((ambientValue) => {
+    if (!ambientValue || ambientValue === 'None') {
+      return '';
+    }
+
+    if (ambientValue.startsWith('custom_')) {
+      return customMusicFiles.find((file) => file.id === ambientValue.replace('custom_', ''))?.name || 'Custom Track';
+    }
+
+    if (ambientValue.startsWith('library_')) {
+      return getLibrarySelectionByAmbientValue(ambientValue)?.name || 'Library Track';
+    }
+
+    return ambientValue;
+  }, [customMusicFiles, getLibrarySelectionByAmbientValue]);
+
+  const getMusicPlaylist = useCallback(() => buildMusicPlaylist(AMBIENT_SOUNDS, customMusicFiles, musicSelections), [AMBIENT_SOUNDS, customMusicFiles, musicSelections]);
+
+  const libraryMusicEntries = [
+    ...musicSelections.map((selection) => {
+      const selectionStatus = getMusicSelectionStatus(selection);
+      return {
+        key: selection.selectionId,
+        ambientValue: `library_${selection.selectionId}`,
+        name: selection.name,
+        type: LIBRARY_MUSIC_SOURCE,
+        status: selectionStatus,
+        isReady: selectionStatus === 'ready',
+        badgeLabel: selectionStatus === 'ready'
+          ? (selection.sourceType === 'local-folder' ? 'Local' : 'Cloud')
+          : 'Unavailable',
+      };
+    }),
+    ...customMusicFiles.map((file) => ({
+      key: `custom_${file.id}`,
+      ambientValue: `custom_${file.id}`,
+      name: file.name,
+      type: CUSTOM_MUSIC_SOURCE,
+      status: 'ready',
+      isReady: true,
+      badgeLabel: 'Stored',
+      fileId: file.id,
+    })),
+  ];
+
+  const releaseCurrentLibraryEntry = useCallback(() => {
+    const currentEntry = currentPlayingEntryRef.current;
+    if (currentEntry?.type === LIBRARY_MUSIC_SOURCE && currentEntry.selectionId) {
+      releaseMusicSelectionUrl(currentEntry.selectionId);
+    }
+
+    currentPlayingEntryRef.current = null;
+  }, [releaseMusicSelectionUrl]);
+
+  const playMusicEntry = useCallback(async (entry, options = {}) => {
+    if (!entry) {
+      return false;
+    }
+
+    const startTime = options.startTime ?? 0;
+    const currentEntry = currentPlayingEntryRef.current;
+
+    if (currentEntry?.type === LIBRARY_MUSIC_SOURCE && currentEntry.selectionId !== entry.selectionId) {
+      releaseMusicSelectionUrl(currentEntry.selectionId);
+    }
+
+    if (entry.type === CUSTOM_MUSIC_SOURCE) {
+      stopAmbient();
+      if (ambientAudioRef?.current) {
+        ambientAudioRef.current.pause();
+        ambientAudioRef.current.currentTime = 0;
+      }
+
+      const url = await ensureCustomMusicUrl(entry.id) || getCustomMusicUrl(entry.id);
+      if (!url || !audioRef.current) {
+        return false;
+      }
+
+      try {
+        audioRef.current.pause();
+        audioRef.current.src = url;
+        audioRef.current.volume = ambientVolume ?? 0.3;
+        audioRef.current.currentTime = startTime;
+        await audioRef.current.play();
+      } catch (error) {
+        console.error('Play error:', error);
+        return false;
+      }
+
+      currentPlayingIdRef.current = entry.id;
+      currentPlayingEntryRef.current = entry;
+      setSelectedMusicId(entry.id);
+      setAmbientSound(entry.ambientValue);
+      setIsHeaderMusicPlaying(true);
+      return true;
+    }
+
+    if (entry.type === LIBRARY_MUSIC_SOURCE) {
+      stopAmbient();
+      if (ambientAudioRef?.current) {
+        ambientAudioRef.current.pause();
+        ambientAudioRef.current.currentTime = 0;
+      }
+
+      if (!audioRef.current) {
+        return false;
+      }
+
+      try {
+        if (currentEntry?.selectionId !== entry.selectionId) {
+          const url = await resolveMusicSelectionUrl(entry.selectionId);
+          if (!url) {
+            return false;
+          }
+          audioRef.current.pause();
+          audioRef.current.src = url;
+        }
+
+        audioRef.current.volume = ambientVolume ?? 0.3;
+        audioRef.current.currentTime = startTime;
+        await audioRef.current.play();
+      } catch (error) {
+        console.error('Play error:', error);
+        return false;
+      }
+
+      currentPlayingIdRef.current = entry.id;
+      currentPlayingEntryRef.current = entry;
+      setSelectedMusicId(null);
+      setAmbientSound(entry.ambientValue);
+      setIsHeaderMusicPlaying(true);
+      return true;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = '';
+    }
+
+    releaseCurrentLibraryEntry();
+
+    const soundFile = getSoundFile(entry.ambientValue);
+    if (!soundFile) {
+      return false;
+    }
+
+    stopAmbient();
+    setAmbientSound(entry.ambientValue);
+    startAmbient(soundFile);
+    currentPlayingIdRef.current = null;
+    currentPlayingEntryRef.current = entry;
+    setIsHeaderMusicPlaying(true);
+    return true;
+  }, [ambientAudioRef, ambientVolume, ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, releaseCurrentLibraryEntry, releaseMusicSelectionUrl, resolveMusicSelectionUrl, setAmbientSound, startAmbient, stopAmbient]);
+
+  const pauseCurrentPlayback = useCallback(() => {
+    if (audioRef.current) {
+      const id = currentPlayingIdRef.current;
+      if (id) {
+        setSavedPlaybackPositions((prev) => ({
+          ...prev,
+          [id]: audioRef.current.currentTime,
+        }));
+      }
+      audioRef.current.pause();
+    }
+
+    if (ambientAudioRef?.current) {
+      ambientAudioRef.current.pause();
+    }
+
+    setIsHeaderMusicPlaying(false);
+  }, [ambientAudioRef]);
+
+  const stopCurrentPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = '';
+    }
+    if (ambientAudioRef?.current) {
+      ambientAudioRef.current.pause();
+      ambientAudioRef.current.currentTime = 0;
+    }
+
+    releaseCurrentLibraryEntry();
+    currentPlayingIdRef.current = null;
+    setIsHeaderMusicPlaying(false);
+    setAmbientSound('None');
+    stopAmbient();
+  }, [ambientAudioRef, releaseCurrentLibraryEntry, setAmbientSound, stopAmbient]);
+
+  const resumeSelectedAmbient = useCallback(async (ambientValue) => {
+    if (!ambientValue || ambientValue === 'None') {
+      return false;
+    }
+
+    const playlist = getMusicPlaylist();
+    const entry = getPlaylistEntry(playlist, ambientValue);
+    if (!entry) {
+      return false;
+    }
+
+    return playMusicEntry(entry, {
+      startTime: entry.type === CUSTOM_MUSIC_SOURCE || entry.type === LIBRARY_MUSIC_SOURCE
+        ? (savedPlaybackPositions[entry.id] || 0)
+        : 0,
+    });
+  }, [getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
+
   // Handle song end - auto-advance based on repeat mode
   const handleSongEnd = useCallback(async () => {
-    console.log('[DEBUG SONG END] Mode:', headerMusicRepeatMode, 'currentId:', currentPlayingIdRef.current, 'ambientSound:', ambientSound);
-    console.log('[DEBUG] customFiles:', customMusicFiles.map(f => f.id), 'AMBIENT_SOUNDS:', AMBIENT_SOUNDS.map(s => s.name));
-    
+    const playlist = getMusicPlaylist();
+    const currentEntry = getPlaylistEntry(playlist, ambientSound);
+
     if (headerMusicRepeatMode === 'repeat-one') {
-      console.log('[DEBUG] Repeat-one mode, restarting current sound');
-      // For repeat-one, just restart whatever is currently playing
-      if (audioRef.current && ambientSound && ambientSound.startsWith('custom_')) {
-        // Custom file repeat
-        audioRef.current.currentTime = 0;
-        await audioRef.current.play().catch(e => console.error('Repeat play error:', e));
-      } else if (ambientSound && !ambientSound.startsWith('custom_') && ambientSound !== 'None') {
-        // Built-in sound repeat - restart via ambient system
-        stopAmbient();
-        startAmbient(getSoundFile(ambientSound));
+      const didRestart = await playMusicEntry(currentEntry || playlist[0]);
+      if (!didRestart) {
+        setIsHeaderMusicPlaying(false);
       }
       return;
     }
 
-    // Determine if playing custom or built-in sound
-    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
-    let soundList = [];
-    let currentSoundName = '';
-
-    if (isPlayingCustom) {
-      // Custom music files list
-      soundList = customMusicFiles.map(f => f.id);
-      currentSoundName = currentPlayingIdRef.current;
-    } else {
-      // Built-in ambient sounds list
-      soundList = AMBIENT_SOUNDS.filter(s => s.name !== 'None').map(s => s.name);
-      currentSoundName = ambientSound && ambientSound !== 'None' ? ambientSound : soundList[0];
-    }
-
-    console.log('[DEBUG] Sound list:', soundList, 'current:', currentSoundName);
-
-    if (soundList.length === 0) {
-      console.log('[DEBUG] No sounds available, stopping');
+    if (playlist.length === 0) {
       setIsHeaderMusicPlaying(false);
       return;
     }
 
-    let nextId = null;
-    
-    if (headerMusicRepeatMode === 'random') {
-      // Random: pick any random sound
-      const randomIndex = Math.floor(Math.random() * soundList.length);
-      nextId = soundList[randomIndex];
-      console.log('[DEBUG] Random mode, picked index:', randomIndex, 'id:', nextId);
-    } else {
-      // Sequential: play next sound in order (default mode)
-      const currentIndex = soundList.findIndex(s => s === currentSoundName);
-      console.log('[DEBUG] Sequential mode, currentIndex:', currentIndex, 'total:', soundList.length);
-      if (currentIndex >= 0 && currentIndex < soundList.length - 1) {
-        nextId = soundList[currentIndex + 1];
-        console.log('[DEBUG] Playing next sound at index', currentIndex + 1);
-      } else {
-        // Loop back to first sound
-        nextId = soundList[0];
-        console.log('[DEBUG] Looping back to first sound');
-      }
-    }
+    const nextEntry = getNextPlaylistEntry(
+      playlist,
+      currentEntry?.ambientValue || ambientSound,
+      headerMusicRepeatMode,
+    );
 
-    if (nextId) {
-      console.log('[DEBUG] Auto-advancing to sound:', nextId);
-      
-      if (isPlayingCustom) {
-        // Play next custom file
-        const url = await ensureCustomMusicUrl(nextId) || getCustomMusicUrl(nextId);
-        console.log('[DEBUG] Got URL for next custom file:', url);
-        if (url && audioRef.current) {
-          audioRef.current.src = url;
-          audioRef.current.currentTime = 0;
-          console.log('[DEBUG] Playing next custom file');
-          await audioRef.current.play().catch(e => console.error('Auto-advance play error:', e));
-          currentPlayingIdRef.current = nextId;
-          setSelectedMusicId(nextId);
-          setAmbientSound(`custom_${nextId}`);
-          startAmbient(getSoundFile(`custom_${nextId}`));
-        }
-      } else {
-        // Play next built-in sound
-        console.log('[DEBUG] Playing next built-in sound:', nextId);
-        const soundFile = getSoundFile(nextId);
-        console.log('[DEBUG] getSoundFile result:', soundFile);
-        stopAmbient();
-        setAmbientSound(nextId);
-        if (soundFile) {
-          startAmbient(soundFile);
-        } else {
-          console.error('[ERROR] getSoundFile returned null/undefined for:', nextId);
-        }
-      }
-    } else {
-      console.log('[DEBUG] No next sound found, stopping');
+    const didPlay = await playMusicEntry(nextEntry);
+    if (!didPlay) {
       setIsHeaderMusicPlaying(false);
     }
-  }, [headerMusicRepeatMode, customMusicFiles, AMBIENT_SOUNDS, ambientSound, ensureCustomMusicUrl, getCustomMusicUrl, setAmbientSound, startAmbient, getSoundFile, stopAmbient]);
+  }, [ambientSound, getMusicPlaylist, headerMusicRepeatMode, playMusicEntry]);
+
+  const selectAndPlayAmbientValue = useCallback(async (ambientValue) => {
+    if (!ambientValue || ambientValue === 'None') {
+      stopCurrentPlayback();
+      return false;
+    }
+
+    const playlist = getMusicPlaylist();
+    const entry = getPlaylistEntry(playlist, ambientValue);
+    if (!entry) {
+      return false;
+    }
+
+    return playMusicEntry(entry, { startTime: 0 });
+  }, [getMusicPlaylist, playMusicEntry, stopCurrentPlayback]);
 
   // Attach onEnded handler to ambientAudioRef for built-in sounds
   useEffect(() => {
@@ -293,61 +479,22 @@ const Header = ({
     };
   }, [isHeaderMusicPlaying, ambientAudioRef]);
 
-  // Monitor playback and trigger auto-advance when song ends
-  useEffect(() => {
-    if (!isHeaderMusicPlaying) {
-      if (playbackCheckIntervalRef.current) {
-        clearInterval(playbackCheckIntervalRef.current);
-        playbackCheckIntervalRef.current = null;
-      }
-      return;
-    }
-
-    console.log('[INIT] Starting playback monitor');
-    playbackCheckIntervalRef.current = setInterval(() => {
-      // Check custom music on audioRef
-      if (audioRef.current && audioRef.current.src) {
-        const audio = audioRef.current;
-        const isEnded = audio.ended;
-        const duration = audio.duration;
-        const currentTime = audio.currentTime;
-        
-        if (isEnded || (duration > 0 && currentTime >= duration - 0.5)) {
-          console.log('[MONITOR CUSTOM] Song ended detected. Duration:', duration, 'CurrentTime:', currentTime);
-          handleSongEnd();
-          return;
-        }
-      }
-      
-      // Check built-in sounds on ambientAudioRef
-      if (ambientAudioRef?.current && ambientAudioRef.current.src) {
-        const audio = ambientAudioRef.current;
-        const isEnded = audio.ended;
-        const duration = audio.duration;
-        const currentTime = audio.currentTime;
-        
-        if (isEnded || (duration > 0 && currentTime >= duration - 0.5)) {
-          console.log('[MONITOR AMBIENT] Song ended detected. Duration:', duration, 'CurrentTime:', currentTime);
-          handleSongEnd();
-          return;
-        }
-      }
-    }, 1000); // Check every 1 second
-
-    return () => {
-      if (playbackCheckIntervalRef.current) {
-        clearInterval(playbackCheckIntervalRef.current);
-        playbackCheckIntervalRef.current = null;
-      }
-    };
-  }, [isHeaderMusicPlaying, handleSongEnd, ambientAudioRef]);
-
   // Dispatch music state to footer via custom event whenever state changes
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('music-player-state', {
-      detail: { isPlaying: isHeaderMusicPlaying, repeatMode: headerMusicRepeatMode }
+      detail: { isPlaying: isHeaderMusicPlaying, repeatMode: headerMusicRepeatMode, currentLabel: getAmbientTrackLabel(ambientSound) }
     }));
-  }, [isHeaderMusicPlaying, headerMusicRepeatMode]);
+  }, [ambientSound, getAmbientTrackLabel, headerMusicRepeatMode, isHeaderMusicPlaying]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = ambientVolume ?? 0.3;
+    }
+  }, [ambientVolume]);
+
+  useEffect(() => () => {
+    releaseCurrentLibraryEntry();
+  }, [releaseCurrentLibraryEntry]);
 
   const stripExtension = (name) => {
     if (!name) return '';
@@ -355,160 +502,59 @@ const Header = ({
     return idx > 0 ? name.slice(0, idx) : name;
   };
 
-  // Get list of available sounds based on current type (custom or built-in)
-  const getSoundList = useCallback(() => {
-    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
-    let soundList = [];
-
-    if (isPlayingCustom) {
-      soundList = customMusicFiles.map(f => f.id);
-    } else {
-      soundList = AMBIENT_SOUNDS.filter(s => s.name !== 'None').map(s => s.name);
-    }
-
-    return soundList;
-  }, [ambientSound, customMusicFiles, AMBIENT_SOUNDS]);
-
-  // Skip to next song in current playlist
+  // Skip to next song in the combined playlist
   const skipToNextSong = useCallback(async () => {
-    const soundList = getSoundList();
-    if (soundList.length === 0) {
+    const playlist = getMusicPlaylist();
+    if (playlist.length === 0) {
       console.log('[SKIP] No sounds available');
       return;
     }
 
-    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
-    const currentSoundName = isPlayingCustom ? ambientSound.replace('custom_', '') : ambientSound;
-    const currentIndex = soundList.findIndex(s => s === currentSoundName);
-    const nextIndex = currentIndex >= 0 && currentIndex < soundList.length - 1 ? currentIndex + 1 : 0;
-    const nextId = soundList[nextIndex];
+    const nextEntry = getNextPlaylistEntry(playlist, ambientSound);
+    const didPlay = await playMusicEntry(nextEntry, {
+      startTime: nextEntry?.type === CUSTOM_MUSIC_SOURCE || nextEntry?.type === LIBRARY_MUSIC_SOURCE
+        ? (savedPlaybackPositions[nextEntry.id] || 0)
+        : 0,
+    });
 
-    console.log('[SKIP NEXT] currentIndex:', currentIndex, 'nextIndex:', nextIndex, 'nextId:', nextId);
-
-    if (isPlayingCustom) {
-      // Custom file skip
-      const url = await ensureCustomMusicUrl(nextId) || getCustomMusicUrl(nextId);
-      if (url && audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.currentTime = savedPlaybackPositions[nextId] || 0;
-        await audioRef.current.play().catch(e => console.error('Play error:', e));
-        currentPlayingIdRef.current = nextId;
-        setSelectedMusicId(nextId);
-        setAmbientSound(`custom_${nextId}`);
-        setIsHeaderMusicPlaying(true);
-      }
-    } else {
-      // Built-in sound skip
-      const soundFile = getSoundFile(nextId);
-      if (soundFile && ambientAudioRef?.current) {
-        stopAmbient();
-        setAmbientSound(nextId);
-        startAmbient(soundFile);
-        setIsHeaderMusicPlaying(true);
-      }
+    if (!didPlay) {
+      console.log('[SKIP NEXT] Failed to play next entry');
     }
-  }, [ambientSound, ambientAudioRef, ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, getSoundList, startAmbient, stopAmbient, savedPlaybackPositions, setAmbientSound]);
+  }, [ambientSound, getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
 
-  // Skip to previous song in current playlist
+  // Skip to previous song in the combined playlist
   const skipToPreviousSong = useCallback(async () => {
-    const soundList = getSoundList();
-    if (soundList.length === 0) {
+    const playlist = getMusicPlaylist();
+    if (playlist.length === 0) {
       console.log('[SKIP] No sounds available');
       return;
     }
 
-    const isPlayingCustom = ambientSound && ambientSound.startsWith('custom_');
-    const currentSoundName = isPlayingCustom ? ambientSound.replace('custom_', '') : ambientSound;
-    const currentIndex = soundList.findIndex(s => s === currentSoundName);
-    const prevIndex = currentIndex > 0 ? currentIndex - 1 : soundList.length - 1;
-    const prevId = soundList[prevIndex];
+    const previousEntry = getPreviousPlaylistEntry(playlist, ambientSound);
+    const didPlay = await playMusicEntry(previousEntry, {
+      startTime: previousEntry?.type === CUSTOM_MUSIC_SOURCE || previousEntry?.type === LIBRARY_MUSIC_SOURCE
+        ? (savedPlaybackPositions[previousEntry.id] || 0)
+        : 0,
+    });
 
-    console.log('[SKIP PREV] currentIndex:', currentIndex, 'prevIndex:', prevIndex, 'prevId:', prevId);
-
-    if (isPlayingCustom) {
-      // Custom file skip
-      const url = await ensureCustomMusicUrl(prevId) || getCustomMusicUrl(prevId);
-      if (url && audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.currentTime = savedPlaybackPositions[prevId] || 0;
-        await audioRef.current.play().catch(e => console.error('Play error:', e));
-        currentPlayingIdRef.current = prevId;
-        setSelectedMusicId(prevId);
-        setAmbientSound(`custom_${prevId}`);
-        setIsHeaderMusicPlaying(true);
-      }
-    } else {
-      // Built-in sound skip
-      const soundFile = getSoundFile(prevId);
-      if (soundFile && ambientAudioRef?.current) {
-        stopAmbient();
-        setAmbientSound(prevId);
-        startAmbient(soundFile);
-        setIsHeaderMusicPlaying(true);
-      }
+    if (!didPlay) {
+      console.log('[SKIP PREV] Failed to play previous entry');
     }
-  }, [ambientSound, ambientAudioRef, ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, getSoundList, startAmbient, stopAmbient, savedPlaybackPositions, setAmbientSound]);
+  }, [ambientSound, getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
 
   // Register global music player controls so MusicPlayerFooter can call them
   useEffect(() => {
     const playPause = async () => {
-      const active = ambientSound;
       if (isHeaderMusicPlaying) {
-        if (audioRef.current) {
-          const id = currentPlayingIdRef.current;
-          if (id) {
-            setSavedPlaybackPositions(prev => ({
-              ...prev,
-              [id]: audioRef.current.currentTime
-            }));
-          }
-          audioRef.current.pause();
-        }
-        if (ambientAudioRef?.current) {
-          ambientAudioRef.current.pause();
-        }
-        setIsHeaderMusicPlaying(false);
+        pauseCurrentPlayback();
         return;
       }
-      if (!active || active === 'None') return;
-      if (active.startsWith('custom_')) {
-        const id = active.replace('custom_', '');
-        const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
-        if (url && audioRef.current) {
-          audioRef.current.src = url;
-          audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
-          await audioRef.current.play().catch(e => console.error('Play error:', e));
-          currentPlayingIdRef.current = id;
-          setSelectedMusicId(id);
-          startAmbient(getSoundFile(`custom_${id}`));
-          setIsHeaderMusicPlaying(true);
-        }
-        return;
-      }
-      const soundFile = getSoundFile(active);
-      if (soundFile && ambientAudioRef?.current) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-        }
-        startAmbient(soundFile);
-        setIsHeaderMusicPlaying(true);
-      }
-    };
-
-    const stop = () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        setIsHeaderMusicPlaying(false);
-      }
-      setAmbientSound('None');
-      stopAmbient();
+      await resumeSelectedAmbient(ambientSound);
     };
 
     window.__musicPlayerControls = {
       playPause,
-      stop,
+      stop: stopCurrentPlayback,
       skipNext: skipToNextSong,
       skipPrev: skipToPreviousSong,
       setRepeatMode: setHeaderMusicRepeatMode
@@ -518,11 +564,14 @@ const Header = ({
       window.__musicPlayerControls = null;
     };
   }, [
-    ambientSound, isHeaderMusicPlaying, savedPlaybackPositions,
-    audioRef, ambientAudioRef, currentPlayingIdRef,
-    ensureCustomMusicUrl, getCustomMusicUrl, getSoundFile, startAmbient, stopAmbient,
-    setAmbientSound, setSavedPlaybackPositions, setSelectedMusicId, setIsHeaderMusicPlaying,
-    setHeaderMusicRepeatMode, skipToNextSong, skipToPreviousSong
+    ambientSound,
+    isHeaderMusicPlaying,
+    pauseCurrentPlayback,
+    resumeSelectedAmbient,
+    setHeaderMusicRepeatMode,
+    skipToNextSong,
+    skipToPreviousSong,
+    stopCurrentPlayback,
   ]);
 
   const onGlobalDelete = async (fileId) => {
@@ -588,6 +637,96 @@ const Header = ({
     }
   };
 
+  const handleRefreshMusicSources = useCallback(async () => {
+    try {
+      await refreshMusicLibrary();
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: 'Music sources refreshed.', type: 'success', ttl: 2500 }
+      }));
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `❌ Failed to refresh music sources: ${error.message}`, type: 'error', ttl: 3500 }
+      }));
+    }
+  }, [refreshMusicLibrary]);
+
+  const handleConnectRemoteMusicSource = useCallback(async (sourceInput) => {
+    try {
+      const source = await addRemoteMusicSource(sourceInput);
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `Connected remote music source: ${source.name}`, type: 'success', ttl: 3000 }
+      }));
+      return source;
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `❌ Failed to connect remote music source: ${error.message}`, type: 'error', ttl: 3500 }
+      }));
+      throw error;
+    }
+  }, [addRemoteMusicSource]);
+
+  const handleAddLocalMusicSource = useCallback(async () => {
+    if (!supportsLocalMusicFolders || typeof window.showDirectoryPicker !== 'function') {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: 'Local folders need a compatible browser with File System Access support.', type: 'error', ttl: 3500 }
+      }));
+      return;
+    }
+
+    try {
+      const directoryHandle = await window.showDirectoryPicker();
+      const source = await addLocalMusicSource(directoryHandle, {
+        name: `${directoryHandle.name} music`,
+      });
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `Connected local music folder: ${source.name}`, type: 'success', ttl: 3000 }
+      }));
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        return;
+      }
+
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `❌ Failed to connect local music folder: ${error.message}`, type: 'error', ttl: 3500 }
+      }));
+    }
+  }, [addLocalMusicSource, supportsLocalMusicFolders]);
+
+  const handleDeleteMusicSource = useCallback(async (sourceId) => {
+    try {
+      await deleteMusicSource(sourceId);
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: 'Music source removed.', type: 'success', ttl: 2500 }
+      }));
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `❌ Failed to remove music source: ${error.message}`, type: 'error', ttl: 3500 }
+      }));
+    }
+  }, [deleteMusicSource]);
+
+  const handleAddMusicLibrarySelection = useCallback((asset) => {
+    addMusicSelection(asset);
+    window.dispatchEvent(new CustomEvent('app-toast', {
+      detail: { message: `Added to music queue: ${asset.name}`, type: 'success', ttl: 2200 }
+    }));
+  }, [addMusicSelection]);
+
+  const handleRemoveMusicLibrarySelection = useCallback((selectionId) => {
+    const selection = musicSelections.find((item) => item.selectionId === selectionId);
+    removeMusicSelection(selectionId);
+    if (ambientSound === `library_${selectionId}`) {
+      stopCurrentPlayback();
+    }
+    window.dispatchEvent(new CustomEvent('app-toast', {
+      detail: { message: selection ? `Removed from queue: ${selection.name}` : 'Track removed from queue', type: 'success', ttl: 2200 }
+    }));
+  }, [ambientSound, musicSelections, removeMusicSelection, stopCurrentPlayback]);
+
+  const handleMoveMusicLibrarySelection = useCallback((fromIndex, toIndex) => {
+    reorderMusicSelection(fromIndex, toIndex);
+  }, [reorderMusicSelection]);
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
@@ -609,6 +748,28 @@ const Header = ({
 
   return (
     <>
+    {showMusicLibraryModal && (
+      <MusicLibraryModal
+        theme={theme}
+        getTextOpacity={getTextOpacity}
+        onClose={() => setShowMusicLibraryModal(false)}
+        customMusicFiles={customMusicFiles}
+        sources={musicSources}
+        sourceStatuses={musicSourceStatuses}
+        availableAssets={availableMusicAssets}
+        selectedQueue={musicSelections}
+        onUploadCustomMusic={uploadCustomMusic}
+        onAddRemoteSource={handleConnectRemoteMusicSource}
+        onAddLocalSource={handleAddLocalMusicSource}
+        onRefreshSources={handleRefreshMusicSources}
+        onRemoveSource={handleDeleteMusicSource}
+        onAddSelection={handleAddMusicLibrarySelection}
+        onRemoveSelection={handleRemoveMusicLibrarySelection}
+        onMoveSelection={handleMoveMusicLibrarySelection}
+        getSelectionStatus={getMusicSelectionStatus}
+        supportsLocalFolders={supportsLocalMusicFolders}
+      />
+    )}
     <div style={{
       display: 'flex',
       justifyContent: 'space-between',
@@ -1509,33 +1670,20 @@ const Header = ({
 
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5) }}>Ambient Sounds</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5) }}>Music & Ambient Sources</label>
+                      </div>
                       {/* Global Action Buttons for Custom Music */}
                       <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={async (e) => {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            try {
-                              await uploadCustomMusic(file);
-                              window.dispatchEvent(new CustomEvent('app-toast', {
-                                detail: { message: '✅ Music file uploaded successfully!', type: 'success', ttl: 3000 }
-                              }));
-                            } catch (error) {
-                              window.dispatchEvent(new CustomEvent('app-toast', {
-                                detail: { message: `❌ ${error.message}`, type: 'error', ttl: 5000 }
-                              }));
-                            }
-                            e.target.value = '';
-                          }}
-                          style={{ display: 'none' }}
-                          id="custom-music-upload"
-                        />
-                        <label htmlFor="custom-music-upload" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: theme.borderRadius, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }} title="Upload music">
+                        <button
+                          type="button"
+                          onClick={() => setShowMusicLibraryModal(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: theme.borderRadius, background: 'rgba(255,255,255,0.05)', color: theme.text, cursor: 'pointer', border: `1px solid ${getTextOpacity(theme, 0.2)}` }}
+                          title="Open music uploads"
+                          aria-label="Open music uploads"
+                        >
                           <Upload size={14} />
-                        </label>
+                        </button>
 
                         <button
                           onClick={(e) => { e.stopPropagation(); onGlobalDownload(); }}
@@ -1568,15 +1716,21 @@ const Header = ({
                       display: 'grid', 
                       gridTemplateColumns: 'repeat(1, 1fr)', 
                       gap: 6,
-                      maxHeight: 200,
+                      maxHeight: 260,
                       overflowY: 'auto'
                     }} ref={soundListRef}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: getTextOpacity(theme, 0.45), textTransform: 'uppercase', letterSpacing: '0.04em', padding: '2px 2px 0' }}>
+                        Built-in ambience
+                      </div>
                       {/* Built-in ambient sounds */}
                       {AMBIENT_SOUNDS.map(sound => (
                         <button
                           ref={ambientSound === sound.name ? selectedSoundButtonRef : null}
                           key={sound.name}
-                          onClick={() => setAmbientSound(sound.name)}
+                          onClick={async () => {
+                            setSelectedMusicId(null);
+                            await selectAndPlayAmbientValue(sound.name);
+                          }}
                           style={{
                             background: ambientSound === sound.name ? theme.accent : 'rgba(255,255,255,0.05)',
                             border: `1px solid ${getTextOpacity(theme, 0.1)}`,
@@ -1592,36 +1746,83 @@ const Header = ({
                           {sound.name}
                         </button>
                       ))}
-                      {/* Custom music files merged into Ambient Sounds list */}
-                      {customMusicFiles.map(file => (
-                        <button
-                          ref={ambientSound === `custom_${file.id}` ? selectedSoundButtonRef : null}
-                          key={`custom_${file.id}`}
-                          onClick={() => { setAmbientSound(`custom_${file.id}`); setSelectedMusicId(file.id); }}
-                          style={{
-                            background: ambientSound === `custom_${file.id}` ? theme.accent : 'rgba(255,255,255,0.05)',
-                            border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: theme.borderRadius,
-                            padding: '8px 12px',
-                            color: ambientSound === `custom_${file.id}` ? '#fff' : theme.text,
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            textAlign: 'left',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6
-                          }}
-                        >
-                          {selectedMusicId === file.id && <Check size={12} color={ambientSound === `custom_${file.id}` ? '#fff' : theme.accent} />}
-                          🎵 {truncate(file.name, 28)}
-                        </button>
-                      ))}
+                      <div style={{ fontSize: 10, fontWeight: 700, color: getTextOpacity(theme, 0.45), textTransform: 'uppercase', letterSpacing: '0.04em', padding: '8px 2px 0 2px' }}>
+                        Library music
+                      </div>
+                      {libraryMusicEntries.length === 0 && (
+                        <div style={{
+                          borderRadius: theme.borderRadius,
+                          padding: '10px 12px',
+                          fontSize: 11,
+                          color: getTextOpacity(theme, 0.45),
+                          background: 'rgba(255,255,255,0.04)',
+                        }}>
+                          No library tracks yet. Use Manage Library to upload music or build the library queue.
+                        </div>
+                      )}
+                      {libraryMusicEntries.map((entry) => {
+                        const isSelected = ambientSound === entry.ambientValue;
+                        const badgeBackground = isSelected ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)';
+                        const badgeColor = isSelected
+                          ? '#fff'
+                          : entry.isReady
+                            ? getTextOpacity(theme, 0.58)
+                            : '#fca5a5';
+
+                        return (
+                          <button
+                            ref={isSelected ? selectedSoundButtonRef : null}
+                            key={entry.key}
+                            onClick={async () => {
+                              if (!entry.isReady) {
+                                return;
+                              }
+
+                              setSelectedMusicId(entry.type === CUSTOM_MUSIC_SOURCE ? entry.fileId : null);
+                              await selectAndPlayAmbientValue(entry.ambientValue);
+                            }}
+                            disabled={!entry.isReady}
+                            style={{
+                              background: isSelected ? theme.accent : 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                              borderRadius: theme.borderRadius,
+                              padding: '8px 12px',
+                              color: isSelected ? '#fff' : entry.isReady ? theme.text : getTextOpacity(theme, 0.4),
+                              cursor: entry.isReady ? 'pointer' : 'not-allowed',
+                              fontSize: 12,
+                              textAlign: 'left',
+                              transition: 'all 0.2s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              opacity: entry.isReady ? 1 : 0.65,
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              {isSelected && <Check size={12} color="#fff" />}
+                              <span>🎵 {truncate(entry.name, 24)}</span>
+                            </span>
+                            <span style={{
+                              flexShrink: 0,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '3px 6px',
+                              borderRadius: 999,
+                              background: badgeBackground,
+                              color: badgeColor,
+                              textTransform: 'uppercase',
+                            }}>
+                              {entry.badgeLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
                   {/* Music Playback Controls */}
-                  {(customMusicFiles.length > 0 || AMBIENT_SOUNDS.filter(s => s.name !== 'None').length > 0) && (
+                  {(customMusicFiles.length > 0 || musicSelections.length > 0 || AMBIENT_SOUNDS.filter(s => s.name !== 'None').length > 0) && (
                     <div style={{ marginTop: 16, borderTop: `1px solid rgba(255,255,255,0.1)`, paddingTop: 12 }}>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: theme.text }}>🎵 Music Playback</label>
                       
@@ -1687,69 +1888,12 @@ const Header = ({
                         <button
                           type="button"
                           onClick={async () => {
-                            // Play/pause based on currently selected ambientSound (supports built-in and custom)
-                            const active = ambientSound;
-                            console.log('[DEBUG] Play clicked. active=', active, 'isHeaderMusicPlaying=', isHeaderMusicPlaying);
-
-                            // If currently playing, pause it and save position
                             if (isHeaderMusicPlaying) {
-                              console.log('[DEBUG] Pausing playback');
-                              if (audioRef.current) {
-                                // Save custom music position
-                                const id = currentPlayingIdRef.current;
-                                if (id) {
-                                  setSavedPlaybackPositions(prev => ({
-                                    ...prev,
-                                    [id]: audioRef.current.currentTime
-                                  }));
-                                }
-                                audioRef.current.pause();
-                              }
-                              if (ambientAudioRef?.current) {
-                                ambientAudioRef.current.pause();
-                              }
-                              setIsHeaderMusicPlaying(false);
+                              pauseCurrentPlayback();
                               return;
                             }
 
-                            // If not playing, start playback of selected sound
-                            if (active === 'None' || !active) {
-                              console.log('[DEBUG] No sound selected');
-                              return;
-                            }
-
-                            // Handle custom music
-                            if (active.startsWith('custom_')) {
-                              const id = active.replace('custom_', '');
-                              console.log('[DEBUG] Playing custom music id=', id);
-                              const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
-                              if (url && audioRef.current) {
-                                console.log('[DEBUG] Starting custom file:', url);
-                                audioRef.current.src = url;
-                                // Resume from saved position or start at 0
-                                audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
-                                await audioRef.current.play().catch(e => console.error('Play error:', e));
-                                currentPlayingIdRef.current = id;
-                                setSelectedMusicId(id);
-                                startAmbient(getSoundFile(`custom_${id}`));
-                                setIsHeaderMusicPlaying(true);
-                              }
-                              return;
-                            }
-
-                            // Handle built-in sounds
-                            const soundFile = getSoundFile(active);
-                            if (soundFile && ambientAudioRef?.current) {
-                              console.log('[DEBUG] Starting built-in sound:', active, 'file:', soundFile);
-                              // Stop any custom audio
-                              if (audioRef.current) {
-                                audioRef.current.pause();
-                                audioRef.current.currentTime = 0;
-                              }
-                              // Start the built-in sound
-                              startAmbient(soundFile);
-                              setIsHeaderMusicPlaying(true);
-                            }
+                            await resumeSelectedAmbient(ambientSound);
                           }}
                           disabled={false}
                           title={isHeaderMusicPlaying ? 'Pause music' : 'Play music'}
@@ -1774,15 +1918,7 @@ const Header = ({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (audioRef.current) {
-                              audioRef.current.pause();
-                              audioRef.current.currentTime = 0;
-                              setIsHeaderMusicPlaying(false);
-                            }
-                            setAmbientSound('None');
-                            stopAmbient();
-                          }}
+                          onClick={stopCurrentPlayback}
                           title="Stop music"
                           style={{
                             display: 'flex',
@@ -1859,18 +1995,6 @@ const Header = ({
                           <SkipForward size={16} />
                         </button>
                       </div>
-                      <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), textAlign: 'center' }}>
-                        {headerMusicRepeatMode === 'sequential' && '▶️ Sequential'}
-                        {headerMusicRepeatMode === 'random' && '🔀 Random'}
-                        {headerMusicRepeatMode === 'repeat-one' && '🔁 Repeat One'}
-                      </div>
-                      
-                      {/* Hidden Audio Element */}
-                      <audio
-                        ref={audioRef}
-                        onEnded={handleSongEnd}
-                        style={{ display: 'none' }}
-                      />
                     </div>
                   )}
                 </>
@@ -2191,7 +2315,7 @@ const Header = ({
               ].map(preset => (
                 <button
                   key={preset.label}
-                  onClick={() => setThemeOpacity(preset.value)}
+                  onClick={() => setThemeOpacity(Math.min(1, Math.max(0, preset.value)))}
                   style={{
                     background: Math.abs(themeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
@@ -2368,6 +2492,14 @@ const Header = ({
       )}
     </div>
 
+    <audio
+      ref={audioRef}
+      onEnded={handleSongEnd}
+      preload="auto"
+      playsInline
+      style={{ display: 'none' }}
+    />
+
     {/* Music Mini-Player — floating bar at bottom, visible only when actively playing */}
     {ambientSound && ambientSound !== 'None' && isHeaderMusicPlaying && (
       <div style={{
@@ -2388,9 +2520,7 @@ const Header = ({
         {/* Track name */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {ambientSound.startsWith('custom_')
-              ? (customMusicFiles.find(f => f.id === ambientSound.replace('custom_', ''))?.name || 'Custom Track')
-              : ambientSound}
+            {getAmbientTrackLabel(ambientSound)}
           </div>
           {musicDuration > 0 && (
             <div style={{ fontSize: 10, color: `${theme.text}80`, marginTop: 1 }}>
@@ -2439,46 +2569,9 @@ const Header = ({
         <button
           onClick={async () => {
             if (isHeaderMusicPlaying) {
-              // Save position before pausing
-              if (audioRef.current) {
-                const id = currentPlayingIdRef.current;
-                if (id) {
-                  setSavedPlaybackPositions(prev => ({
-                    ...prev,
-                    [id]: audioRef.current.currentTime
-                  }));
-                }
-                audioRef.current.pause();
-              }
-              if (ambientAudioRef?.current) ambientAudioRef.current.pause();
-              setIsHeaderMusicPlaying(false);
+              pauseCurrentPlayback();
             } else {
-              if (ambientSound.startsWith('custom_')) {
-                const id = ambientSound.replace('custom_', '');
-                const url = await ensureCustomMusicUrl(id) || getCustomMusicUrl(id);
-                if (url && audioRef.current) {
-                  // Only reload src if track changed, otherwise just resume
-                  if (!audioRef.current.src || currentPlayingIdRef.current !== id) {
-                    audioRef.current.src = url;
-                    audioRef.current.currentTime = savedPlaybackPositions[id] || 0;
-                  }
-                  await audioRef.current.play().catch(() => {});
-                  currentPlayingIdRef.current = id;
-                  setIsHeaderMusicPlaying(true);
-                }
-              } else {
-                // Resume built-in sound from where it was paused
-                if (ambientAudioRef?.current && ambientAudioRef.current.src && ambientAudioRef.current.paused) {
-                  await ambientAudioRef.current.play().catch(() => {});
-                  setIsHeaderMusicPlaying(true);
-                } else {
-                  const soundFile = getSoundFile(ambientSound);
-                  if (soundFile && ambientAudioRef?.current) {
-                    startAmbient(soundFile);
-                    setIsHeaderMusicPlaying(true);
-                  }
-                }
-              }
+              await resumeSelectedAmbient(ambientSound);
             }
           }}
           style={{
@@ -2519,14 +2612,80 @@ const Header = ({
           <SkipForward size={14} />
         </button>
 
+        <div
+          onMouseEnter={() => setIsFooterVolumeVisible(true)}
+          onMouseLeave={() => setIsFooterVolumeVisible(false)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isFooterVolumeVisible ? 8 : 0,
+            flexShrink: 0,
+            padding: isFooterVolumeVisible ? '0 8px' : 0,
+            borderRadius: 999,
+            background: isFooterVolumeVisible ? 'rgba(255,255,255,0.08)' : 'transparent',
+            transition: 'all 0.2s ease',
+            overflow: 'hidden',
+            minWidth: isFooterVolumeVisible ? 166 : 34,
+            justifyContent: 'flex-end',
+          }}
+          title="Music volume"
+        >
+          <button
+            type="button"
+            aria-label="Toggle music volume controls"
+            onFocus={() => setIsFooterVolumeVisible(true)}
+            onBlur={() => setIsFooterVolumeVisible(false)}
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 34,
+              height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: theme.text,
+              flexShrink: 0,
+            }}
+          >
+            {(ambientVolume ?? 0.3) > 0 ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
+
+          {isFooterVolumeVisible && (
+            <>
+              <input
+                aria-label="Music volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={ambientVolume ?? 0.3}
+                onChange={(event) => setAmbientVolume(parseFloat(event.target.value))}
+                style={{
+                  width: 84,
+                  accentColor: theme.accent,
+                  cursor: 'pointer',
+                }}
+              />
+              <div style={{
+                minWidth: 38,
+                textAlign: 'right',
+                fontSize: 11,
+                fontWeight: 700,
+                color: theme.text,
+                opacity: 0.88,
+              }}>
+                {Math.round((ambientVolume ?? 0.3) * 100)}%
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Stop */}
         <button
-          onClick={() => {
-            if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
-            stopAmbient();
-            setAmbientSound('None');
-            setIsHeaderMusicPlaying(false);
-          }}
+          onClick={stopCurrentPlayback}
+          title="Stop music"
           style={{
             background: 'rgba(239,68,68,0.15)',
             border: 'none',

@@ -4,6 +4,7 @@ export const REMOTE_MEDIA_POLICY = {
   allowedImageMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
   blockedImageMimeTypes: ['image/svg+xml', 'image/gif', 'image/heic', 'image/heif'],
   allowedVideoMimeTypes: ['video/mp4', 'video/webm'],
+  allowedAudioMimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/x-m4a', 'audio/webm'],
   recommendedImageBytes: 8 * MB,
   maxImageBytes: 12 * MB,
   maxImagePixels: 20_000_000,
@@ -14,6 +15,9 @@ export const REMOTE_MEDIA_POLICY = {
   maxVideoWidth: 1920,
   maxVideoHeight: 1080,
   maxVideoDurationSeconds: 90,
+  recommendedAudioBytes: 20 * MB,
+  maxAudioBytes: 60 * MB,
+  maxAudioDurationSeconds: 10 * 60 * 60,
 };
 
 const PROVIDER_HOST_ALLOWLIST = {
@@ -90,6 +94,10 @@ class MediaPolicyService {
       errors.push('Remote media source provider is required.');
     }
 
+    if (source.provider === 'local-folder' && !source.directoryHandleKey) {
+      errors.push('Local media source directory handle key is required.');
+    }
+
     if (source.manifestUrl && !isHttpsUrl(source.manifestUrl)) {
       errors.push('Remote media manifests must use HTTPS.');
     }
@@ -104,6 +112,7 @@ class MediaPolicyService {
   validateAsset(asset = {}, source = {}) {
     const errors = [];
     const assetType = asset.assetType;
+    const isLocalSource = source.provider === 'local-folder' || asset.isLocal === true;
     const mimeType = asset.mimeType ? String(asset.mimeType).toLowerCase() : null;
     const bytes = normalizePositiveNumber(asset.bytes);
     const width = normalizePositiveNumber(asset.width);
@@ -113,13 +122,13 @@ class MediaPolicyService {
     const assetHostname = getUrlHostname(asset.url);
     const posterHostname = asset.posterUrl ? getUrlHostname(asset.posterUrl) : null;
 
-    if (!assetType || !['image', 'video'].includes(assetType)) {
-      errors.push('Remote media asset type must be image or video.');
+    if (!assetType || !['image', 'video', 'audio'].includes(assetType)) {
+      errors.push('Remote media asset type must be image, video, or audio.');
     }
 
-    if (!asset.url) {
+    if (!isLocalSource && !asset.url) {
       errors.push('Remote media asset URL is required.');
-    } else if (!isHttpsUrl(asset.url)) {
+    } else if (!isLocalSource && !isHttpsUrl(asset.url)) {
       errors.push('Remote media asset URLs must use HTTPS.');
     }
 
@@ -131,18 +140,18 @@ class MediaPolicyService {
       errors.push('Remote media asset byte size is required.');
     }
 
-    if (allowedHostnames.length === 0) {
+    if (!isLocalSource && allowedHostnames.length === 0) {
       errors.push('Remote media source must define at least one allowed hostname.');
     }
 
-    if (assetHostname && allowedHostnames.length > 0) {
+    if (!isLocalSource && assetHostname && allowedHostnames.length > 0) {
       const assetAllowed = allowedHostnames.some((rule) => hostnameMatchesRule(assetHostname, rule));
       if (!assetAllowed) {
         errors.push('Remote media asset hostname is not allowlisted.');
       }
     }
 
-    if (asset.posterUrl) {
+    if (!isLocalSource && asset.posterUrl) {
       if (!isHttpsUrl(asset.posterUrl)) {
         errors.push('Remote media poster URLs must use HTTPS.');
       } else if (posterHostname && allowedHostnames.length > 0) {
@@ -199,6 +208,20 @@ class MediaPolicyService {
       }
     }
 
+    if (assetType === 'audio') {
+      if (mimeType && !REMOTE_MEDIA_POLICY.allowedAudioMimeTypes.includes(mimeType)) {
+        errors.push('Remote audio MIME type is not allowed.');
+      }
+
+      if (bytes !== null && bytes > REMOTE_MEDIA_POLICY.maxAudioBytes) {
+        errors.push('Remote audio exceeds the maximum allowed size.');
+      }
+
+      if (duration !== null && duration > REMOTE_MEDIA_POLICY.maxAudioDurationSeconds) {
+        errors.push('Remote audio duration exceeds the maximum allowed length.');
+      }
+    }
+
     return {
       valid: errors.length === 0,
       errors,
@@ -218,6 +241,10 @@ class MediaPolicyService {
 
     if (assetType === 'video' && bytes !== null && bytes > REMOTE_MEDIA_POLICY.recommendedVideoBytes) {
       warnings.push('Remote video is above the recommended size.');
+    }
+
+    if (assetType === 'audio' && bytes !== null && bytes > REMOTE_MEDIA_POLICY.recommendedAudioBytes) {
+      warnings.push('Remote audio is above the recommended size.');
     }
 
     return warnings;

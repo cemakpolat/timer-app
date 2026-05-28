@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { deleteLocalMediaSourceHandle } from '../services/localMediaLibraryService';
 import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
 import {
   addRemoteMediaSource as persistRemoteMediaSource,
@@ -127,7 +128,8 @@ const useBackgroundImages = () => {
         id: image.id,
         name: image.name,
         isBuiltIn: false,
-        isRemote: true,
+        isRemote: image.isRemote === true,
+        isLocal: image.isLocal === true,
         provider: image.provider,
         sourceId: image.sourceId,
         sourceName: image.sourceName,
@@ -195,6 +197,8 @@ const useBackgroundImages = () => {
         id: fileId,
         name: fileName,
         isBuiltIn: false,
+        size: file.size,
+        mimeType: file.type,
         uploadedAt: new Date().toISOString()
       };
 
@@ -284,15 +288,19 @@ const useBackgroundImages = () => {
     const selectedSourceMatch = remoteBackgroundImages.some(
       (image) => image.sourceId === sourceId && image.id === selectedBackgroundId
     );
+    const sourceToDelete = remoteBackgroundImageSources.find((source) => source.id === sourceId);
 
     removePersistedRemoteMediaSource(sourceId);
+    if (sourceToDelete?.provider === 'local-folder') {
+      await deleteLocalMediaSourceHandle(sourceToDelete.directoryHandleKey || sourceToDelete.id);
+    }
     if (selectedSourceMatch) {
       setSelectedBackgroundId('None');
     }
 
     await refreshRemoteBackgroundImages();
     return true;
-  }, [remoteBackgroundImages, refreshRemoteBackgroundImages, selectedBackgroundId]);
+  }, [remoteBackgroundImageSources, remoteBackgroundImages, refreshRemoteBackgroundImages, selectedBackgroundId]);
 
   // Rename background image
   const renameBackgroundImage = useCallback((id, newName) => {

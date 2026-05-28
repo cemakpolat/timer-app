@@ -1,12 +1,28 @@
-import React, { useState, useRef } from 'react';
-import { Film, Plus, Trash2, Play } from 'lucide-react';
-
-const MAX_VIDEO_SIZE = 52_428_800; // 50 MB
+import React from 'react';
+import { Database, Film, Play, Trash2, Upload } from 'lucide-react';
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const mb = bytes / 1_048_576;
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+function getVideoStorageCopy(video = {}) {
+  const stored = !video.isRemote && !video.isLocal;
+
+  return {
+    stored,
+    title: stored
+      ? 'Stored in browser storage'
+      : video.isLocal
+        ? 'Not stored in browser storage · local folder'
+        : 'Not stored in browser storage · remote source',
+    subtitle: stored
+      ? `Stored in browser · ${formatBytes(video.size)}`
+      : video.isLocal
+        ? `Local folder${video.sourceName ? ` · ${video.sourceName}` : ''} · ${formatBytes(video.size)}`
+        : `Remote source${video.sourceName ? ` · ${video.sourceName}` : ''} · ${formatBytes(video.size)}`,
+  };
 }
 
 export default function BackgroundVideosPanel({
@@ -18,45 +34,10 @@ export default function BackgroundVideosPanel({
   getBackgroundVideoUrl,
   uploadBackgroundVideo,
   deleteBackgroundVideo,
+  onOpenUploadModal,
+  onOpenLocalFolder,
 }) {
-  const [uploadError, setUploadError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
-
   const videos = getAllBackgroundVideos ? getAllBackgroundVideos() : [];
-
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError('');
-
-    // Client-side validation before touching IndexedDB
-    if (!['video/mp4', 'video/webm', 'video/ogg'].includes(file.type)) {
-      setUploadError('Unsupported format. Use MP4, WebM, or OGG.');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > MAX_VIDEO_SIZE) {
-      const mb = (file.size / 1_048_576).toFixed(1);
-      setUploadError(`Too large (${mb} MB). Max allowed: 50 MB.`);
-      e.target.value = '';
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const newVideo = await uploadBackgroundVideo(file);
-      setSelectedVideoId(newVideo.id);
-      window.dispatchEvent(new CustomEvent('app-toast', {
-        detail: { message: '✅ Video uploaded successfully!', type: 'success', ttl: 3000 },
-      }));
-    } catch (err) {
-      setUploadError(err.message || 'Upload failed.');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
 
   const handleDelete = async (id) => {
     try {
@@ -92,54 +73,56 @@ export default function BackgroundVideosPanel({
           <Film size={15} /> Background Videos
         </span>
         <button
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
+          type="button"
+          onClick={onOpenUploadModal}
           style={{
-            background: uploading ? 'rgba(255,255,255,0.1)' : theme.accent,
+            background: theme.accent,
             border: 'none',
             borderRadius: theme.borderRadius,
             padding: '6px 10px',
             color: '#fff',
-            cursor: uploading ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             fontSize: 12,
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: 4,
-            opacity: uploading ? 0.6 : 1,
           }}
+          title="Open video uploads"
+          aria-label="Open video uploads"
         >
-          <Plus size={13} /> {uploading ? 'Uploading…' : 'Upload'}
+          <Upload size={13} /> Upload
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/mp4,video/webm,video/ogg"
-          style={{ display: 'none' }}
-          onChange={handleUpload}
-        />
+        {typeof onOpenLocalFolder === 'function' && (
+          <button
+            type="button"
+            onClick={onOpenLocalFolder}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: 'none',
+              borderRadius: theme.borderRadius,
+              padding: '6px 10px',
+              color: theme.text,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            title="Open local video folder"
+            aria-label="Open local video folder"
+          >
+            Folder
+          </button>
+        )}
       </div>
 
       {/* Size hint */}
       <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.45), margin: '0 0 10px', lineHeight: 1.4 }}>
         MP4 · WebM · OGG &nbsp;|&nbsp; Max 50 MB per video.
-        Videos are stored locally in your browser. Remote sources are managed in the Sources tab.
+        Upload opens browser storage, local folder, and remote source options.
       </p>
-
-      {/* Error */}
-      {uploadError && (
-        <div style={{
-          background: 'rgba(239,68,68,0.15)',
-          border: '1px solid rgba(239,68,68,0.4)',
-          borderRadius: theme.borderRadius,
-          padding: '8px 10px',
-          color: '#ef4444',
-          fontSize: 12,
-          marginBottom: 10,
-        }}>
-          {uploadError}
-        </div>
-      )}
 
       {/* None option */}
       <div
@@ -166,6 +149,8 @@ export default function BackgroundVideosPanel({
       {/* Video list */}
       {videos.filter(v => v.id !== 'None').map(video => {
         const isSelected = selectedVideoId === video.id;
+        const storageCopy = getVideoStorageCopy(video);
+
         return (
           <div key={video.id} style={rowStyle(isSelected)} onClick={() => setSelectedVideoId(video.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setSelectedVideoId(video.id)}>
             <div style={{
@@ -181,8 +166,24 @@ export default function BackgroundVideosPanel({
                 {video.name}
               </div>
               <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.45) }}>
-                {video.isRemote ? `Remote${video.sourceName ? ` · ${video.sourceName}` : ''} · ${formatBytes(video.size)}` : `Stored locally · ${formatBytes(video.size)}`}
+                {storageCopy.subtitle}
               </div>
+            </div>
+            <div
+              title={storageCopy.title}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: storageCopy.stored ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.08)',
+                color: storageCopy.stored ? '#86efac' : getTextOpacity(theme, 0.55),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Database size={13} />
             </div>
             {isSelected && (
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
