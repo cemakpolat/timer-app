@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { deleteLocalMediaSourceHandle } from '../services/localMediaLibraryService';
 import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
 import {
   addRemoteMediaSource as persistRemoteMediaSource,
@@ -19,6 +20,19 @@ import { logger } from '../utils/logger';
 const useBackgroundImages = () => {
   // File storage ref for this session (holds object URLs)
   const fileStorageRef = useRef(new Map());
+
+  const revokeStoredImageUrl = useCallback((id) => {
+    const entry = fileStorageRef.current.get(id);
+    if (entry?.url) {
+      try {
+        URL.revokeObjectURL(entry.url);
+      } catch (error) {
+        console.warn('Failed to revoke background image URL:', error);
+      }
+    }
+
+    fileStorageRef.current.delete(id);
+  }, []);
 
   // Selected background image (id)
   const [selectedBackgroundId, setSelectedBackgroundId] = useState(() => {
@@ -115,7 +129,8 @@ const useBackgroundImages = () => {
         id: image.id,
         name: image.name,
         isBuiltIn: false,
-        isRemote: true,
+        isRemote: image.isRemote === true,
+        isLocal: image.isLocal === true,
         provider: image.provider,
         sourceId: image.sourceId,
         sourceName: image.sourceName,
@@ -136,7 +151,9 @@ const useBackgroundImages = () => {
 
     // Check if it's a custom image stored in memory (this session)
     if (fileStorageRef.current.has(id)) {
-      return fileStorageRef.current.get(id).url;
+      const entry = fileStorageRef.current.get(id);
+      entry.refCount = (entry.refCount ?? 0) + 1;
+      return entry.url;
     }
 
     // Try to fetch from IndexedDB
@@ -144,7 +161,7 @@ const useBackgroundImages = () => {
       const blob = await getFileBlob(`bg_${id}`);
       if (blob) {
         const url = URL.createObjectURL(blob);
-        fileStorageRef.current.set(id, { url, blob });
+        fileStorageRef.current.set(id, { url, blob, refCount: 1 });
         return url;
       }
     } catch (error) {
@@ -174,13 +191,15 @@ const useBackgroundImages = () => {
 
       // Create object URL for this session
       const url = URL.createObjectURL(file);
-      fileStorageRef.current.set(fileId, { url, blob: file });
+      fileStorageRef.current.set(fileId, { url, blob: file, refCount: 0 });
 
       // Add to custom images list
       const newImage = {
         id: fileId,
         name: fileName,
         isBuiltIn: false,
+        size: file.size,
+        mimeType: file.type,
         uploadedAt: new Date().toISOString()
       };
 
@@ -218,15 +237,7 @@ const useBackgroundImages = () => {
 
       // Revoke object URL if in memory
       if (fileStorageRef.current.has(id)) {
-        const entry = fileStorageRef.current.get(id);
-        if (entry && entry.url) {
-          try {
-            URL.revokeObjectURL(entry.url);
-          } catch (e) {
-            /* ignore */
-          }
-        }
-        fileStorageRef.current.delete(id);
+        revokeStoredImageUrl(id);
       }
 
       // Reset to 'None' if deleted image was selected
@@ -239,7 +250,29 @@ const useBackgroundImages = () => {
       logger.error('Failed to delete background image:', error);
       throw error;
     }
-  }, [remoteBackgroundImages, selectedBackgroundId]);
+  }, [remoteBackgroundImages, revokeStoredImageUrl, selectedBackgroundId]);
+
+  const releaseBackgroundImageUrl = useCallback((id) => {
+    if (!id || !fileStorageRef.current.has(id)) {
+      return;
+    }
+
+    const entry = fileStorageRef.current.get(id);
+    const nextRefCount = Math.max(0, (entry?.refCount ?? 0) - 1);
+
+    if (nextRefCount > 0) {
+      entry.refCount = nextRefCount;
+      return;
+    }
+
+    revokeStoredImageUrl(id);
+  }, [revokeStoredImageUrl]);
+
+  useEffect(() => () => {
+    Array.from(fileStorageRef.current.keys()).forEach((id) => {
+      revokeStoredImageUrl(id);
+    });
+  }, [revokeStoredImageUrl]);
 
   const addRemoteBackgroundImageSource = useCallback(async (sourceInput) => {
     const assetTypes = Array.from(new Set([...(sourceInput.assetTypes || []), 'image']));
@@ -256,15 +289,19 @@ const useBackgroundImages = () => {
     const selectedSourceMatch = remoteBackgroundImages.some(
       (image) => image.sourceId === sourceId && image.id === selectedBackgroundId
     );
+    const sourceToDelete = remoteBackgroundImageSources.find((source) => source.id === sourceId);
 
     removePersistedRemoteMediaSource(sourceId);
+    if (sourceToDelete?.provider === 'local-folder') {
+      await deleteLocalMediaSourceHandle(sourceToDelete.directoryHandleKey || sourceToDelete.id);
+    }
     if (selectedSourceMatch) {
       setSelectedBackgroundId('None');
     }
 
     await refreshRemoteBackgroundImages();
     return true;
-  }, [remoteBackgroundImages, refreshRemoteBackgroundImages, selectedBackgroundId]);
+  }, [remoteBackgroundImageSources, remoteBackgroundImages, refreshRemoteBackgroundImages, selectedBackgroundId]);
 
   // Rename background image
   const renameBackgroundImage = useCallback((id, newName) => {
@@ -284,6 +321,7 @@ const useBackgroundImages = () => {
     remoteBackgroundImageSourceStatuses,
     getAllBackgroundImages,
     getBackgroundImageUrl,
+    releaseBackgroundImageUrl,
     uploadBackgroundImage,
     deleteBackgroundImage,
     addRemoteBackgroundImageSource,

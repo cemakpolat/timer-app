@@ -21,8 +21,12 @@ export default function RemoteSourcesPanel({
   sources = [],
   sourceStatuses = [],
   onAddSource,
+  onAddLocalSource,
   onRefreshSources,
   onRemoveSource,
+  addRemoteLabel = 'Add Remote',
+  addLocalLabel = 'Add Local Folder',
+  emptyStateText = 'No sources connected yet.',
 }) {
   const statusBySourceId = new Map(sourceStatuses.map((status) => [status.sourceId, status]));
 
@@ -83,7 +87,28 @@ export default function RemoteSourcesPanel({
               }}
               title="Add remote source"
             >
-              <Plus size={12} /> Add Remote
+              <Plus size={12} /> {addRemoteLabel}
+            </button>
+          )}
+          {typeof onAddLocalSource === 'function' && (
+            <button
+              onClick={onAddLocalSource}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: 'none',
+                borderRadius: theme.borderRadius,
+                color: theme.text,
+                padding: '6px 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              title="Add local folder source"
+            >
+              <Plus size={12} /> {addLocalLabel}
             </button>
           )}
         </div>
@@ -97,7 +122,7 @@ export default function RemoteSourcesPanel({
           color: getTextOpacity(theme, 0.45),
           background: 'rgba(255,255,255,0.03)',
         }}>
-          No remote sources connected yet.
+          {emptyStateText}
         </div>
       )}
 

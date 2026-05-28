@@ -31,7 +31,9 @@ export default function SlideSetPanel({
   getAllBackgroundImages,
   getAllBackgroundVideos,
   getBackgroundImageUrl,
+  releaseBackgroundImageUrl,
   getBackgroundVideoUrl,
+  releaseBackgroundVideoUrl,
   createSlideSet,
   deleteSlideSet,
   renameSlideSet,
@@ -55,17 +57,29 @@ export default function SlideSetPanel({
 
   // Load all media and their preview URLs.
   useEffect(() => {
+    let cancelled = false;
+    const acquiredImageIds = [];
+    const acquiredVideoIds = [];
+
     const load = async () => {
       const images = getAllBackgroundImages().filter(img => img.id !== 'None');
       const videos = (getAllBackgroundVideos ? getAllBackgroundVideos() : []).filter(video => video.id !== 'None');
-      setAllImages(images);
-      setAllVideos(videos);
 
       const nextImageUrls = {};
       for (const img of images) {
         try {
           const url = await getBackgroundImageUrl(img.id);
-          if (url) nextImageUrls[img.id] = url;
+          if (!url) {
+            continue;
+          }
+
+          if (cancelled) {
+            releaseBackgroundImageUrl?.(img.id);
+            continue;
+          }
+
+          nextImageUrls[img.id] = url;
+          acquiredImageIds.push(img.id);
         } catch {}
       }
 
@@ -74,16 +88,50 @@ export default function SlideSetPanel({
         for (const video of videos) {
           try {
             const url = await getBackgroundVideoUrl(video.id);
-            if (url) nextVideoUrls[video.id] = url;
+            if (!url) {
+              continue;
+            }
+
+            if (cancelled) {
+              releaseBackgroundVideoUrl?.(video.id);
+              continue;
+            }
+
+            nextVideoUrls[video.id] = url;
+            acquiredVideoIds.push(video.id);
           } catch {}
         }
       }
 
+      if (cancelled) {
+        return;
+      }
+
+      setAllImages(images);
+      setAllVideos(videos);
       setImageUrls(nextImageUrls);
       setVideoUrls(nextVideoUrls);
     };
+
     load();
-  }, [getAllBackgroundImages, getAllBackgroundVideos, getBackgroundImageUrl, getBackgroundVideoUrl]);
+
+    return () => {
+      cancelled = true;
+      acquiredImageIds.forEach((id) => {
+        releaseBackgroundImageUrl?.(id);
+      });
+      acquiredVideoIds.forEach((id) => {
+        releaseBackgroundVideoUrl?.(id);
+      });
+    };
+  }, [
+    getAllBackgroundImages,
+    getAllBackgroundVideos,
+    getBackgroundImageUrl,
+    getBackgroundVideoUrl,
+    releaseBackgroundImageUrl,
+    releaseBackgroundVideoUrl,
+  ]);
 
   const handleCreate = () => {
     if (!newSetName.trim()) return;

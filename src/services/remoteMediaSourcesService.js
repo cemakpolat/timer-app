@@ -15,7 +15,7 @@ function getHostname(url) {
 
 function normalizeAssetTypes(assetTypes = []) {
   const normalized = Array.isArray(assetTypes)
-    ? assetTypes.filter((assetType) => ['image', 'video'].includes(assetType))
+    ? assetTypes.filter((assetType) => ['image', 'video', 'audio'].includes(assetType))
     : [];
 
   return normalized.length > 0 ? Array.from(new Set(normalized)) : ['image'];
@@ -30,12 +30,30 @@ function defaultNameForSource(source = {}) {
     return `${source.repo} media`;
   }
 
+  if (source.provider === 'local-folder' && source.directoryName) {
+    return source.directoryName;
+  }
+
   const manifestHostname = getHostname(source.manifestUrl);
   return manifestHostname ? `${manifestHostname} media` : 'Remote media source';
 }
 
 function createSourceId(provider) {
   return `${provider || 'remote'}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createLocalFolderSource(directoryHandle, assetTypes = [], overrides = {}) {
+  const sourceId = overrides.id || createSourceId('local-folder');
+
+  return normalizeRemoteMediaSource({
+    ...overrides,
+    id: sourceId,
+    provider: 'local-folder',
+    directoryHandleKey: overrides.directoryHandleKey || sourceId,
+    directoryName: overrides.directoryName || directoryHandle?.name || null,
+    name: overrides.name || directoryHandle?.name || 'Local media folder',
+    assetTypes,
+  });
 }
 
 function emitSourcesChanged(sources) {
@@ -61,11 +79,14 @@ export function normalizeRemoteMediaSource(source = {}) {
     name: defaultNameForSource(source),
     provider: source.provider,
     manifestUrl: source.manifestUrl || null,
+    folderUrl: source.folderUrl || null,
     owner: source.owner || null,
     repo: source.repo || null,
     ref: source.provider === 'github' ? (source.ref || 'main') : (source.ref || null),
     path: source.path || source.manifestPath || null,
     baseUrl: source.baseUrl || null,
+    directoryHandleKey: source.directoryHandleKey || null,
+    directoryName: source.directoryName || null,
     allowedHostnames: uniqueStrings([
       ...(Array.isArray(source.allowedHostnames) ? source.allowedHostnames : []),
       ...manifestHostname,
@@ -144,6 +165,7 @@ export function filterSourcesByAssetType(sources = [], assetType) {
 
 const remoteMediaSourcesService = {
   addRemoteMediaSource,
+  createLocalFolderSource,
   deleteRemoteMediaSource,
   filterSourcesByAssetType,
   getRemoteMediaSources,
