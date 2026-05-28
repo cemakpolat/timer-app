@@ -1,0 +1,345 @@
+
+> focus-and-fit@0.1.0 test
+> react-scripts test --watchAll=false
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+FAIL src/__tests__/toastUtils.test.js
+  ● Console
+
+    console.error
+      [Operation] Error: Test error
+          at Object.<anonymous> (/Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:127:21)
+          at Promise.then.completed (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:391:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:316:10)
+          at _callCircusTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:218:40)
+          at _runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:155:3)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:66:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at run (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:25:3)
+          at runAndTransformResultsToJestFormat (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:170:21)
+          at jestAdapter (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:82:19)
+          at runTestInternal (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:389:16)
+          at runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:475:34)
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:128:18)
+
+    console.error
+      [saving data] Error: Failed
+          at Object.<anonymous> (/Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:137:21)
+          at Promise.then.completed (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:391:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:316:10)
+          at _callCircusTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:218:40)
+          at _runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:155:3)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:66:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at run (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:25:3)
+          at runAndTransformResultsToJestFormat (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:170:21)
+          at jestAdapter (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:82:19)
+          at runTestInternal (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:389:16)
+          at runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:475:34)
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:138:18)
+
+    console.error
+      [Operation] String error message
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:146:18)
+
+    console.error
+      [Operation] {}
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:153:18)
+
+    console.error
+      [Operation] Error: Function failed
+          at Object.<anonymous> (/Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:174:21)
+          at Promise.then.completed (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:391:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:316:10)
+          at _callCircusTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:218:40)
+          at _runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:155:3)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:66:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at run (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:25:3)
+          at runAndTransformResultsToJestFormat (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:170:21)
+          at jestAdapter (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:82:19)
+          at runTestInternal (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:389:16)
+          at runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:475:34)
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at withErrorHandling (src/utils/toastUtils.js:103:5)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:177:22)
+
+    console.error
+      [loading data] Error: Failed
+          at Object.<anonymous> (/Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:187:46)
+          at Promise.then.completed (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:391:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:316:10)
+          at _callCircusTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:218:40)
+          at _runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:155:3)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:66:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at run (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:25:3)
+          at runAndTransformResultsToJestFormat (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:170:21)
+          at jestAdapter (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:82:19)
+          at runTestInternal (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:389:16)
+          at runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:475:34)
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at withErrorHandling (src/utils/toastUtils.js:103:5)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:189:7)
+
+    console.error
+      [Operation] Error: Sync error
+          at /Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:209:15
+          at /Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-mock/build/index.js:449:39
+          at /Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-mock/build/index.js:457:13
+          at operation (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-mock/build/index.js:170:19)
+          at withErrorHandling (/Users/cemakpolat/Development/top-projects/timer-app/src/utils/toastUtils.js:95:26)
+          at Object.<anonymous> (/Users/cemakpolat/Development/top-projects/timer-app/src/__tests__/toastUtils.test.js:212:45)
+          at Promise.then.completed (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:391:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/utils.js:316:10)
+          at _callCircusTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:218:40)
+          at _runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:155:3)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:66:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at _runTestsForDescribeBlock (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:60:9)
+          at run (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/run.js:25:3)
+          at runAndTransformResultsToJestFormat (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:170:21)
+          at jestAdapter (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:82:19)
+          at runTestInternal (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:389:16)
+          at runTest (/Users/cemakpolat/Development/top-projects/timer-app/node_modules/jest-runner/build/runTest.js:475:34)
+
+      72 |     : `${context} failed`;
+      73 |   
+    > 74 |   console.error(`[${context}]`, error);
+         |           ^
+      75 |   showError(message);
+      76 | };
+      77 |
+
+      at handleError (src/utils/toastUtils.js:74:11)
+      at withErrorHandling (src/utils/toastUtils.js:103:5)
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:212:45)
+
+  ● toastUtils › handleError › handles string errors
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "String error message"
+    Received string:    "❌ Operation failed"
+
+      147 |       
+      148 |       const event = dispatchEventSpy.mock.calls[0][0];
+    > 149 |       expect(event.detail.message).toContain('String error message');
+          |                                    ^
+      150 |     });
+      151 |
+      152 |     test('handles errors without message', () => {
+
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:149:36)
+
+  ● toastUtils › Toast event structure › detail contains required fields
+
+    expect(received).toHaveProperty(path)
+
+    Expected path: "duration"
+    Received path: []
+
+    Received value: {"message": "ℹ️ Info", "ttl": 4000, "type": "info"}
+
+      298 |         expect(event.detail).toHaveProperty('message');
+      299 |         expect(event.detail).toHaveProperty('type');
+    > 300 |         expect(event.detail).toHaveProperty('duration');
+          |                              ^
+      301 |       } else {
+      302 |         expect(dispatchEventSpy).toHaveBeenCalled();
+      303 |       }
+
+      at Object.<anonymous> (src/__tests__/toastUtils.test.js:300:30)
+
+FAIL src/__tests__/logger.test.js
+  ● Console
+
+    console.debug
+      [2026-02-02T19:21:04.440Z] [TestLogger] debug message { data: 'test' }
+
+      at Logger.debug (src/utils/logger.js:93:15)
+
+  ● logger › Environment-based logging › allows errors in production
+
+    expect(jest.fn()).toHaveBeenCalled()
+
+    Expected number of calls: >= 1
+    Received number of calls:    0
+
+      102 |       
+      103 |       logger.error('error message');
+    > 104 |       expect(consoleSpies.error).toHaveBeenCalled();
+          |                                  ^
+      105 |     });
+      106 |
+      107 |     test('allows warnings in production', () => {
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:104:34)
+
+  ● logger › Environment-based logging › allows warnings in production
+
+    expect(jest.fn()).toHaveBeenCalled()
+
+    Expected number of calls: >= 1
+    Received number of calls:    0
+
+      110 |       
+      111 |       logger.warn('warning message');
+    > 112 |       expect(consoleSpies.warn).toHaveBeenCalled();
+          |                                 ^
+      113 |     });
+      114 |   });
+      115 |
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:112:33)
+
+  ● logger › Log levels › debug method logs with console.log
+
+    expect(jest.fn()).toHaveBeenCalled()
+
+    Expected number of calls: >= 1
+    Received number of calls:    0
+
+      124 |     test('debug method logs with console.log', () => {
+      125 |       logger.debug('debug message', { data: 'test' });
+    > 126 |       expect(consoleSpies.log).toHaveBeenCalled();
+          |                                ^
+      127 |     });
+      128 |
+      129 |     test('info method logs with console.log', () => {
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:126:32)
+
+  ● logger › Log levels › supports multiple arguments
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: Any<String>, "message", "arg1", "arg2", {"key": "value"}
+    Received: "[2026-02-02T19:21:04.442Z] [TestLogger] message", "arg1", "arg2", {"key": "value"}
+
+    Number of calls: 1
+
+      144 |     test('supports multiple arguments', () => {
+      145 |       logger.info('message', 'arg1', 'arg2', { key: 'value' });
+    > 146 |       expect(consoleSpies.log).toHaveBeenCalledWith(
+          |                                ^
+      147 |         expect.any(String),
+      148 |         'message',
+      149 |         'arg1',
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:146:32)
+
+  ● logger › Error handling › logs Error objects correctly
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: [Error: Test error]
+    Received array: ["[2026-02-02T19:21:04.445Z] [TestLogger] Error occurred"]
+
+      270 |       expect(consoleSpies.error).toHaveBeenCalled();
+      271 |       const callArgs = consoleSpies.error.mock.calls[0];
+    > 272 |       expect(callArgs).toContain(error);
+          |                        ^
+      273 |     });
+      274 |
+      275 |     test('logs error with stack trace', () => {
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:272:24)
+
+  ● logger › Production safety › critical errors still logged in production
+
+    expect(jest.fn()).toHaveBeenCalled()
+
+    Expected number of calls: >= 1
+    Received number of calls:    0
+
+      304 |       logger.error('Critical error', new Error('System failure'));
+      305 |       
+    > 306 |       expect(consoleSpies.error).toHaveBeenCalled();
+          |                                  ^
+      307 |     });
+      308 |   });
+      309 |
+
+      at Object.<anonymous> (src/__tests__/logger.test.js:306:34)
+
+PASS src/App.test.js
+PASS src/__tests__/IntervalPanel.test.js
+PASS src/__tests__/TimerPanel.test.js
+PASS src/__tests__/scenes.test.js
+PASS src/__tests__/styleHelpers.test.js
+PASS src/__tests__/colorUtils.test.js
+PASS src/__tests__/timerUtils.test.js
+
+Test Suites: 2 failed, 7 passed, 9 total
+Tests:       8 failed, 191 passed, 199 total
+Snapshots:   0 total
+Time:        0.7 s, estimated 1 s
+Ran all test suites.

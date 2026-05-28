@@ -1,4 +1,5 @@
 import { IRealtimeService } from '../interfaces/IRealtimeService';
+import { logger } from '../../utils/logger';
 
 /**
  * Firebase implementation of IRealtimeService
@@ -49,11 +50,11 @@ class FirebaseService extends IRealtimeService {
 
       // Helpful debug logs for dev: print authenticated UID and project info
       try {
-        console.log('Firebase initialized successfully');
-        console.log('Firebase signed-in UID:', this.currentUserId);
+        logger.info('Firebase initialized successfully');
+        logger.info('Firebase signed-in UID:', this.currentUserId);
         // If config contains projectId, print it to help debug rules vs project mismatch
         if (config && config.projectId) {
-          console.log('Firebase projectId:', config.projectId);
+          logger.info('Firebase projectId:', config.projectId);
         }
       } catch (e) {
         // Ignore logging errors
@@ -75,11 +76,11 @@ class FirebaseService extends IRealtimeService {
         }
       } catch (e) {
         // Non-fatal: profile write/read failed
-        console.warn('User profile check/write failed', e);
+        logger.warn('User profile check/write failed', e);
       }
       return true;
     } catch (error) {
-      console.error('Firebase initialization failed:', error);
+      logger.error('Firebase initialization failed:', error);
       throw error;
     }
   }
@@ -452,7 +453,7 @@ class FirebaseService extends IRealtimeService {
           avatarUrl = await this.setUserAvatarFromSeed(userId, true);
         } catch (e) {
           // non-fatal, continue without avatar
-          console.warn('Failed to generate session avatar:', e);
+          logger.warn('Failed to generate session avatar:', e);
           avatarUrl = null;
         }
       }
@@ -467,11 +468,11 @@ class FirebaseService extends IRealtimeService {
       if (this.cleanupTimers.has(roomId)) {
         clearTimeout(this.cleanupTimers.get(roomId));
         this.cleanupTimers.delete(roomId);
-        console.log(`Cancelled scheduled removal for room ${roomId} because a participant re-joined`);
+        logger.info(`Cancelled scheduled removal for room ${roomId} because a participant re-joined`);
       }
     } catch (err) {
       // Rollback userRooms
-      try { await set(userRoomsRef, null); } catch (e) { console.error('Rollback failed', e); }
+      try { await set(userRoomsRef, null); } catch (e) { logger.error('Rollback failed', e); }
       if (err && err.code && (err.code === 'PERMISSION_DENIED' || (err.message && err.message.toLowerCase().includes('permission_denied')))) {
         throw new Error('Permission denied when adding participant: ensure Realtime DB rules allow authenticated users to write to focusRooms/{roomId}/participants/{userId} and that Anonymous Auth is enabled.');
       }
@@ -508,7 +509,7 @@ class FirebaseService extends IRealtimeService {
       await this.removeSessionAvatar(userId);
     } catch (e) {
       // non-fatal
-      console.warn('Failed to remove session avatar:', e);
+      logger.warn('Failed to remove session avatar:', e);
     }
     // After leaving, check if the room now has zero participants; if so and there's a timer, schedule removal after 2 minutes
     try {
@@ -536,10 +537,10 @@ class FirebaseService extends IRealtimeService {
             clearTimeout(this.cleanupTimers.get(roomId));
             this.cleanupTimers.delete(roomId);
           }
-          console.log(`Room ${roomId} has no participants but a timer; scheduling removal in ${delayMs}ms`);
+          logger.info(`Room ${roomId} has no participants but a timer; scheduling removal in ${delayMs}ms`);
           const timeoutId = setTimeout(async () => {
             try {
-              console.log(`Scheduled empty-room removal executing for ${roomId} by ${this.currentUserId}`);
+              logger.info(`Scheduled empty-room removal executing for ${roomId} by ${this.currentUserId}`);
               // Fetch latest room state
               const latestSnap = await get(roomRef);
               if (!latestSnap.exists()) return;
@@ -552,24 +553,24 @@ class FirebaseService extends IRealtimeService {
                   const updates2 = {};
                   updates2[`focusRooms/${roomId}`] = null;
                   updates2[`userRooms/${latestRoom.createdBy}`] = null;
-                  console.log('Attempting full removal updates:', updates2);
+                  logger.info('Attempting full removal updates:', updates2);
                   await update(rootRef(this.db, '/'), updates2);
-                  console.log(`Empty room ${roomId} removed by creator ${this.currentUserId}`);
+                  logger.info(`Empty room ${roomId} removed by creator ${this.currentUserId}`);
                 } else {
                   // mark completed (safe for non-creator)
                   const { ref: rootRef, update } = this.firebase;
                   const updates2 = {};
                   updates2[`focusRooms/${roomId}/completed`] = true;
                   updates2[`focusRooms/${roomId}/timer`] = null;
-                  console.log('Attempting mark-completed updates:', updates2);
+                  logger.info('Attempting mark-completed updates:', updates2);
                   await update(rootRef(this.db, '/'), updates2);
-                  console.log(`Empty room ${roomId} marked completed by non-creator ${this.currentUserId}`);
+                  logger.info(`Empty room ${roomId} marked completed by non-creator ${this.currentUserId}`);
                 }
               } else {
-                console.log(`Empty-room removal aborted for ${roomId}: participants re-joined`);
+                logger.info(`Empty-room removal aborted for ${roomId}: participants re-joined`);
               }
             } catch (err) {
-              console.error('Failed scheduled empty-room removal:', err);
+              logger.error('Failed scheduled empty-room removal:', err);
             } finally {
               this.cleanupTimers.delete(roomId);
             }
@@ -578,7 +579,7 @@ class FirebaseService extends IRealtimeService {
         }
       }
     } catch (e) {
-      console.warn('Post-leave room check failed:', e);
+      logger.warn('Post-leave room check failed:', e);
     }
 
     // Clean up any subscriptions for this room to prevent ghost updates
@@ -635,7 +636,7 @@ class FirebaseService extends IRealtimeService {
               try {
                 await this.cleanupStaleParticipants(roomId, inactiveThresholdMs);
               } catch (e) {
-                console.warn('Participant cleanup failed for', roomId, e);
+                logger.warn('Participant cleanup failed for', roomId, e);
               }
             }, intervalMs);
             this.participantCleanupTimers.set(roomId, timerId);
@@ -878,25 +879,25 @@ class FirebaseService extends IRealtimeService {
               updates[`focusRooms/${roomId}`] = null;
               updates[`userRooms/${room.createdBy}`] = null;
               await update(rootRef, updates);
-              console.log(`Room ${roomId} removed after timeout by creator`);
+              logger.info(`Room ${roomId} removed after timeout by creator`);
             } else {
               // Mark room as completed and clear the timer so viewers know it's finished.
               const roomUpdates = {};
               roomUpdates[`focusRooms/${roomId}/completed`] = true;
               roomUpdates[`focusRooms/${roomId}/timer`] = null;
               await update(ref(this.db, '/'), roomUpdates);
-              console.log(`Room ${roomId} marked completed after timeout (cleanup by non-creator)`);
+              logger.info(`Room ${roomId} marked completed after timeout (cleanup by non-creator)`);
             }
           }
         } catch (err) {
-          console.error('Failed to auto-remove room:', err);
+          logger.error('Failed to auto-remove room:', err);
         } finally {
           this.cleanupTimers.delete(roomId);
         }
       }, totalMs);
       this.cleanupTimers.set(roomId, timeoutId);
     } catch (e) {
-      console.error('Failed to schedule room removal:', e);
+      logger.error('Failed to schedule room removal:', e);
     }
   }
 
@@ -950,7 +951,7 @@ class FirebaseService extends IRealtimeService {
       extendedAt: Date.now()
     });
 
-    console.log(`Room ${roomId} timer extended by ${extensionMs}ms to ${new Date(newEndsAt).toISOString()}`);
+    logger.info(`Room ${roomId} timer extended by ${extensionMs}ms to ${new Date(newEndsAt).toISOString()}`);
   }
 
   /**
@@ -1110,7 +1111,7 @@ class FirebaseService extends IRealtimeService {
     });
     this.subscriptions.clear();
 
-    console.log('Firebase service disconnected');
+    logger.info('Firebase service disconnected');
   }
 }
 

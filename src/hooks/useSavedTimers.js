@@ -18,7 +18,7 @@ const useSavedTimers = () => {
       const storedSaved = localStorage.getItem('savedTimers');
       return storedSaved ? JSON.parse(storedSaved) : defaultSavedTimers;
     } catch (error) {
-      console.error("Failed to load saved timers from localStorage:", error);
+      logger.error("Failed to load saved timers from localStorage:", error);
       return defaultSavedTimers;
     }
   });
@@ -45,13 +45,13 @@ const useSavedTimers = () => {
     const { name, duration, unit = 'min', color = '#3b82f6', group = 'Custom', scene = 'none' } = timerData;
     
     if (!name || !duration) {
-      console.error('Timer name and duration are required');
+      logger.error('Timer name and duration are required');
       return false;
     }
 
     const durationValue = parseInt(duration);
     if (isNaN(durationValue) || durationValue < 0) {
-      console.error('Invalid duration value');
+      logger.error('Invalid duration value');
       return false;
     }
 
@@ -71,7 +71,7 @@ const useSavedTimers = () => {
   // Save a sequence as a timer
   const saveSequence = useCallback((sequenceName, sequenceSteps) => {
     if (!sequenceSteps || sequenceSteps.length === 0 || !sequenceName) {
-      console.error('Sequence name and steps are required');
+      logger.error('Sequence name and steps are required');
       return false;
     }
 

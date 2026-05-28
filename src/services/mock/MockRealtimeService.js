@@ -1,4 +1,5 @@
 import { IRealtimeService } from '../interfaces/IRealtimeService';
+import { logger } from '../../utils/logger';
 
 /**
  * Mock implementation for testing without Firebase
@@ -99,7 +100,7 @@ class MockRealtimeService extends IRealtimeService {
   }
 
   async initialize(config) {
-    console.log('Mock service initialized (no Firebase needed)');
+    logger.info('Mock service initialized (no Firebase needed)');
     return true;
   }
 
@@ -380,7 +381,7 @@ class MockRealtimeService extends IRealtimeService {
     const room = rooms.find(r => r.id === roomId);
 
     if (!room) {
-      console.error('Room not found:', roomId);
+      logger.error('Room not found:', roomId);
       return;
     }
 
@@ -513,7 +514,7 @@ class MockRealtimeService extends IRealtimeService {
     await this.removePresence();
     this.stopPresenceHeartbeat();
     this.listeners.clear();
-    console.log('Mock service disconnected');
+    logger.info('Mock service disconnected');
   }
 }
 

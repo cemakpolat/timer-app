@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supportsFeature } from '../utils/helpers';
+import logger from '../utils/logger';
 
 /**
  * Custom hook for managing browser notifications
@@ -37,7 +38,7 @@ export const useNotifications = () => {
         setPermission(result);
         return result;
       } catch (error) {
-        console.error('Error requesting notification permission:', error);
+        logger.error('Error requesting notification permission:', error);
         return 'denied';
       }
     }
@@ -48,7 +49,7 @@ export const useNotifications = () => {
   // Send notification
   const sendNotification = useCallback((title, options = {}) => {
     if (permission !== 'granted') {
-      console.warn('Notification permission not granted');
+      logger.warn('Notification permission not granted');
       return null;
     }
 
@@ -65,7 +66,7 @@ export const useNotifications = () => {
 
       return notification;
     } catch (error) {
-      console.error('Error sending notification:', error);
+      logger.error('Error sending notification:', error);
       return null;
     }
   }, [permission]);
