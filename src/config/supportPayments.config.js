@@ -8,6 +8,7 @@ const PAYMENT_METHOD_DEFINITIONS = [
 
 export const SUPPORT_DEFAULT_AMOUNTS = [5, 10, 20, 50, 100];
 export const SUPPORT_PREFERENCES_KEY = 'supportPreferences';
+export const SUPPORT_DEFAULT_CURRENCY = process.env.REACT_APP_SUPPORT_CURRENCY || 'USD';
 
 const readEnvValue = (envVar) => process.env[envVar] || '';
 
@@ -34,5 +35,35 @@ export const getPaymentProviderName = (checkoutUrl) => {
     return 'External Checkout';
   } catch (_error) {
     return 'External Checkout';
+  }
+};
+
+export const buildSupportCheckoutUrl = ({ paymentOption, amount }) => {
+  if (!paymentOption?.checkoutUrl) {
+    return '';
+  }
+
+  const normalizedAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+
+  try {
+    const checkoutUrl = new URL(paymentOption.checkoutUrl);
+    const hostname = checkoutUrl.hostname.toLowerCase();
+
+    // PayPal donation links expect major units (e.g. 5.00), not cents.
+    if (paymentOption.id === 'paypal' || hostname.includes('paypal')) {
+      checkoutUrl.searchParams.set('amount', normalizedAmount.toFixed(2));
+      checkoutUrl.searchParams.set('currency_code', SUPPORT_DEFAULT_CURRENCY);
+      checkoutUrl.searchParams.set('payment', 'paypal');
+      return checkoutUrl.toString();
+    }
+
+    // Generic fallback: keep both major and minor units for compatibility.
+    checkoutUrl.searchParams.set('amount', normalizedAmount.toFixed(2));
+    checkoutUrl.searchParams.set('amount_minor', String(Math.round(normalizedAmount * 100)));
+    checkoutUrl.searchParams.set('currency', SUPPORT_DEFAULT_CURRENCY);
+    checkoutUrl.searchParams.set('payment', paymentOption.id || 'external');
+    return checkoutUrl.toString();
+  } catch (_error) {
+    return paymentOption.checkoutUrl;
   }
 };
