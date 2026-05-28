@@ -5,20 +5,26 @@ import { filterSourcesByAssetType, normalizeRemoteMediaSource } from './remoteMe
 export const REMOTE_MEDIA_ASSET_LIMITS = {
   image: 60,
   video: 20,
+  audio: 80,
 };
 
 function mapPreviewAssets(assets = [], source = {}, assetType) {
   const assetLimit = REMOTE_MEDIA_ASSET_LIMITS[assetType] || assets.length;
 
-  return assets.slice(0, assetLimit).map((asset) => ({
-    ...asset,
-    isRemote: true,
-    isBuiltIn: false,
-    sourceId: asset.sourceId || source.id,
-    provider: asset.provider || source.provider,
-    size: asset.bytes || 0,
-    sourceName: source.name || source.id,
-  }));
+  return assets.slice(0, assetLimit).map((asset) => {
+    const isLocalSource = source.provider === 'local-folder' || asset.isLocal === true;
+
+    return {
+      ...asset,
+      isRemote: !isLocalSource,
+      isLocal: isLocalSource || asset.isLocal === true,
+      isBuiltIn: false,
+      sourceId: asset.sourceId || source.id,
+      provider: asset.provider || source.provider,
+      size: asset.bytes || 0,
+      sourceName: source.name || source.id,
+    };
+  });
 }
 
 export async function previewRemoteMediaSource(sourceInput = {}, assetType) {

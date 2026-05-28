@@ -95,4 +95,86 @@ describe('remoteMediaLibraryService', () => {
     });
     expect(result.rejectedAssets[0].policyErrors).toContain('Remote image MIME type is blocked.');
   });
+
+  test('loads approved remote audio assets without downloading the full library', async () => {
+    const listAssets = jest.fn().mockResolvedValue([
+      {
+        id: 'audio-ok',
+        assetType: 'audio',
+        url: 'https://cdn.example.com/audio/focus.mp3',
+        mimeType: 'audio/mpeg',
+        bytes: 1024,
+        duration: 180,
+      },
+      {
+        id: 'audio-blocked',
+        assetType: 'audio',
+        url: 'https://cdn.example.com/audio/focus.flac',
+        mimeType: 'audio/flac',
+        bytes: 1024,
+        duration: 180,
+      },
+    ]);
+
+    MediaProviderFactory.registerProvider('audio-provider', { listAssets });
+
+    const { remoteAssets, sourceStatuses } = await loadRemoteMediaAssets([
+      {
+        id: 'audio-source',
+        name: 'Remote Music',
+        provider: 'audio-provider',
+        manifestUrl: 'https://cdn.example.com/catalog/manifest.json',
+        assetTypes: ['audio'],
+      },
+    ], 'audio');
+
+    expect(listAssets).toHaveBeenCalledTimes(1);
+    expect(remoteAssets).toHaveLength(1);
+    expect(remoteAssets[0]).toMatchObject({
+      id: 'audio-ok',
+      assetType: 'audio',
+      isRemote: true,
+      sourceId: 'audio-source',
+      sourceName: 'Remote Music',
+    });
+    expect(sourceStatuses[0]).toMatchObject({
+      sourceId: 'audio-source',
+      status: 'ready',
+      approvedCount: 1,
+      rejectedCount: 1,
+    });
+  });
+
+  test('marks local-folder assets as local instead of remote', async () => {
+    const listAssets = jest.fn().mockResolvedValue([
+      {
+        id: 'local-video',
+        assetType: 'video',
+        mimeType: 'video/mp4',
+        bytes: 1024,
+        relativePath: 'Loops/ocean.mp4',
+        isLocal: true,
+      },
+    ]);
+
+    MediaProviderFactory.registerProvider('local-folder-test', { listAssets });
+
+    const { remoteAssets } = await loadRemoteMediaAssets([
+      {
+        id: 'local-video-source',
+        name: 'Desk Videos',
+        provider: 'local-folder-test',
+        directoryHandleKey: 'desk-videos',
+        assetTypes: ['video'],
+      },
+    ], 'video');
+
+    expect(remoteAssets).toHaveLength(1);
+    expect(remoteAssets[0]).toMatchObject({
+      id: 'local-video',
+      isRemote: false,
+      isLocal: true,
+      sourceName: 'Desk Videos',
+    });
+  });
 });

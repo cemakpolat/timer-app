@@ -1,21 +1,125 @@
 import React, { useEffect, useRef } from 'react';
 
+const CANVAS_EFFECT_TYPES = new Set([
+  'rain',
+  'winter',
+  'autumn',
+  'spring',
+  'sakura',
+  'fireflies',
+  'butterflies',
+  'lanterns',
+  'aurora',
+  'desert',
+  'tropical',
+  'coffee',
+  'fireplace',
+]);
+
+const BASE_PARTICLE_COUNTS = {
+  rain: 150,
+  winter: 80,
+  autumn: 40,
+  spring: 50,
+  sakura: 60,
+  fireflies: 30,
+  butterflies: 20,
+  lanterns: 25,
+  aurora: 50,
+  desert: 120,
+  tropical: 40,
+  coffee: 300,
+  fireplace: 90,
+};
+
+const HEAVY_EFFECT_TYPES = new Set(['rain', 'desert', 'coffee', 'fireplace', 'aurora']);
+const MEDIUM_EFFECT_TYPES = new Set(['winter', 'autumn', 'spring', 'sakura', 'tropical']);
+
+const getCanvasOpacity = (type) => {
+  if (type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'tropical') {
+    return 0.8;
+  }
+
+  if (type === 'fireflies' || type === 'lanterns') {
+    return 0.9;
+  }
+
+  if (type === 'butterflies') {
+    return 0.85;
+  }
+
+  if (type === 'aurora') {
+    return 0.6;
+  }
+
+  if (type === 'desert') {
+    return 0.5;
+  }
+
+  if (type === 'coffee') {
+    return 0.9;
+  }
+
+  if (type === 'fireplace') {
+    return 0.8;
+  }
+
+  return 0.6;
+};
+
+const getCanvasQuality = (type, width, height) => {
+  const viewportWidth = width || window.innerWidth;
+  const viewportHeight = height || window.innerHeight;
+  const viewportArea = Math.max(1, viewportWidth * viewportHeight);
+  const baselineArea = 1280 * 720;
+  const densityScale = Math.max(0.45, Math.min(1, Math.sqrt(baselineArea / viewportArea)));
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const effectScale = prefersReducedMotion
+    ? 0.6
+    : HEAVY_EFFECT_TYPES.has(type)
+      ? 0.72
+      : MEDIUM_EFFECT_TYPES.has(type)
+        ? 0.85
+        : 1;
+  const particleCount = Math.max(
+    12,
+    Math.round((BASE_PARTICLE_COUNTS[type] || 50) * densityScale * effectScale)
+  );
+  const targetFPS = prefersReducedMotion
+    ? 12
+    : HEAVY_EFFECT_TYPES.has(type)
+      ? 18
+      : MEDIUM_EFFECT_TYPES.has(type)
+        ? 24
+        : 30;
+
+  return {
+    particleCount,
+    targetFPS,
+    viewportWidth,
+    viewportHeight,
+  };
+};
+
 const WeatherEffect = ({ type, config, width, height, paused = false }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
   useEffect(() => {
-    if (type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical' || type === 'coffee' || type === 'fireplace') {
+    if (CANVAS_EFFECT_TYPES.has(type)) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext('2d');
-      canvas.width = width || window.innerWidth;
-      canvas.height = height || window.innerHeight;
+      const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true }) || canvas.getContext('2d');
+      if (!ctx) return;
+
+      const { particleCount, targetFPS, viewportWidth, viewportHeight } = getCanvasQuality(type, width, height);
+      canvas.width = viewportWidth;
+      canvas.height = viewportHeight;
 
       let particles = [];
-
-      const particleCount = type === 'rain' ? 150 : type === 'winter' ? 80 : type === 'autumn' ? 40 : type === 'spring' ? 50 : type === 'sakura' ? 60 : type === 'fireflies' ? 30 : type === 'butterflies' ? 20 : type === 'lanterns' ? 25 : type === 'aurora' ? 50 : type === 'desert' ? 120 : type === 'tropical' ? 40 : type === 'coffee' ? 300 : type === 'fireplace' ? 90 : 50;
 
       class Particle {
         constructor() {
@@ -772,13 +876,18 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
       }
 
       let lastFrameTime = performance.now();
-      const targetFPS = 30; // cap to 30fps to reduce CPU usage by default
       const frameInterval = 1000 / targetFPS;
 
+      const stopAnimation = () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+      };
+
       const animate = (now) => {
-        // If paused explicitly or page is hidden, skip updates but keep RAF active
         if (paused || document.hidden) {
-          animationRef.current = requestAnimationFrame(animate);
+          stopAnimation();
           return;
         }
 
@@ -802,21 +911,37 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
         animationRef.current = requestAnimationFrame(animate);
       };
 
-      // kick off animation with RAF so we get high-resolution timestamps
-      animationRef.current = requestAnimationFrame(animate);
+      const startAnimation = () => {
+        if (animationRef.current || paused || document.hidden) {
+          return;
+        }
+
+        lastFrameTime = performance.now();
+        animationRef.current = requestAnimationFrame(animate);
+      };
 
       const handleResize = () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
       };
 
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          stopAnimation();
+          return;
+        }
+
+        startAnimation();
+      };
+
       window.addEventListener('resize', handleResize);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      startAnimation();
 
       return () => {
         window.removeEventListener('resize', handleResize);
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        stopAnimation();
       };
     }
   }, [type, config, width, height, paused]);
@@ -834,7 +959,7 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
       zIndex: 0,
       overflow: 'hidden'
     }}>
-      {(type === 'rain' || type === 'winter' || type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'fireflies' || type === 'butterflies' || type === 'lanterns' || type === 'aurora' || type === 'desert' || type === 'tropical' || type === 'coffee' || type === 'fireplace') && (
+      {CANVAS_EFFECT_TYPES.has(type) && (
         <canvas
           ref={canvasRef}
           style={{
@@ -843,7 +968,7 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
             left: 0,
             width: '100%',
             height: '100%',
-            opacity: type === 'autumn' || type === 'spring' || type === 'sakura' || type === 'tropical' ? 0.8 : type === 'fireflies' || type === 'lanterns' ? 0.9 : type === 'butterflies' ? 0.85 : type === 'aurora' ? 0.6 : type === 'desert' ? 0.5 : type === 'coffee' ? 0.9 : type === 'fireplace' ? 0.8 : 0.6
+            opacity: getCanvasOpacity(type)
           }}
         />
       )}

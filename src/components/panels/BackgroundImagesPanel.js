@@ -1,9 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Plus, Trash, ChevronLeft, Images, Film, Link2 } from 'lucide-react';
+import { Database, Image as ImageIcon, Plus, Trash, ChevronLeft, Images, Film } from 'lucide-react';
 import SlideSetPanel from './SlideSetPanel';
 import BackgroundVideosPanel from './BackgroundVideosPanel';
-import RemoteSourcesPanel from '../shared/RemoteSourcesPanel';
-import RemoteSourceModal from '../shared/RemoteSourceModal';
+import MediaUploadsModal from '../shared/MediaUploadsModal';
+import { saveLocalMediaSourceHandle, supportsLocalMediaLibrary } from '../../services/localMediaLibraryService';
+import { createLocalFolderSource } from '../../services/remoteMediaSourcesService';
+
+function getOriginCopy(item = {}) {
+  if (item.isBuiltIn || item.id === 'None') {
+    return null;
+  }
+
+  if (item.isLocal) {
+    return {
+      label: 'Folder',
+      background: 'rgba(250,204,21,0.88)',
+      color: '#111827',
+    };
+  }
+
+  if (item.isRemote) {
+    return {
+      label: 'Cloud',
+      background: 'rgba(59,130,246,0.9)',
+      color: '#ffffff',
+    };
+  }
+
+  return {
+    label: 'Browser',
+    background: 'rgba(34,197,94,0.88)',
+    color: '#052e16',
+  };
+}
+
+function getStorageCopy(item = {}) {
+  if (item.isBuiltIn || item.id === 'None') {
+    return null;
+  }
+
+  const stored = !item.isRemote && !item.isLocal;
+
+  return {
+    stored,
+    title: stored
+      ? 'Stored in browser storage'
+      : item.isLocal
+        ? 'Not stored in browser storage · local folder'
+        : 'Not stored in browser storage · remote source',
+  };
+}
 
 /**
  * BackgroundImagesPanel Component
@@ -34,6 +80,7 @@ export default function BackgroundImagesPanel({
   setSelectedBackgroundId,
   getAllBackgroundImages,
   getBackgroundImageUrl,
+  releaseBackgroundImageUrl,
   uploadBackgroundImage,
   deleteBackgroundImage,
   remoteBackgroundImageSources = [],
@@ -60,11 +107,13 @@ export default function BackgroundImagesPanel({
   setSelectedVideoId,
   getAllBackgroundVideos,
   getBackgroundVideoUrl,
+  releaseBackgroundVideoUrl,
   uploadBackgroundVideo,
   deleteBackgroundVideo,
   remoteBackgroundVideoSources = [],
   remoteBackgroundVideoSourceStatuses = [],
   addRemoteBackgroundVideoSource,
+  addLocalVideoSource,
   deleteRemoteBackgroundVideoSource,
   refreshRemoteBackgroundVideos,
 }) {
@@ -72,14 +121,16 @@ export default function BackgroundImagesPanel({
   const [allImages, setAllImages] = useState([]);
   const [imageUrls, setImageUrls] = useState({});
   const [selectedName, setSelectedName] = useState('');
-  const [remoteSourceModalAssetType, setRemoteSourceModalAssetType] = useState(null);
-  const totalRemoteSourceCount = remoteBackgroundImageSources.length + remoteBackgroundVideoSources.length;
+  const [uploadModalAssetType, setUploadModalAssetType] = useState(null);
+  const localFoldersSupported = supportsLocalMediaLibrary();
 
   // Load all images and their URLs
   useEffect(() => {
+    let cancelled = false;
+    const acquiredImageIds = [];
+
     const loadImages = async () => {
       const images = getAllBackgroundImages();
-      setAllImages(images);
 
       // Preload URLs for visible images
       const urls = {};
@@ -87,12 +138,28 @@ export default function BackgroundImagesPanel({
         if (img.id !== 'None') {
           try {
             const url = await getBackgroundImageUrl(img.id);
-            if (url) urls[img.id] = url;
+            if (!url) {
+              continue;
+            }
+
+            if (cancelled) {
+              releaseBackgroundImageUrl?.(img.id);
+              continue;
+            }
+
+            urls[img.id] = url;
+            acquiredImageIds.push(img.id);
           } catch (e) {
             console.error(`Failed to load URL for ${img.id}:`, e);
           }
         }
       }
+
+      if (cancelled) {
+        return;
+      }
+
+      setAllImages(images);
       setImageUrls(urls);
 
       // Get selected image name
@@ -101,10 +168,16 @@ export default function BackgroundImagesPanel({
     };
 
     loadImages();
-  }, [getAllBackgroundImages, getBackgroundImageUrl, selectedBackgroundId]);
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
+    return () => {
+      cancelled = true;
+      acquiredImageIds.forEach((id) => {
+        releaseBackgroundImageUrl?.(id);
+      });
+    };
+  }, [getAllBackgroundImages, getBackgroundImageUrl, releaseBackgroundImageUrl, selectedBackgroundId]);
+
+  const handleUpload = async (file) => {
     if (!file) return;
 
     try {
@@ -160,10 +233,6 @@ export default function BackgroundImagesPanel({
     }
   };
 
-  const handleAddRemoteSource = async () => {
-    setRemoteSourceModalAssetType('image');
-  };
-
   const handleRefreshRemoteSources = async () => {
     if (typeof refreshRemoteBackgroundImages !== 'function') {
       return;
@@ -198,28 +267,95 @@ export default function BackgroundImagesPanel({
     }
   };
 
-  const handleAddRemoteVideoSource = async () => {
-    setRemoteSourceModalAssetType('video');
+  const handleUploadVideoFile = async (file) => {
+    const newVideo = await uploadBackgroundVideo(file);
+    handleSelectVideo(newVideo.id);
+    return newVideo;
   };
 
-  const handleConnectRemoteSource = async (sourceInput) => {
+  const connectLocalFolderSource = async (assetType) => {
+    if (!localFoldersSupported || typeof window.showDirectoryPicker !== 'function') {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: 'Local folders need a compatible browser with File System Access support.', type: 'error', ttl: 3500 }
+      }));
+      return;
+    }
+
     try {
-      const source = remoteSourceModalAssetType === 'video'
-        ? await addRemoteBackgroundVideoSource(sourceInput)
-        : await addRemoteBackgroundImageSource(sourceInput);
+      const directoryHandle = await window.showDirectoryPicker();
+      const source = createLocalFolderSource(directoryHandle, [assetType], {
+        name: `${directoryHandle.name} ${assetType === 'video' ? 'videos' : 'images'}`,
+      });
+
+      await saveLocalMediaSourceHandle(source.directoryHandleKey || source.id, directoryHandle);
+      if (assetType === 'video') {
+        await addRemoteBackgroundVideoSource(source);
+      } else {
+        await addRemoteBackgroundImageSource(source);
+      }
 
       window.dispatchEvent(new CustomEvent('app-toast', {
         detail: {
-          message: `Connected remote ${remoteSourceModalAssetType === 'video' ? 'video' : 'image'} source: ${source.name}`,
+          message: `Connected local ${assetType} folder: ${source.name}`,
           type: 'success',
           ttl: 3000,
         }
       }));
-      setRemoteSourceModalAssetType(null);
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        return;
+      }
+
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `❌ Failed to connect local folder: ${error.message}`,
+          type: 'error',
+          ttl: 3500,
+        }
+      }));
+    }
+  };
+
+  const handleConnectRemoteImageSource = async (sourceInput) => {
+    try {
+      const source = await addRemoteBackgroundImageSource(sourceInput);
+
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `Connected remote image source: ${source.name}`,
+          type: 'success',
+          ttl: 3000,
+        }
+      }));
+      return source;
     } catch (error) {
       window.dispatchEvent(new CustomEvent('app-toast', {
         detail: {
-          message: `❌ Failed to connect remote source: ${error.message}`,
+          message: `❌ Failed to connect remote image source: ${error.message}`,
+          type: 'error',
+          ttl: 3500,
+        }
+      }));
+      throw error;
+    }
+  };
+
+  const handleConnectRemoteVideoSource = async (sourceInput) => {
+    try {
+      const source = await addRemoteBackgroundVideoSource(sourceInput);
+
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `Connected remote video source: ${source.name}`,
+          type: 'success',
+          ttl: 3000,
+        }
+      }));
+      return source;
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `❌ Failed to connect remote video source: ${error.message}`,
           type: 'error',
           ttl: 3500,
         }
@@ -312,6 +448,12 @@ export default function BackgroundImagesPanel({
 
   const isDeleteDisabled = selectedBackgroundId === 'None' || 
                           !allImages.find(img => img.id === selectedBackgroundId && !img.isBuiltIn && !img.isRemote);
+  const storedImages = allImages
+    .filter((image) => image.id !== 'None' && !image.isBuiltIn && !image.isRemote && !image.isLocal)
+    .map((image) => ({ ...image, isStored: true }));
+  const storedVideos = (getAllBackgroundVideos ? getAllBackgroundVideos() : [])
+    .filter((video) => video.id !== 'None' && !video.isRemote && !video.isLocal)
+    .map((video) => ({ ...video, isStored: true }));
 
   const tabStyle = (tab) => ({
     flex: 1,
@@ -332,13 +474,21 @@ export default function BackgroundImagesPanel({
 
   return (
     <div style={{ width: '100%' }}>
-      {remoteSourceModalAssetType && (
-        <RemoteSourceModal
+      {uploadModalAssetType && (
+        <MediaUploadsModal
           theme={theme}
           getTextOpacity={getTextOpacity}
-          assetType={remoteSourceModalAssetType}
-          onClose={() => setRemoteSourceModalAssetType(null)}
-          onConnect={handleConnectRemoteSource}
+          assetType={uploadModalAssetType}
+          onClose={() => setUploadModalAssetType(null)}
+          uploadedItems={uploadModalAssetType === 'video' ? storedVideos : storedImages}
+          onUploadFile={uploadModalAssetType === 'video' ? handleUploadVideoFile : handleUpload}
+          sources={uploadModalAssetType === 'video' ? remoteBackgroundVideoSources : remoteBackgroundImageSources}
+          sourceStatuses={uploadModalAssetType === 'video' ? remoteBackgroundVideoSourceStatuses : remoteBackgroundImageSourceStatuses}
+          onAddRemoteSource={uploadModalAssetType === 'video' ? handleConnectRemoteVideoSource : handleConnectRemoteImageSource}
+          onAddLocalSource={localFoldersSupported ? () => connectLocalFolderSource(uploadModalAssetType) : undefined}
+          onRefreshSources={uploadModalAssetType === 'video' ? handleRefreshRemoteVideoSources : handleRefreshRemoteSources}
+          onRemoveSource={uploadModalAssetType === 'video' ? handleDeleteRemoteVideoSource : handleDeleteRemoteSource}
+          supportsLocalFolders={localFoldersSupported}
         />
       )}
 
@@ -369,7 +519,7 @@ export default function BackgroundImagesPanel({
         Back
       </button>
 
-      {/* Tabs: Images | Slide Sets | Videos | Sources */}
+      {/* Tabs: Images | Slide Sets | Videos */}
       <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: theme.borderRadius, padding: 4, marginBottom: 14 }}>
         <button style={tabStyle('images')} onClick={() => setActiveTab('images')}>
           <ImageIcon size={13} /> Images
@@ -386,12 +536,6 @@ export default function BackgroundImagesPanel({
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginLeft: 2 }} title="Video background active" />
           )}
         </button>
-        <button style={tabStyle('sources')} onClick={() => setActiveTab('sources')}>
-          <Link2 size={13} /> Sources
-          {totalRemoteSourceCount > 0 && (
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginLeft: 2 }} title="Remote sources connected" />
-          )}
-        </button>
       </div>
 
       {/* Videos tab */}
@@ -405,6 +549,31 @@ export default function BackgroundImagesPanel({
           getBackgroundVideoUrl={getBackgroundVideoUrl}
           uploadBackgroundVideo={uploadBackgroundVideo}
           deleteBackgroundVideo={deleteBackgroundVideo}
+          onOpenUploadModal={() => setUploadModalAssetType('video')}
+          onOpenLocalFolder={typeof addLocalVideoSource === 'function' ? async () => {
+            if (typeof window.showDirectoryPicker !== 'function') {
+              window.dispatchEvent(new CustomEvent('app-toast', {
+                detail: { message: 'Local folders need a compatible browser with File System Access support.', type: 'error', ttl: 3500 }
+              }));
+              return;
+            }
+
+            try {
+              const directoryHandle = await window.showDirectoryPicker();
+              const source = await addLocalVideoSource(directoryHandle);
+              window.dispatchEvent(new CustomEvent('app-toast', {
+                detail: { message: `Connected local video folder: ${source.name}`, type: 'success', ttl: 3000 }
+              }));
+            } catch (error) {
+              if (error?.name === 'AbortError') {
+                return;
+              }
+
+              window.dispatchEvent(new CustomEvent('app-toast', {
+                detail: { message: `❌ Failed to connect local video folder: ${error.message}`, type: 'error', ttl: 3500 }
+              }));
+            }
+          } : undefined}
           remoteBackgroundVideoSources={remoteBackgroundVideoSources}
           remoteBackgroundVideoSourceStatuses={remoteBackgroundVideoSourceStatuses}
           addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
@@ -422,6 +591,7 @@ export default function BackgroundImagesPanel({
           activeSlideSetId={activeSlideSetId}
           getAllBackgroundImages={getAllBackgroundImages}
           getBackgroundImageUrl={getBackgroundImageUrl}
+          releaseBackgroundImageUrl={releaseBackgroundImageUrl}
           createSlideSet={createSlideSet}
           deleteSlideSet={deleteSlideSet}
           renameSlideSet={renameSlideSet}
@@ -434,44 +604,8 @@ export default function BackgroundImagesPanel({
           setActiveSlideSetId={handleSelectSlideSet}
           getAllBackgroundVideos={getAllBackgroundVideos}
           getBackgroundVideoUrl={getBackgroundVideoUrl}
+          releaseBackgroundVideoUrl={releaseBackgroundVideoUrl}
         />
-      )}
-
-      {activeTab === 'sources' && (
-        <div style={{ width: '100%' }}>
-          <div style={{ marginBottom: 12 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.text, margin: '0 0 6px' }}>
-              Remote Sources
-            </h3>
-            <div style={{ fontSize: 11, color: getTextOpacity(theme, 0.46), lineHeight: 1.4 }}>
-              Keep uploads and remote libraries separate. Connect or refresh public sources here.
-            </div>
-          </div>
-
-          <RemoteSourcesPanel
-            theme={theme}
-            getTextOpacity={getTextOpacity}
-            title="Remote Image Sources"
-            description="Public GitHub or JSON manifests for image libraries."
-            sources={remoteBackgroundImageSources}
-            sourceStatuses={remoteBackgroundImageSourceStatuses}
-            onAddSource={handleAddRemoteSource}
-            onRefreshSources={handleRefreshRemoteSources}
-            onRemoveSource={handleDeleteRemoteSource}
-          />
-
-          <RemoteSourcesPanel
-            theme={theme}
-            getTextOpacity={getTextOpacity}
-            title="Remote Video Sources"
-            description="Public GitHub or JSON manifests for streamed MP4 and WebM backgrounds."
-            sources={remoteBackgroundVideoSources}
-            sourceStatuses={remoteBackgroundVideoSourceStatuses}
-            onAddSource={handleAddRemoteVideoSource}
-            onRefreshSources={handleRefreshRemoteVideoSources}
-            onRemoveSource={handleDeleteRemoteVideoSource}
-          />
-        </div>
       )}
 
       {/* Images tab content below */}
@@ -500,15 +634,9 @@ export default function BackgroundImagesPanel({
         {/* Add and Delete buttons */}
         <div style={{ display: 'flex', gap: 6 }}>
           {/* Add Button */}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleUpload}
-            style={{ display: 'none' }}
-            id="bg-image-upload"
-          />
           <button
-            onClick={() => document.getElementById('bg-image-upload').click()}
+            type="button"
+            onClick={() => setUploadModalAssetType('image')}
             style={{
               background: theme.accent,
               border: 'none',
@@ -525,7 +653,8 @@ export default function BackgroundImagesPanel({
             }}
             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
             onMouseLeave={(e) => e.target.style.opacity = '1'}
-            title="Add background image"
+            title="Open image uploads"
+            aria-label="Open image uploads"
           >
             <Plus size={14} />
             Upload
@@ -600,110 +729,133 @@ export default function BackgroundImagesPanel({
         overflowY: 'auto',
         paddingRight: 4
       }}>
-        {allImages.map(img => (
-          <div
-            key={img.id}
-            onClick={() => handleSelectBackground(img.id)}
-            style={{
-              position: 'relative',
-              borderRadius: theme.borderRadius,
-              overflow: 'hidden',
-              cursor: 'pointer',
-              border: selectedBackgroundId === img.id ? `2px solid ${theme.accent}` : `1px solid ${getTextOpacity(theme, 0.1)}`,
-              background: img.id === 'None' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.2)',
-              transition: 'all 0.2s',
-              aspectRatio: '1'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = theme.accent;
-              e.currentTarget.style.boxShadow = `0 0 8px ${getTextOpacity(theme, 0.2)}`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = selectedBackgroundId === img.id ? theme.accent : getTextOpacity(theme, 0.1);
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {img.id === 'None' ? (
-              <div style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                gap: 6
-              }}>
-                <ImageIcon size={24} color={getTextOpacity(theme, 0.4)} />
+        {allImages.map(img => {
+          const originCopy = getOriginCopy(img);
+          const storageCopy = getStorageCopy(img);
+
+          return (
+            <div
+              key={img.id}
+              onClick={() => handleSelectBackground(img.id)}
+              style={{
+                position: 'relative',
+                borderRadius: theme.borderRadius,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                border: selectedBackgroundId === img.id ? `2px solid ${theme.accent}` : `1px solid ${getTextOpacity(theme, 0.1)}`,
+                background: img.id === 'None' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.2)',
+                transition: 'all 0.2s',
+                aspectRatio: '1'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = theme.accent;
+                e.currentTarget.style.boxShadow = `0 0 8px ${getTextOpacity(theme, 0.2)}`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = selectedBackgroundId === img.id ? theme.accent : getTextOpacity(theme, 0.1);
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {img.id === 'None' ? (
                 <div style={{
-                  fontSize: 11,
-                  color: getTextOpacity(theme, 0.4),
-                  fontWeight: 500,
-                  textAlign: 'center'
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  gap: 6
                 }}>
-                  None
+                  <ImageIcon size={24} color={getTextOpacity(theme, 0.4)} />
+                  <div style={{
+                    fontSize: 11,
+                    color: getTextOpacity(theme, 0.4),
+                    fontWeight: 500,
+                    textAlign: 'center'
+                  }}>
+                    None
+                  </div>
                 </div>
-              </div>
-            ) : imageUrls[img.id] ? (
-              <>
-                {(img.isRemote || (!img.isBuiltIn && img.id !== 'None')) && (
+              ) : imageUrls[img.id] ? (
+                <>
+                  {originCopy && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      zIndex: 1,
+                      padding: '3px 6px',
+                      borderRadius: 999,
+                      background: originCopy.background,
+                      color: originCopy.color,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }}>
+                      {originCopy.label}
+                    </div>
+                  )}
+                  {storageCopy && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      zIndex: 1,
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      background: storageCopy.stored ? 'rgba(34,197,94,0.92)' : 'rgba(15,23,42,0.82)',
+                      color: storageCopy.stored ? '#052e16' : '#cbd5e1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }} title={storageCopy.title}>
+                      <Database size={13} />
+                    </div>
+                  )}
+                  <img
+                    src={imageUrls[img.id]}
+                    alt={img.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
                   <div style={{
                     position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    zIndex: 1,
-                    padding: '3px 6px',
-                    borderRadius: 999,
-                    background: img.isRemote ? `${theme.accent}dd` : 'rgba(0,0,0,0.65)',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
+                    padding: '12px 8px 8px 8px',
                     color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: 'uppercase'
+                    fontSize: 11,
+                    fontWeight: 500,
+                    textAlign: 'center',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap'
                   }}>
-                    {img.isRemote ? 'Remote' : 'Local'}
+                    {img.name}
                   </div>
-                )}
-                <img
-                  src={imageUrls[img.id]}
-                  alt={img.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
-                />
+                </>
+              ) : (
                 <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-                  padding: '12px 8px 8px 8px',
-                  color: '#fff',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  textAlign: 'center',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap'
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  color: getTextOpacity(theme, 0.4)
                 }}>
-                  {img.name}
+                  Loading...
                 </div>
-              </>
-            ) : (
-              <div style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 10,
-                color: getTextOpacity(theme, 0.4)
-              }}>
-                Loading...
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Help text */}

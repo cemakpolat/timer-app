@@ -196,6 +196,19 @@ firebase deploy --project timerapp-2997d
 ### Environment Variables
 - `CREDENTIALS_ENCRYPTION_KEY` (for secrets)
 - `FIREBASE_DEPLOY_TOKEN` (for deploy)
+- `REACT_APP_SUPPORT_STRIPE_URL` (optional Stripe hosted checkout/payment link)
+- `REACT_APP_SUPPORT_PAYPAL_URL` (optional PayPal payment link)
+- `REACT_APP_SUPPORT_KOFI_URL` (optional Ko-fi support link)
+- `REACT_APP_SUPPORT_BMC_URL` (optional Buy Me a Coffee link)
+- `REACT_APP_SUPPORT_CHECKOUT_URL` (optional fallback/custom payment link)
+
+Support links are used by the supporter modal in the app header (beer icon). Use hosted checkout providers (Stripe Payment Links, PayPal, Ko-fi, etc.) rather than collecting card data in-app. For thank-you handling after checkout, configure your provider return URLs with query params like `?support=success&amount=5` and cancel URLs with `?support=cancel`.
+
+Payment methods are modular and config-based in [src/config/supportPayments.config.js](src/config/supportPayments.config.js).
+To add a new provider later:
+1. Add a new entry to `PAYMENT_METHOD_DEFINITIONS` with `id`, `label`, and `envVar`.
+2. Add that env var to your deployment/local environment.
+3. The support dropdown will include it automatically when the link is configured.
 
 ### Monitoring
 - Firebase Console (realtime, hosting)

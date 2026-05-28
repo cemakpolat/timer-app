@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Play, Pause, X, SkipBack, SkipForward } from 'lucide-react';
+import useMusicPlayerState from '../hooks/useMusicPlayerState';
 
 const MusicPlayerFooter = ({ theme, ambientSound }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [repeatMode, setRepeatMode] = useState('sequential');
-
-  // Listen for state changes dispatched from Header.js
-  useEffect(() => {
-    const handler = (e) => {
-      setIsPlaying(e.detail.isPlaying);
-      setRepeatMode(e.detail.repeatMode);
-    };
-    window.addEventListener('music-player-state', handler);
-    return () => window.removeEventListener('music-player-state', handler);
-  }, []);
+  const { isPlaying, repeatMode } = useMusicPlayerState();
 
   if (!ambientSound || ambientSound === 'None') return null;
 

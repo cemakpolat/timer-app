@@ -1,7 +1,9 @@
 import {
   addRemoteMediaSource,
+  createLocalFolderSource,
   deleteRemoteMediaSource,
   getRemoteMediaSources,
+  normalizeRemoteMediaSource,
 } from '../services/remoteMediaSourcesService';
 
 describe('remoteMediaSourcesService', () => {
@@ -40,5 +42,38 @@ describe('remoteMediaSourcesService', () => {
     deleteRemoteMediaSource(source.id);
 
     expect(getRemoteMediaSources()).toEqual([]);
+  });
+
+  test('normalizes local-folder sources for browser-picked music libraries', () => {
+    const source = normalizeRemoteMediaSource({
+      provider: 'local-folder',
+      name: 'Desk Music',
+      directoryHandleKey: 'music-folder-1',
+      directoryName: 'Music',
+      assetTypes: ['audio'],
+    });
+
+    expect(source).toMatchObject({
+      provider: 'local-folder',
+      name: 'Desk Music',
+      directoryHandleKey: 'music-folder-1',
+      directoryName: 'Music',
+      assetTypes: ['audio'],
+    });
+    expect(source.allowedHostnames).toEqual([]);
+  });
+
+  test('creates a local-folder source from a picked directory handle', () => {
+    const source = createLocalFolderSource({ name: 'Desk Audio' }, ['audio'], {
+      name: 'Desk Audio',
+    });
+
+    expect(source).toMatchObject({
+      provider: 'local-folder',
+      directoryName: 'Desk Audio',
+      name: 'Desk Audio',
+      assetTypes: ['audio'],
+    });
+    expect(source.directoryHandleKey).toBe(source.id);
   });
 });

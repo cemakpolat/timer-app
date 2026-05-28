@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveFileBlob, getFileBlob, deleteFileBlob } from '../services/indexeddb';
+import { deleteLocalMediaSourceHandle, getLocalMediaSourceHandle, saveLocalMediaSourceHandle } from '../services/localMediaLibraryService';
 import { loadRemoteMediaAssets } from '../services/remoteMediaLibraryService';
 import {
   addRemoteMediaSource as persistRemoteMediaSource,
+  createLocalFolderSource,
   deleteRemoteMediaSource as removePersistedRemoteMediaSource,
   filterSourcesByAssetType,
   getRemoteMediaSources,
@@ -11,9 +13,31 @@ import {
 
 const MAX_VIDEO_SIZE = 52_428_800; // 50 MB
 const ACCEPTED_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
+const LOCAL_VIDEO_FOLDER_KEY = 'videos-folder';
+
+function createVideoFolderSource(directoryHandle) {
+  return createLocalFolderSource(directoryHandle, ['video'], {
+    id: LOCAL_VIDEO_FOLDER_KEY,
+    directoryHandleKey: LOCAL_VIDEO_FOLDER_KEY,
+    name: directoryHandle?.name ? `${directoryHandle.name} videos` : 'Videos',
+  });
+}
 
 const useBackgroundVideos = () => {
   const fileStorageRef = useRef(new Map()); // id → { url, blob }
+
+  const revokeStoredVideoUrl = useCallback((id) => {
+    const entry = fileStorageRef.current.get(id);
+    if (entry?.url) {
+      try {
+        URL.revokeObjectURL(entry.url);
+      } catch (error) {
+        console.warn('Failed to revoke background video URL:', error);
+      }
+    }
+
+    fileStorageRef.current.delete(id);
+  }, []);
 
   const [selectedVideoId, setSelectedVideoId] = useState(() => {
     try {
@@ -35,6 +59,26 @@ const useBackgroundVideos = () => {
   const [remoteBackgroundVideos, setRemoteBackgroundVideos] = useState([]);
   const [remoteBackgroundVideoSources, setRemoteBackgroundVideoSources] = useState([]);
   const [remoteBackgroundVideoSourceStatuses, setRemoteBackgroundVideoSourceStatuses] = useState([]);
+
+  const restoreLocalVideoFolderSource = useCallback(async () => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const sources = getRemoteMediaSources();
+    if (sources.some((source) => source.provider === 'local-folder' && source.assetTypes?.includes('video'))) {
+      return null;
+    }
+
+    const directoryHandle = await getLocalMediaSourceHandle(LOCAL_VIDEO_FOLDER_KEY);
+    if (!directoryHandle) {
+      return null;
+    }
+
+    const source = createVideoFolderSource(directoryHandle);
+    persistRemoteMediaSource(source);
+    return source;
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('selectedVideoId', selectedVideoId);
@@ -61,8 +105,9 @@ const useBackgroundVideos = () => {
   }, []);
 
   useEffect(() => {
+    restoreLocalVideoFolderSource();
     refreshRemoteBackgroundVideos();
-  }, [refreshRemoteBackgroundVideos]);
+  }, [refreshRemoteBackgroundVideos, restoreLocalVideoFolderSource]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -102,7 +147,8 @@ const useBackgroundVideos = () => {
         size: video.bytes || 0,
         mimeType: video.mimeType,
         duration: video.duration,
-        isRemote: true,
+        isRemote: video.isRemote === true,
+        isLocal: video.isLocal === true,
         sourceId: video.sourceId,
         sourceName: video.sourceName,
         provider: video.provider,
@@ -114,14 +160,16 @@ const useBackgroundVideos = () => {
     if (id === 'None' || !id) return null;
 
     if (fileStorageRef.current.has(id)) {
-      return fileStorageRef.current.get(id).url;
+      const entry = fileStorageRef.current.get(id);
+      entry.refCount = (entry.refCount ?? 0) + 1;
+      return entry.url;
     }
 
     try {
       const blob = await getFileBlob(`vid_${id}`);
       if (blob) {
         const url = URL.createObjectURL(blob);
-        fileStorageRef.current.set(id, { url, blob });
+        fileStorageRef.current.set(id, { url, blob, refCount: 1 });
         return url;
       }
     } catch (error) {
@@ -154,7 +202,7 @@ const useBackgroundVideos = () => {
     try {
       await saveFileBlob(`vid_${fileId}`, file);
       const url = URL.createObjectURL(file);
-      fileStorageRef.current.set(fileId, { url, blob: file });
+      fileStorageRef.current.set(fileId, { url, blob: file, refCount: 0 });
 
       const newVideo = {
         id: fileId,
@@ -185,11 +233,7 @@ const useBackgroundVideos = () => {
       setCustomBackgroundVideos(prev => prev.filter(v => v.id !== id));
 
       if (fileStorageRef.current.has(id)) {
-        const entry = fileStorageRef.current.get(id);
-        if (entry?.url) {
-          try { URL.revokeObjectURL(entry.url); } catch { /* ignore */ }
-        }
-        fileStorageRef.current.delete(id);
+        revokeStoredVideoUrl(id);
       }
 
       if (selectedVideoId === id) {
@@ -199,7 +243,29 @@ const useBackgroundVideos = () => {
       console.error('Failed to delete background video:', error);
       throw error;
     }
-  }, [remoteBackgroundVideos, selectedVideoId]);
+  }, [remoteBackgroundVideos, revokeStoredVideoUrl, selectedVideoId]);
+
+  const releaseBackgroundVideoUrl = useCallback((id) => {
+    if (!id || !fileStorageRef.current.has(id)) {
+      return;
+    }
+
+    const entry = fileStorageRef.current.get(id);
+    const nextRefCount = Math.max(0, (entry?.refCount ?? 0) - 1);
+
+    if (nextRefCount > 0) {
+      entry.refCount = nextRefCount;
+      return;
+    }
+
+    revokeStoredVideoUrl(id);
+  }, [revokeStoredVideoUrl]);
+
+  useEffect(() => () => {
+    Array.from(fileStorageRef.current.keys()).forEach((id) => {
+      revokeStoredVideoUrl(id);
+    });
+  }, [revokeStoredVideoUrl]);
 
   const addRemoteBackgroundVideoSource = useCallback(async (sourceInput) => {
     const assetTypes = Array.from(new Set([...(sourceInput.assetTypes || []), 'video']));
@@ -216,15 +282,28 @@ const useBackgroundVideos = () => {
     const selectedSourceMatch = remoteBackgroundVideos.some(
       (video) => video.sourceId === sourceId && video.id === selectedVideoId
     );
+    const sourceToDelete = remoteBackgroundVideoSources.find((source) => source.id === sourceId);
 
     removePersistedRemoteMediaSource(sourceId);
+    if (sourceToDelete?.provider === 'local-folder') {
+      await deleteLocalMediaSourceHandle(sourceToDelete.directoryHandleKey || sourceToDelete.id);
+    }
     if (selectedSourceMatch) {
       setSelectedVideoId('None');
     }
 
     await refreshRemoteBackgroundVideos();
     return true;
-  }, [remoteBackgroundVideos, refreshRemoteBackgroundVideos, selectedVideoId]);
+  }, [remoteBackgroundVideoSources, remoteBackgroundVideos, refreshRemoteBackgroundVideos, selectedVideoId]);
+
+  const addLocalVideoSource = useCallback(async (directoryHandle) => {
+    const source = createVideoFolderSource(directoryHandle);
+
+    await saveLocalMediaSourceHandle(source.directoryHandleKey || source.id, directoryHandle);
+    persistRemoteMediaSource(source);
+    await refreshRemoteBackgroundVideos();
+    return source;
+  }, [refreshRemoteBackgroundVideos]);
 
   return {
     selectedVideoId,
@@ -234,9 +313,11 @@ const useBackgroundVideos = () => {
     remoteBackgroundVideoSourceStatuses,
     getAllBackgroundVideos,
     getBackgroundVideoUrl,
+    releaseBackgroundVideoUrl,
     uploadBackgroundVideo,
     deleteBackgroundVideo,
     addRemoteBackgroundVideoSource,
+    addLocalVideoSource,
     deleteRemoteBackgroundVideoSource,
     refreshRemoteBackgroundVideos,
   };

@@ -253,6 +253,22 @@ firebase login:ci
 # Paste token to GitHub Secrets
 ```
 
+#### 4. Optional Support Payment Variables
+
+**Purpose**: Expose hosted checkout links at build time for supporter payments.
+
+Add any of these as GitHub Repository Variables (optional):
+
+- `REACT_APP_SUPPORT_PAYPAL_URL`
+- `REACT_APP_SUPPORT_STRIPE_URL`
+- `REACT_APP_SUPPORT_KOFI_URL`
+- `REACT_APP_SUPPORT_BMC_URL`
+- `REACT_APP_SUPPORT_CHECKOUT_URL`
+
+For your current setup, set at minimum:
+
+- `REACT_APP_SUPPORT_PAYPAL_URL`
+
 ### Credential Encryption/Decryption
 
 #### Encryption Process (Infrastructure Job)

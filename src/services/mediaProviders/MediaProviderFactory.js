@@ -1,15 +1,18 @@
 import GenericManifestMediaProvider from './GenericManifestMediaProvider';
 import GitHubMediaProvider from './GitHubMediaProvider';
+import LocalFolderMediaProvider from './LocalFolderMediaProvider';
 
 export const MediaProviderType = {
   GENERIC_MANIFEST: 'generic-manifest',
   GITHUB: 'github',
+  LOCAL_FOLDER: 'local-folder',
 };
 
 function createDefaultProviders() {
   return new Map([
     [MediaProviderType.GENERIC_MANIFEST, new GenericManifestMediaProvider()],
     [MediaProviderType.GITHUB, new GitHubMediaProvider()],
+    [MediaProviderType.LOCAL_FOLDER, new LocalFolderMediaProvider()],
   ]);
 }
 

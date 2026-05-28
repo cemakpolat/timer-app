@@ -43,6 +43,7 @@ describe('BackgroundImagesPanel', () => {
     remoteBackgroundVideoSources: [],
     remoteBackgroundVideoSourceStatuses: [],
     addRemoteBackgroundVideoSource: jest.fn(),
+    addLocalVideoSource: jest.fn(),
     deleteRemoteBackgroundVideoSource: jest.fn(),
     refreshRemoteBackgroundVideos: jest.fn(),
     ...overrides,
@@ -58,6 +59,8 @@ describe('BackgroundImagesPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /video/i }));
 
+    fireEvent.click(screen.getByRole('button', { name: /open video uploads/i }));
+
     const fileInput = container.querySelector('input[accept="video/mp4,video/webm,video/ogg"]');
     expect(fileInput).not.toBeNull();
 
@@ -71,5 +74,14 @@ describe('BackgroundImagesPanel', () => {
     expect(props.setSelectedBackgroundId).toHaveBeenCalledWith('None');
     expect(props.setActiveSlideSetId).toHaveBeenCalledWith(null);
     expect(props.setSelectedVideoId).toHaveBeenCalledWith('video-1');
+  });
+
+  test('shows a local video folder button when local folders are supported', () => {
+    const props = createProps();
+    render(<BackgroundImagesPanel {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /video/i }));
+
+    expect(screen.getByRole('button', { name: /open local video folder/i })).toBeInTheDocument();
   });
 });

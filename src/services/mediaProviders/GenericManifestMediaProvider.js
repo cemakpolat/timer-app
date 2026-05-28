@@ -1,13 +1,25 @@
 import IMediaProvider from '../interfaces/IMediaProvider';
 
 const EXTENSION_TO_MIME = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  avif: 'image/avif',
-  mp4: 'video/mp4',
-  webm: 'video/webm',
+  image: {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    avif: 'image/avif',
+  },
+  video: {
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+  },
+  audio: {
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
+    aac: 'audio/aac',
+    m4a: 'audio/x-m4a',
+    webm: 'audio/webm',
+  },
 };
 
 function sanitizeIdSegment(value) {
@@ -29,7 +41,7 @@ function inferMimeType(url, assetType) {
   try {
     const pathname = new URL(url).pathname;
     const extension = pathname.split('.').pop()?.toLowerCase();
-    const inferred = extension ? EXTENSION_TO_MIME[extension] : null;
+    const inferred = extension ? EXTENSION_TO_MIME[assetType]?.[extension] : null;
 
     if (inferred) {
       return inferred;
@@ -40,6 +52,10 @@ function inferMimeType(url, assetType) {
     }
 
     if (assetType === 'video') {
+      return null;
+    }
+
+    if (assetType === 'audio') {
       return null;
     }
   } catch {
@@ -112,6 +128,10 @@ class GenericManifestMediaProvider extends IMediaProvider {
       flattenedAssets.push(...manifest.videos.map((asset) => ({ ...asset, type: 'video' })));
     }
 
+    if (Array.isArray(manifest.audios)) {
+      flattenedAssets.push(...manifest.audios.map((asset) => ({ ...asset, type: 'audio' })));
+    }
+
     if (flattenedAssets.length === 0) {
       throw new Error('Remote media manifest must define assets, images, or videos.');
     }
@@ -123,8 +143,8 @@ class GenericManifestMediaProvider extends IMediaProvider {
     const assetType = rawAsset.assetType || rawAsset.type;
     const baseUrl = manifest.baseUrl || source.baseUrl || source.manifestUrl;
 
-    if (!assetType || !['image', 'video'].includes(assetType)) {
-      throw new Error('Remote media assets must declare an image or video type.');
+    if (!assetType || !['image', 'video', 'audio'].includes(assetType)) {
+      throw new Error('Remote media assets must declare an image, video, or audio type.');
     }
 
     if (!rawAsset.url) {
