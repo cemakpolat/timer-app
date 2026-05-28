@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useModal } from '../context/ModalContext';
 import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
@@ -6,6 +6,12 @@ import DataBackupPanel from './panels/DataBackupPanel';
 import MusicLibraryModal from './MusicLibraryModal';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
 import { buildMusicPlaylist, CUSTOM_MUSIC_SOURCE, getNextPlaylistEntry, getPlaylistEntry, getPreviousPlaylistEntry, LIBRARY_MUSIC_SOURCE } from '../utils/musicPlaylist';
+import {
+  buildSupportPaymentOptions,
+  getPaymentProviderName,
+  SUPPORT_DEFAULT_AMOUNTS,
+  SUPPORT_PREFERENCES_KEY,
+} from '../config/supportPayments.config';
 
 const Header = ({
   theme,
@@ -158,11 +164,140 @@ const Header = ({
   const [musicCurrentTime, setMusicCurrentTime] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
   const [isFooterVolumeVisible, setIsFooterVolumeVisible] = useState(false);
+  const supportPaymentOptions = useMemo(() => buildSupportPaymentOptions(), []);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState(
+    supportPaymentOptions.find((option) => option.checkoutUrl)?.id || supportPaymentOptions[0]?.id || ''
+  );
+  const [selectedAmount, setSelectedAmount] = useState(SUPPORT_DEFAULT_AMOUNTS[0]);
+  const [customAmount, setCustomAmount] = useState('');
   const [savedPlaybackPositions, setSavedPlaybackPositions] = useState({}); // Track playback position for each song
   const audioRef = useRef(null);
   const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
   const currentPlayingEntryRef = useRef(null);
   const musicUpdateIntervalRef = useRef(null); // Timer for updating music progress
+
+  const customAmountValue = Number(customAmount);
+  const resolvedSupportAmount = Number.isFinite(customAmountValue) && customAmountValue > 0
+    ? customAmountValue
+    : selectedAmount;
+  const configuredPaymentOptions = useMemo(
+    () => supportPaymentOptions.filter((option) => option.checkoutUrl),
+    [supportPaymentOptions]
+  );
+  const selectedPaymentOption = supportPaymentOptions.find((option) => option.id === selectedPaymentOptionId)
+    || supportPaymentOptions[0];
+  const selectedPaymentProvider = getPaymentProviderName(selectedPaymentOption?.checkoutUrl);
+  const isPaymentOptionConfigured = !!selectedPaymentOption?.checkoutUrl;
+
+  useEffect(() => {
+    if (!configuredPaymentOptions.length) {
+      return;
+    }
+
+    if (!configuredPaymentOptions.some((option) => option.id === selectedPaymentOptionId)) {
+      setSelectedPaymentOptionId(configuredPaymentOptions[0].id);
+    }
+  }, [configuredPaymentOptions, selectedPaymentOptionId]);
+
+  useEffect(() => {
+    try {
+      const query = new URLSearchParams(window.location.search);
+      const supportStatus = query.get('support');
+      if (!supportStatus) {
+        return;
+      }
+
+      const amountValue = Number(query.get('amount'));
+      const normalizedAmount = Number.isFinite(amountValue) && amountValue > 0
+        ? ` $${amountValue.toFixed(2)}`
+        : '';
+
+      if (supportStatus === 'success') {
+        window.dispatchEvent(new CustomEvent('app-toast', {
+          detail: {
+            message: `Thank you for your support!${normalizedAmount}`,
+            type: 'success',
+            ttl: 3600,
+          }
+        }));
+      } else if (supportStatus === 'cancel') {
+        window.dispatchEvent(new CustomEvent('app-toast', {
+          detail: {
+            message: 'Payment was canceled. You can try again any time.',
+            type: 'warning',
+            ttl: 3000,
+          }
+        }));
+      }
+
+      query.delete('support');
+      query.delete('amount');
+      const nextQuery = query.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    } catch (_error) {
+      // Ignore malformed query string errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const rawPreferences = window.localStorage.getItem(SUPPORT_PREFERENCES_KEY);
+      if (!rawPreferences) {
+        return;
+      }
+
+      const parsedPreferences = JSON.parse(rawPreferences);
+      if (typeof parsedPreferences?.paymentOptionId === 'string' && supportPaymentOptions.some((option) => option.id === parsedPreferences.paymentOptionId)) {
+        setSelectedPaymentOptionId(parsedPreferences.paymentOptionId);
+      }
+      if (Number.isFinite(parsedPreferences?.amount) && parsedPreferences.amount > 0) {
+        setSelectedAmount(parsedPreferences.amount);
+      }
+      if (typeof parsedPreferences?.customAmount === 'string') {
+        setCustomAmount(parsedPreferences.customAmount);
+      }
+    } catch (_error) {
+      // Ignore storage parse errors and keep defaults.
+    }
+  }, [supportPaymentOptions]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SUPPORT_PREFERENCES_KEY, JSON.stringify({
+        paymentOptionId: selectedPaymentOptionId,
+        amount: selectedAmount,
+        customAmount,
+      }));
+    } catch (_error) {
+      // Ignore storage quota/access errors.
+    }
+  }, [customAmount, selectedAmount, selectedPaymentOptionId]);
+
+  const openSupportCheckout = useCallback(() => {
+    if (!selectedPaymentOption?.checkoutUrl) {
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: {
+          message: `No payment link configured for ${selectedPaymentOption?.label || 'this method'} yet.`,
+          type: 'warning',
+          ttl: 2600,
+        }
+      }));
+      return;
+    }
+
+    try {
+      const checkoutUrl = new URL(selectedPaymentOption.checkoutUrl);
+      checkoutUrl.searchParams.set('amount', String(Math.round(resolvedSupportAmount * 100)));
+      checkoutUrl.searchParams.set('payment', selectedPaymentOption.id);
+      window.open(checkoutUrl.toString(), '_blank', 'noopener,noreferrer');
+    } catch (_error) {
+      window.open(selectedPaymentOption.checkoutUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    setShowSupportModal(false);
+  }, [resolvedSupportAmount, selectedPaymentOption]);
 
   const truncate = (s, n = 28) => {
     if (!s) return '';
@@ -770,6 +905,163 @@ const Header = ({
         supportsLocalFolders={supportsLocalMusicFolders}
       />
     )}
+    {showSupportModal && (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2500,
+          padding: 16,
+        }}
+        onClick={() => setShowSupportModal(false)}
+      >
+        <div
+          style={{
+            background: theme.card,
+            borderRadius: theme.borderRadius,
+            border: '1px solid rgba(255,255,255,0.1)',
+            maxWidth: 460,
+            width: '100%',
+            padding: 20,
+            boxShadow: '0 18px 40px rgba(0,0,0,0.4)'
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16 }}>
+            <div>
+              <h3 style={{ margin: 0, color: theme.text, fontSize: 18, fontWeight: 700 }}>Support This App</h3>
+              <p style={{ margin: '6px 0 0', color: getTextOpacity(theme, 0.65), fontSize: 13 }}>
+                Buy a beer and keep development moving.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSupportModal(false)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: getTextOpacity(theme, 0.7),
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 6,
+              }}
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.65), marginBottom: 8 }}>Choose payment method</div>
+            <select
+              value={configuredPaymentOptions.length ? selectedPaymentOptionId : ''}
+              onChange={(event) => setSelectedPaymentOptionId(event.target.value)}
+              disabled={!configuredPaymentOptions.length}
+              style={{
+                width: '100%',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: theme.borderRadius,
+                padding: '10px 12px',
+                background: 'rgba(255,255,255,0.04)',
+                color: theme.text,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box',
+                opacity: configuredPaymentOptions.length ? 1 : 0.7,
+              }}
+            >
+              {configuredPaymentOptions.length > 0 ? (
+                configuredPaymentOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))
+              ) : (
+                <option value="">No payment method configured</option>
+              )}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: getTextOpacity(theme, 0.65), marginBottom: 8 }}>Choose amount</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              {SUPPORT_DEFAULT_AMOUNTS.map((amount) => (
+                <button
+                  key={amount}
+                  onClick={() => {
+                    setSelectedAmount(amount);
+                    setCustomAmount('');
+                  }}
+                  style={{
+                    border: selectedAmount === amount && !customAmount ? `1px solid ${theme.accent}` : '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: theme.borderRadius,
+                    padding: '8px 12px',
+                    background: selectedAmount === amount && !customAmount ? `${theme.accent}24` : 'rgba(255,255,255,0.03)',
+                    color: theme.text,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  ${amount}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              min="1"
+              placeholder="Custom amount (USD)"
+              value={customAmount}
+              onChange={(event) => setCustomAmount(event.target.value)}
+              style={{
+                width: '100%',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: theme.borderRadius,
+                padding: '10px 12px',
+                background: 'rgba(255,255,255,0.04)',
+                color: theme.text,
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          <p style={{ margin: '0 0 12px', color: getTextOpacity(theme, 0.62), fontSize: 12 }}>
+            Selected provider: <strong style={{ color: theme.text }}>{selectedPaymentProvider}</strong>
+          </p>
+
+          <p style={{ margin: '0 0 12px', color: getTextOpacity(theme, 0.58), fontSize: 12, lineHeight: 1.4 }}>
+            To enable thank-you handling after payment, configure your provider success/cancel redirect URLs to include query params like ?support=success&amount=5 or ?support=cancel.
+          </p>
+
+          <button
+            onClick={openSupportCheckout}
+            disabled={!isPaymentOptionConfigured}
+            style={{
+              width: '100%',
+              border: 'none',
+              borderRadius: theme.borderRadius,
+              padding: '12px 14px',
+              background: isPaymentOptionConfigured ? theme.accent : 'rgba(255,255,255,0.16)',
+              color: '#ffffff',
+              cursor: isPaymentOptionConfigured ? 'pointer' : 'not-allowed',
+              fontSize: 14,
+              fontWeight: 700,
+              opacity: isPaymentOptionConfigured ? 1 : 0.7,
+            }}
+            title="Open payment page"
+          >
+            Continue with ${resolvedSupportAmount.toFixed(2)}
+          </button>
+        </div>
+      </div>
+    )}
     <div style={{
       display: 'flex',
       justifyContent: 'space-between',
@@ -812,6 +1104,36 @@ const Header = ({
           title={cleanMode ? 'Exit Clean Mode' : 'Clean Mode (hide UI)'}
         >
           {cleanMode ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+
+        <button
+          onClick={() => setShowSupportModal(true)}
+          style={{
+            border: 'none',
+            borderRadius: theme.borderRadius,
+            padding: 10,
+            background: 'transparent',
+            color: '#f59e0b',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 17,
+            lineHeight: 1,
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = 'rgba(245,158,11,0.18)';
+            e.target.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'transparent';
+            e.target.style.transform = 'scale(1)';
+          }}
+          title="Support developers"
+          aria-label="Support developers"
+        >
+          <span role="img" aria-hidden="true">🍺</span>
         </button>
 
         {/* All other icons hidden in clean mode */}

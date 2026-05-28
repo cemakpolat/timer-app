@@ -307,6 +307,8 @@ jobs:
           REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ env.REACT_APP_FIREBASE_STORAGE_BUCKET }}
           REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
           REACT_APP_FIREBASE_APP_ID: ${{ env.REACT_APP_FIREBASE_APP_ID }}
+          # Optional support payment links
+          REACT_APP_SUPPORT_PAYPAL_URL: ${{ secrets.REACT_APP_SUPPORT_PAYPAL_URL }}
         run: |
           echo "🔨 Building React app with Firebase credentials..."
           echo ""
@@ -318,6 +320,7 @@ jobs:
           [ -n "$REACT_APP_FIREBASE_STORAGE_BUCKET" ] && echo "  ✓ REACT_APP_FIREBASE_STORAGE_BUCKET set" || echo "  ❌ REACT_APP_FIREBASE_STORAGE_BUCKET missing"
           [ -n "$REACT_APP_FIREBASE_MESSAGING_SENDER_ID" ] && echo "  ✓ REACT_APP_FIREBASE_MESSAGING_SENDER_ID set" || echo "  ❌ REACT_APP_FIREBASE_MESSAGING_SENDER_ID missing"
           [ -n "$REACT_APP_FIREBASE_APP_ID" ] && echo "  ✓ REACT_APP_FIREBASE_APP_ID set" || echo "  ❌ REACT_APP_FIREBASE_APP_ID missing"
+          [ -n "$REACT_APP_SUPPORT_PAYPAL_URL" ] && echo "  ✓ REACT_APP_SUPPORT_PAYPAL_URL set" || echo "  ℹ️  REACT_APP_SUPPORT_PAYPAL_URL not set (optional)"
           echo ""
           
           # Check if this is a main branch push (where credentials are required)
