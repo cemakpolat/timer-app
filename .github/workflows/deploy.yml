@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  # Opt-in to Node.js 24 for GitHub Actions
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   # STAGE 1: Deploy Infrastructure (Firebase + Functions)
   infrastructure:
@@ -17,21 +13,12 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
-    
-    outputs:
-      firebase-api-key: ${{ steps.extract-creds.outputs.api_key }}
-      firebase-auth-domain: ${{ steps.extract-creds.outputs.auth_domain }}
-      firebase-database-url: ${{ steps.extract-creds.outputs.database_url }}
-      firebase-project-id: ${{ steps.extract-creds.outputs.project_id }}
-      firebase-storage-bucket: ${{ steps.extract-creds.outputs.storage_bucket }}
-      firebase-messaging-sender-id: ${{ steps.extract-creds.outputs.messaging_sender_id }}
-      firebase-app-id: ${{ steps.extract-creds.outputs.app_id }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/341637730794/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-actions@timerapp-2997d.iam.gserviceaccount.com
@@ -39,10 +26,10 @@ jobs:
           access_token_lifetime: '600s'
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.5.0
 
@@ -90,7 +77,7 @@ jobs:
 
       - name: Extract Firebase Credentials (Using Individual Outputs)
         id: extract-creds
-        if: always()  # Always run this step to populate outputs (even if empty)
+        if: always()  # Always run this step to populate env (even if empty)
         working-directory: ./infrastructure
         run: |
           echo "📥 Extracting Firebase credentials from individual Terraform outputs..."
@@ -148,8 +135,8 @@ jobs:
             echo "::add-mask::$API_KEY"
           fi
           
-          # Debug: Show what we're about to write
-          echo "📝 Writing outputs:"
+          # Debug: Show what we're about to export
+          echo "📝 Exporting env values:"
           echo "  api_key length: ${#API_KEY}"
           echo "  auth_domain length: ${#AUTH_DOMAIN}"
           echo "  database_url length: ${#DATABASE_URL}"
@@ -158,22 +145,7 @@ jobs:
           echo "  messaging_sender_id length: ${#MESSAGING_SENDER_ID}"
           echo "  app_id length: ${#APP_ID}"
           echo ""
-          
-          # Write outputs - these must match the job outputs definition
-          # Output names: api_key, auth_domain, database_url, project_id, storage_bucket, messaging_sender_id, app_id
-          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
-          echo "auth_domain=$AUTH_DOMAIN" >> $GITHUB_OUTPUT
-          echo "database_url=$DATABASE_URL" >> $GITHUB_OUTPUT
-          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
-          echo "storage_bucket=$STORAGE_BUCKET" >> $GITHUB_OUTPUT
-          echo "messaging_sender_id=$MESSAGING_SENDER_ID" >> $GITHUB_OUTPUT
-          echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
-          
-          # Verify what was written
-          echo "✅ Outputs written to \$GITHUB_OUTPUT"
-          echo "Contents of \$GITHUB_OUTPUT:"
-          cat $GITHUB_OUTPUT || echo "Could not read GITHUB_OUTPUT"
-          
+
           echo "✅ All 7 credentials extracted successfully"
           
           # Export variables for next steps
@@ -189,15 +161,15 @@ jobs:
         run: |
           # Create a credentials file using the step outputs
           mkdir -p /tmp/credentials
-          
-          # Get values from step outputs (which should be available)
-          API_KEY="${{ steps.extract-creds.outputs.api_key }}"
-          AUTH_DOMAIN="${{ steps.extract-creds.outputs.auth_domain }}"
-          DATABASE_URL="${{ steps.extract-creds.outputs.database_url }}"
-          PROJECT_ID="${{ steps.extract-creds.outputs.project_id }}"
-          STORAGE_BUCKET="${{ steps.extract-creds.outputs.storage_bucket }}"
-          MESSAGING_SENDER_ID="${{ steps.extract-creds.outputs.messaging_sender_id }}"
-          APP_ID="${{ steps.extract-creds.outputs.app_id }}"
+
+          # Get values exported via GITHUB_ENV from the previous step
+          API_KEY="$API_KEY"
+          AUTH_DOMAIN="$AUTH_DOMAIN"
+          DATABASE_URL="$DATABASE_URL"
+          PROJECT_ID="$PROJECT_ID"
+          STORAGE_BUCKET="$STORAGE_BUCKET"
+          MESSAGING_SENDER_ID="$MESSAGING_SENDER_ID"
+          APP_ID="$APP_ID"
           
           # Write to file
           cat > /tmp/credentials/firebase-config.env << 'ENVEOF'
@@ -236,7 +208,7 @@ jobs:
           ls -lh /tmp/credentials/
           
       - name: Upload credentials artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: firebase-credentials-encrypted
           path: /tmp/credentials/firebase-config.env.enc
@@ -248,10 +220,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download credentials artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: firebase-credentials-encrypted
           path: /tmp/credentials
@@ -289,7 +261,7 @@ jobs:
           fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -358,7 +330,7 @@ jobs:
       #     echo "✅ Debugging complete."
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: react-build
           path: build/
@@ -372,17 +344,30 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Clean checkout build folder
         run: rm -rf build
 
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: react-build
-          path: .
+          path: ./artifact
           # ✅ Build folder contains the compiled app with Firebase credentials embedded
+
+      - name: Normalize Build Artifact Layout
+        run: |
+          rm -rf build
+          if [ -d artifact/build ]; then
+            echo "✅ Found artifact/build directory"
+            mv artifact/build ./build
+          else
+            echo "ℹ️ Artifact does not contain nested build directory, flattening into ./build"
+            mkdir -p build
+            cp -R artifact/. build/
+          fi
+          rm -rf artifact
 
       - name: Verify Build Artifacts
         run: |
