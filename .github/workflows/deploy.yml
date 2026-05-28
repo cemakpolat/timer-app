@@ -374,11 +374,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Clean checkout build folder
+        run: rm -rf build
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: react-build
-          path: ./build
+          path: .
           # ✅ Build folder contains the compiled app with Firebase credentials embedded
 
       - name: Verify Build Artifacts
@@ -388,6 +391,12 @@ jobs:
           echo ""
           echo "📊 Build size:"
           du -sh build/
+          echo ""
+          echo "🔍 Validating expected build layout..."
+          test -f build/index.html || (echo "❌ build/index.html missing" && exit 1)
+          test -d build/static || (echo "❌ build/static missing" && exit 1)
+          test -d build/sounds || echo "⚠️ build/sounds missing (check whether sounds are expected in this release)"
+          test -d build/videos || echo "⚠️ build/videos missing (check whether videos are expected in this release)"
 
       - name: Deploy Firebase Database Rules
         run: |

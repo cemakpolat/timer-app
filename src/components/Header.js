@@ -7,6 +7,7 @@ import MusicLibraryModal from './MusicLibraryModal';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
 import { buildMusicPlaylist, CUSTOM_MUSIC_SOURCE, getNextPlaylistEntry, getPlaylistEntry, getPreviousPlaylistEntry, LIBRARY_MUSIC_SOURCE } from '../utils/musicPlaylist';
 import {
+  buildSupportCheckoutUrl,
   buildSupportPaymentOptions,
   getPaymentProviderName,
   SUPPORT_DEFAULT_AMOUNTS,
@@ -288,10 +289,11 @@ const Header = ({
     }
 
     try {
-      const checkoutUrl = new URL(selectedPaymentOption.checkoutUrl);
-      checkoutUrl.searchParams.set('amount', String(Math.round(resolvedSupportAmount * 100)));
-      checkoutUrl.searchParams.set('payment', selectedPaymentOption.id);
-      window.open(checkoutUrl.toString(), '_blank', 'noopener,noreferrer');
+      const checkoutUrl = buildSupportCheckoutUrl({
+        paymentOption: selectedPaymentOption,
+        amount: resolvedSupportAmount,
+      });
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
     } catch (_error) {
       window.open(selectedPaymentOption.checkoutUrl, '_blank', 'noopener,noreferrer');
     }
