@@ -17,8 +17,6 @@ function getDatabase() {
 
 // Cleanup configuration - can be overridden with environment variables
 const DEFAULT_EMPTY_REMOVAL_SEC = 120; // fallback if room not set
-const PRESENCE_INACTIVE_MS = 2 * 60 * 1000; // 2 minutes
-const STALE_PARTICIPANT_MS = 5 * 60 * 1000; // 5 minutes - participant is considered stale if no presence update
 
 // Parse environment variables with fallbacks
 const CLEANUP_SCHEDULE = process.env.CLEANUP_SCHEDULE || 'every 15 minutes';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 /**
  * Single timer panel (HH:MM:SS input and display)

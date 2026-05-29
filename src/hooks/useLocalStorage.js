@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { debounce } from '../utils/helpers';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook for localStorage with automatic serialization/deserialization

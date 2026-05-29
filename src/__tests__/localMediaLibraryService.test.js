@@ -1,3 +1,11 @@
+import {
+  deleteLocalMediaSourceHandle,
+  getLocalMediaSourceHandle,
+  listLocalMediaAssets,
+  resolveLocalMediaFile,
+  saveLocalMediaSourceHandle,
+} from '../services/localMediaLibraryService';
+
 jest.mock('../services/indexeddb', () => {
   const store = new Map();
 
@@ -13,14 +21,6 @@ jest.mock('../services/indexeddb', () => {
     }),
   };
 });
-
-import {
-  deleteLocalMediaSourceHandle,
-  getLocalMediaSourceHandle,
-  listLocalMediaAssets,
-  resolveLocalMediaFile,
-  saveLocalMediaSourceHandle,
-} from '../services/localMediaLibraryService';
 
 function createFileHandle(file) {
   return {

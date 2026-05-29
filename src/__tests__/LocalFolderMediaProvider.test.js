@@ -1,9 +1,9 @@
+import { listLocalMediaAssets } from '../services/localMediaLibraryService';
+import LocalFolderMediaProvider from '../services/mediaProviders/LocalFolderMediaProvider';
+
 jest.mock('../services/localMediaLibraryService', () => ({
   listLocalMediaAssets: jest.fn(),
 }));
-
-import { listLocalMediaAssets } from '../services/localMediaLibraryService';
-import LocalFolderMediaProvider from '../services/mediaProviders/LocalFolderMediaProvider';
 
 describe('LocalFolderMediaProvider', () => {
   test('lists assets from a persisted local folder using the requested asset type', async () => {

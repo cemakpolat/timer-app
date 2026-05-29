@@ -134,9 +134,9 @@ function renderHeader(overrides = {}) {
 }
 
 test('keeps the playback audio element mounted after closing settings', () => {
-  const { container, rerender } = renderHeader();
+  const { rerender } = renderHeader();
 
-  expect(container.querySelectorAll('audio')).toHaveLength(1);
+  expect(screen.getByTestId('header-audio-player')).toBeInTheDocument();
 
   rerender(
     <ModalProvider theme={theme}>
@@ -144,7 +144,7 @@ test('keeps the playback audio element mounted after closing settings', () => {
     </ModalProvider>
   );
 
-  expect(container.querySelectorAll('audio')).toHaveLength(1);
+  expect(screen.getByTestId('header-audio-player')).toBeInTheDocument();
 });
 
 test('keeps library playback active after closing the settings panel', async () => {
@@ -158,7 +158,7 @@ test('keeps library playback active after closing the settings panel', async () 
     name: 'Local Loop',
   };
 
-  const { container, rerender } = renderHeader({
+  const { rerender } = renderHeader({
     ambientSound: 'library_sel-1',
     musicSelections: [selection],
     resolveMusicSelectionUrl,
@@ -166,10 +166,8 @@ test('keeps library playback active after closing the settings panel', async () 
 
   fireEvent.click(screen.getByTitle('Play music'));
 
-  await waitFor(() => {
-    expect(resolveMusicSelectionUrl).toHaveBeenCalledWith('sel-1');
-    expect(playSpy).toHaveBeenCalled();
-  });
+  await waitFor(() => expect(resolveMusicSelectionUrl).toHaveBeenCalledWith('sel-1'));
+  await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
   const pauseCallsBeforeClose = pauseSpy.mock.calls.length;
 
@@ -187,8 +185,9 @@ test('keeps library playback active after closing the settings panel', async () 
     </ModalProvider>
   );
 
-  expect(container.querySelectorAll('audio')).toHaveLength(1);
-  expect(container.querySelector('audio')?.src).toContain('blob:local-track');
+  const audioElement = screen.getByTestId('header-audio-player');
+  expect(audioElement).toBeInTheDocument();
+  expect(audioElement.src).toContain('blob:local-track');
   expect(pauseSpy).toHaveBeenCalledTimes(pauseCallsBeforeClose);
   expect(screen.getByText('Local Loop')).toBeInTheDocument();
 
@@ -236,10 +235,8 @@ test('starts playback immediately when selecting a different uploaded track', as
 
   fireEvent.click(screen.getByRole('button', { name: /uploaded breeze/i }));
 
-  await waitFor(() => {
-    expect(ensureCustomMusicUrl).toHaveBeenCalledWith('custom-1');
-    expect(playSpy).toHaveBeenCalled();
-  });
+  await waitFor(() => expect(ensureCustomMusicUrl).toHaveBeenCalledWith('custom-1'));
+  await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
   playSpy.mockRestore();
   pauseSpy.mockRestore();
@@ -261,12 +258,10 @@ test('reveals and updates the bottom player volume control on hover', async () =
 
   fireEvent.click(screen.getByTitle('Play music'));
 
-  await waitFor(() => {
-    expect(playSpy).toHaveBeenCalled();
-    expect(screen.getByTitle('Music volume')).toBeInTheDocument();
-  });
+  await waitFor(() => expect(playSpy).toHaveBeenCalled());
+  const musicVolumeButton = await screen.findByTitle('Music volume');
 
-  fireEvent.mouseEnter(screen.getByTitle('Music volume'));
+  fireEvent.mouseEnter(musicVolumeButton);
 
   expect(screen.getByLabelText('Music volume')).toBeInTheDocument();
   expect(screen.getByText('30%')).toBeInTheDocument();

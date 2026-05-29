@@ -46,6 +46,8 @@ describe('BackgroundImagesPanel', () => {
     addLocalVideoSource: jest.fn(),
     deleteRemoteBackgroundVideoSource: jest.fn(),
     refreshRemoteBackgroundVideos: jest.fn(),
+    videoAudioEnabled: false,
+    setVideoAudioEnabled: jest.fn(),
     ...overrides,
   });
 
@@ -55,14 +57,13 @@ describe('BackgroundImagesPanel', () => {
 
   test('uploading a video clears image and slideshow selections before activating the video', async () => {
     const props = createProps();
-    const { container } = render(<BackgroundImagesPanel {...props} />);
+    render(<BackgroundImagesPanel {...props} />);
 
     fireEvent.click(screen.getByRole('button', { name: /video/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /open video uploads/i }));
 
-    const fileInput = container.querySelector('input[accept="video/mp4,video/webm,video/ogg"]');
-    expect(fileInput).not.toBeNull();
+    const fileInput = screen.getByLabelText(/upload video/i, { selector: 'input' });
 
     const file = new File(['video-bytes'], 'focus.mp4', { type: 'video/mp4' });
     fireEvent.change(fileInput, { target: { files: [file] } });
@@ -83,6 +84,29 @@ describe('BackgroundImagesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /video/i }));
 
     expect(screen.getByRole('button', { name: /open local video folder/i })).toBeInTheDocument();
+  });
+
+  test('lets the user toggle background video audio', () => {
+    const setVideoAudioEnabled = jest.fn();
+    const props = createProps({
+      selectedVideoId: 'video-1',
+      getAllBackgroundVideos: jest.fn(() => [
+        { id: 'None', name: 'None' },
+        { id: 'video-1', name: 'Focus Video', isBuiltIn: false, size: 0 },
+      ]),
+      setVideoAudioEnabled,
+    });
+
+    render(<BackgroundImagesPanel {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /video/i }));
+
+    const audioToggle = screen.getByRole('switch', { name: /background video audio/i });
+    expect(audioToggle).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(audioToggle);
+
+    expect(setVideoAudioEnabled).toHaveBeenCalledWith(true);
   });
 
   test('renders a featured preview and thumbnail gallery for background images', async () => {

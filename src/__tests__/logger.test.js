@@ -1,8 +1,5 @@
 import { createLogger, configureLogger } from '../utils/logger';
 
-// Mock console methods
-const originalConsole = { ...console };
-
 describe('logger', () => {
   let consoleSpies;
   const originalEnv = process.env.NODE_ENV;
@@ -91,6 +88,7 @@ describe('logger', () => {
       process.env.NODE_ENV = 'production';
       const logger = createLogger('Test');
       
+      // eslint-disable-next-line testing-library/no-debugging-utils -- exercises logger.debug, not Testing Library helpers.
       logger.debug('debug message');
       // Debug should be suppressed in production
       expect(consoleSpies.log).not.toHaveBeenCalled();
@@ -122,6 +120,7 @@ describe('logger', () => {
     });
 
     test('debug method logs with console.log', () => {
+      // eslint-disable-next-line testing-library/no-debugging-utils -- exercises logger.debug, not Testing Library helpers.
       logger.debug('debug message', { data: 'test' });
       expect(consoleSpies.log).toHaveBeenCalled();
     });
@@ -291,6 +290,7 @@ describe('logger', () => {
       process.env.NODE_ENV = 'production';
       const logger = createLogger('SecureLogger');
       
+      // eslint-disable-next-line testing-library/no-debugging-utils -- exercises logger.debug, not Testing Library helpers.
       logger.debug('sensitive data', { apiKey: 'secret' });
       
       // Debug should not log in production
