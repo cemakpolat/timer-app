@@ -8,7 +8,7 @@ const PAYMENT_METHOD_DEFINITIONS = [
 
 export const SUPPORT_DEFAULT_AMOUNTS = [5, 10, 20, 50, 100];
 export const SUPPORT_PREFERENCES_KEY = 'supportPreferences';
-export const SUPPORT_DEFAULT_CURRENCY = process.env.REACT_APP_SUPPORT_CURRENCY || 'USD';
+export const SUPPORT_DEFAULT_CURRENCY = process.env.REACT_APP_SUPPORT_CURRENCY || 'EUR';
 
 const readEnvValue = (envVar) => process.env[envVar] || '';
 
@@ -44,6 +44,9 @@ export const buildSupportCheckoutUrl = ({ paymentOption, amount }) => {
   }
 
   const normalizedAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const paypalAmount = Number.isInteger(normalizedAmount)
+    ? String(normalizedAmount)
+    : normalizedAmount.toFixed(2);
 
   try {
     const checkoutUrl = new URL(paymentOption.checkoutUrl);
@@ -51,8 +54,9 @@ export const buildSupportCheckoutUrl = ({ paymentOption, amount }) => {
 
     // PayPal donation links expect major units (e.g. 5.00), not cents.
     if (paymentOption.id === 'paypal' || hostname.includes('paypal')) {
-      checkoutUrl.searchParams.set('amount', normalizedAmount.toFixed(2));
+      checkoutUrl.searchParams.set('amount', paypalAmount);
       checkoutUrl.searchParams.set('currency_code', SUPPORT_DEFAULT_CURRENCY);
+      checkoutUrl.searchParams.set('currency', SUPPORT_DEFAULT_CURRENCY);
       checkoutUrl.searchParams.set('payment', 'paypal');
       return checkoutUrl.toString();
     }

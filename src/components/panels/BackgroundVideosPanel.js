@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Database, Film, Play, Trash2, Upload } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -36,7 +36,10 @@ export default function BackgroundVideosPanel({
   deleteBackgroundVideo,
   onOpenUploadModal,
   onOpenLocalFolder,
+  videoLoopFade,
+  setVideoLoopFade,
 }) {
+  const [loopFadeOpen, setLoopFadeOpen] = useState(false);
   const videos = getAllBackgroundVideos ? getAllBackgroundVideos() : [];
 
   const handleDelete = async (id) => {
@@ -55,8 +58,8 @@ export default function BackgroundVideosPanel({
   const rowStyle = (isSelected) => ({
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '9px 10px',
+    gap: 6,
+    padding: '7px 8px',
     borderRadius: theme.borderRadius,
     background: isSelected ? `${theme.accent}25` : 'rgba(255,255,255,0.04)',
     border: `1px solid ${isSelected ? theme.accent : 'transparent'}`,
@@ -133,14 +136,14 @@ export default function BackgroundVideosPanel({
         onKeyDown={(e) => e.key === 'Enter' && setSelectedVideoId('None')}
       >
         <div style={{
-          width: 38, height: 28, borderRadius: 4,
+          width: 32, height: 24, borderRadius: 4,
           background: 'rgba(255,255,255,0.08)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 10, color: getTextOpacity(theme, 0.4) }}>None</span>
+          <span style={{ fontSize: 9, color: getTextOpacity(theme, 0.4) }}>None</span>
         </div>
-        <span style={{ flex: 1, fontSize: 12, color: theme.text }}>None</span>
+        <span style={{ flex: 1, fontSize: 11, color: theme.text }}>None</span>
         {selectedVideoId === 'None' && (
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
         )}
@@ -154,26 +157,26 @@ export default function BackgroundVideosPanel({
         return (
           <div key={video.id} style={rowStyle(isSelected)} onClick={() => setSelectedVideoId(video.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setSelectedVideoId(video.id)}>
             <div style={{
-              width: 38, height: 28, borderRadius: 4,
+              width: 32, height: 24, borderRadius: 4,
               background: isSelected ? `${theme.accent}30` : 'rgba(255,255,255,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <Play size={12} style={{ color: isSelected ? theme.accent : getTextOpacity(theme, 0.4) }} />
+              <Play size={10} style={{ color: isSelected ? theme.accent : getTextOpacity(theme, 0.4) }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 11, fontWeight: 500, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {video.name}
               </div>
-              <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.45) }}>
+              <div style={{ fontSize: 9, color: getTextOpacity(theme, 0.45) }}>
                 {storageCopy.subtitle}
               </div>
             </div>
             <div
               title={storageCopy.title}
               style={{
-                width: 26,
-                height: 26,
+                width: 22,
+                height: 22,
                 borderRadius: '50%',
                 background: storageCopy.stored ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.08)',
                 color: storageCopy.stored ? '#86efac' : getTextOpacity(theme, 0.55),
@@ -183,7 +186,7 @@ export default function BackgroundVideosPanel({
                 flexShrink: 0,
               }}
             >
-              <Database size={13} />
+              <Database size={11} />
             </div>
             {isSelected && (
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, flexShrink: 0 }} />
@@ -195,7 +198,7 @@ export default function BackgroundVideosPanel({
                   background: 'rgba(239,68,68,0.12)',
                   border: 'none',
                   borderRadius: 4,
-                  padding: '4px 6px',
+                  padding: '3px 5px',
                   color: '#ef4444',
                   cursor: 'pointer',
                   display: 'flex',
@@ -204,7 +207,7 @@ export default function BackgroundVideosPanel({
                 }}
                 title="Delete video"
               >
-                <Trash2 size={12} />
+                <Trash2 size={10} />
               </button>
             )}
           </div>
@@ -215,6 +218,129 @@ export default function BackgroundVideosPanel({
         <div style={{ textAlign: 'center', padding: '20px 0', color: getTextOpacity(theme, 0.35), fontSize: 12 }}>
           No videos available yet.
           <br />Upload a local file or connect a remote source.
+        </div>
+      )}
+
+      {/* Loop-fade settings — only shown when a video is active */}
+      {selectedVideoId && selectedVideoId !== 'None' && videoLoopFade && setVideoLoopFade && (
+        <div style={{
+          marginTop: 16,
+          borderRadius: theme.borderRadius,
+          border: `1px solid rgba(255,255,255,0.07)`,
+          overflow: 'hidden',
+        }}>
+          {/* Collapsible header row */}
+          <button
+            type="button"
+            onClick={() => setLoopFadeOpen((v) => !v)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: 'rgba(255,255,255,0.04)',
+              border: 'none',
+              cursor: 'pointer',
+              gap: 8,
+            }}
+            aria-expanded={loopFadeOpen}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: theme.text }}>Loop Transition Fade</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* On/off toggle */}
+              <div
+                role="switch"
+                aria-checked={videoLoopFade.enabled}
+                onClick={(e) => { e.stopPropagation(); setVideoLoopFade((s) => ({ ...s, enabled: !s.enabled })); }}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.stopPropagation(); setVideoLoopFade((s) => ({ ...s, enabled: !s.enabled })); } }}
+                tabIndex={0}
+                title={videoLoopFade.enabled ? 'Loop fade on' : 'Loop fade off'}
+                style={{
+                  width: 36, height: 20, borderRadius: 10,
+                  background: videoLoopFade.enabled ? theme.accent : 'rgba(255,255,255,0.15)',
+                  position: 'relative', cursor: 'pointer',
+                  transition: 'background 0.2s', flexShrink: 0,
+                }}
+              >
+                <span style={{
+                  position: 'absolute', top: 3,
+                  left: videoLoopFade.enabled ? 18 : 3,
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: '#fff', transition: 'left 0.2s',
+                }} />
+              </div>
+              {/* Chevron */}
+              <svg
+                width="12" height="12" viewBox="0 0 12 12" fill="none"
+                style={{ transform: loopFadeOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}
+              >
+                <path d="M2 4l4 4 4-4" stroke={getTextOpacity(theme, 0.5)} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </button>
+
+          {/* Collapsible body */}
+          {loopFadeOpen && (
+            <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)' }}>
+              <p style={{ fontSize: 10, color: getTextOpacity(theme, 0.4), margin: '0 0 10px', lineHeight: 1.5 }}>
+                Briefly fades the video at the loop point so the cut from end→start is invisible.
+                Recommended off for very short loops (&lt;2 s).
+              </p>
+
+              {videoLoopFade.enabled && (
+                <>
+                  {/* Fade color */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.7), flex: 1 }}>Fade color</span>
+                    <input
+                      type="color"
+                      value={videoLoopFade.color}
+                      onChange={(e) => setVideoLoopFade((s) => ({ ...s, color: e.target.value }))}
+                      style={{ width: 30, height: 22, border: 'none', borderRadius: 4, padding: 1, cursor: 'pointer', background: 'transparent' }}
+                      title="Fade-to color"
+                      aria-label="Loop fade color"
+                    />
+                    <span style={{ fontSize: 10, color: getTextOpacity(theme, 0.45), fontFamily: 'monospace', minWidth: 52 }}>
+                      {videoLoopFade.color.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Fade depth */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.7), flex: 1 }}>Depth</span>
+                    <input
+                      type="range" min={0} max={1} step={0.05}
+                      value={videoLoopFade.opacity}
+                      onChange={(e) => setVideoLoopFade((s) => ({ ...s, opacity: parseFloat(e.target.value) }))}
+                      style={{ width: 80, accentColor: theme.accent, cursor: 'pointer' }}
+                      title={`Fade depth: ${Math.round(videoLoopFade.opacity * 100)}%`}
+                      aria-label="Loop fade depth"
+                    />
+                    <span style={{ fontSize: 10, color: getTextOpacity(theme, 0.45), minWidth: 28, textAlign: 'right' }}>
+                      {Math.round(videoLoopFade.opacity * 100)}%
+                    </span>
+                  </div>
+
+                  {/* Transition duration */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.7), flex: 1 }}>Duration</span>
+                    <input
+                      type="range" min={100} max={3000} step={100}
+                      value={videoLoopFade.duration}
+                      onChange={(e) => setVideoLoopFade((s) => ({ ...s, duration: parseInt(e.target.value, 10) }))}
+                      style={{ width: 80, accentColor: theme.accent, cursor: 'pointer' }}
+                      title={`Fade duration: ${videoLoopFade.duration} ms`}
+                      aria-label="Loop fade duration"
+                    />
+                    <span style={{ fontSize: 10, color: getTextOpacity(theme, 0.45), minWidth: 36, textAlign: 'right' }}>
+                      {videoLoopFade.duration} ms
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

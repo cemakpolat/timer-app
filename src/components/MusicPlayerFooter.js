@@ -3,7 +3,7 @@ import { Play, Pause, X, SkipBack, SkipForward } from 'lucide-react';
 import useMusicPlayerState from '../hooks/useMusicPlayerState';
 
 const MusicPlayerFooter = ({ theme, ambientSound }) => {
-  const { isPlaying, repeatMode } = useMusicPlayerState();
+  const { isPlaying, repeatMode, currentTime, duration } = useMusicPlayerState();
 
   if (!ambientSound || ambientSound === 'None') return null;
 
@@ -25,12 +25,26 @@ const MusicPlayerFooter = ({ theme, ambientSound }) => {
     return '🔁';
   };
 
+  const formatTime = (value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return '0:00';
+    }
+
+    const totalSeconds = Math.floor(value);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
+
   const controls = window.__musicPlayerControls;
   const cycleRepeat = () => {
     const modes = ['sequential', 'random', 'repeat-one'];
     const next = modes[(modes.indexOf(repeatMode) + 1) % modes.length];
     controls?.setRepeatMode(next);
   };
+
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const progressPercent = hasDuration ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
 
   const btnBase = {
     background: 'transparent',
@@ -53,37 +67,39 @@ const MusicPlayerFooter = ({ theme, ambientSound }) => {
         bottom: 0,
         left: 0,
         right: 0,
-        height: 56,
+        minHeight: 64,
         background: theme.card || 'rgba(18, 18, 28, 0.97)',
         borderTop: `1px solid rgba(255,255,255,0.08)`,
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px',
-        gap: 12,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '6px 16px',
+        gap: 6,
         zIndex: 999,
         boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
       }}
     >
-      {/* Song Name */}
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 13,
-          fontWeight: 500,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          color: theme.text,
-          opacity: 0.9
-        }}
-      >
-        {formatSongName(ambientSound)}
-      </div>
+      <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Song Name */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 13,
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            color: theme.text,
+            opacity: 0.9
+          }}
+        >
+          {formatSongName(ambientSound)}
+        </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {/* Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
         {/* Previous */}
         <button
@@ -154,6 +170,44 @@ const MusicPlayerFooter = ({ theme, ambientSound }) => {
           <X size={18} />
         </button>
 
+        </div>
+      </div>
+
+      <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 10, color: theme.text, opacity: 0.7, minWidth: 34, textAlign: 'right' }}>
+          {formatTime(currentTime)}
+        </span>
+        <div
+          style={{
+            flex: 1,
+            height: 4,
+            background: 'rgba(255,255,255,0.16)',
+            borderRadius: 2,
+            overflow: 'hidden',
+            cursor: hasDuration ? 'pointer' : 'default'
+          }}
+          onClick={(e) => {
+            if (!hasDuration) {
+              return;
+            }
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            controls?.seekToPercent?.(percent);
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${progressPercent}%`,
+              background: theme.accent || '#60a5fa',
+              transition: 'width 0.2s ease-out'
+            }}
+          />
+        </div>
+        <span style={{ fontSize: 10, color: theme.text, opacity: 0.7, minWidth: 34 }}>
+          {formatTime(duration)}
+        </span>
       </div>
     </div>
   );

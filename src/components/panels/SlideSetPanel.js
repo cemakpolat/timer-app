@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Images, Plus, Trash2, ChevronDown, ChevronUp, Play, Square, Clock, Repeat, Film } from 'lucide-react';
+import {
+  DEFAULT_SLIDE_TRANSITION,
+  getSlideTransitionOption,
+  SLIDE_TRANSITION_OPTIONS,
+  normalizeSlideTransition,
+} from '../../utils/slideTransitions';
 
 /**
  * SlideSetPanel - Manage named collections of background media for slideshow playback.
@@ -17,7 +23,7 @@ import { Images, Plus, Trash2, ChevronDown, ChevronUp, Play, Square, Clock, Repe
  *   deleteSlideSet        - fn(id)
  *   renameSlideSet        - fn(id, name)
  *   setSlideInterval      - fn(id, seconds)
- *   setSlideTransition    - fn(id, 'fade'|'instant')
+ *   setSlideTransition    - fn(id, transitionKey)
  *   addImageToSet         - fn(setId, imageId)
  *   addVideoToSet         - fn(setId, videoId)
  *   removeMediaItemFromSet - fn(setId, mediaItemId)
@@ -216,6 +222,11 @@ export default function SlideSetPanel({
     });
   };
 
+  const getTransitionDescription = (transition) => {
+    const option = getSlideTransitionOption(transition || DEFAULT_SLIDE_TRANSITION);
+    return option?.description || '';
+  };
+
   return (
     <div style={{ width: '100%' }}>
       {/* Header row */}
@@ -392,7 +403,7 @@ export default function SlideSetPanel({
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: getTextOpacity(theme, 0.7) }}>
                     <Repeat size={13} /> Transition
                     <select
-                      value={set.transition || 'fade'}
+                      value={normalizeSlideTransition(set.transition || DEFAULT_SLIDE_TRANSITION)}
                       onChange={e => setSlideTransition(set.id, e.target.value)}
                       style={{
                         background: 'rgba(255,255,255,0.08)',
@@ -401,10 +412,14 @@ export default function SlideSetPanel({
                         color: theme.text, fontSize: 12, outline: 'none', cursor: 'pointer',
                       }}
                     >
-                      <option value="fade">Fade</option>
-                      <option value="instant">Instant</option>
+                      {SLIDE_TRANSITION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                   </label>
+                  <span style={{ fontSize: 11, color: getTextOpacity(theme, 0.45) }}>
+                    {getTransitionDescription(set.transition)}
+                  </span>
                 </div>
 
                 {/* Media in this set */}

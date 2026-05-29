@@ -4,6 +4,8 @@ const DEFAULT_MUSIC_PLAYER_STATE = {
   isPlaying: false,
   repeatMode: 'sequential',
   currentLabel: '',
+  currentTime: 0,
+  duration: 0,
 };
 
 export default function useMusicPlayerState() {
@@ -17,6 +19,8 @@ export default function useMusicPlayerState() {
         isPlaying: Boolean(detail.isPlaying),
         repeatMode: detail.repeatMode || 'sequential',
         currentLabel: detail.currentLabel || '',
+        currentTime: Number.isFinite(detail.currentTime) ? detail.currentTime : 0,
+        duration: Number.isFinite(detail.duration) ? detail.duration : 0,
       });
     };
 

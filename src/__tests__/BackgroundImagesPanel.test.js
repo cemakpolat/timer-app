@@ -84,4 +84,21 @@ describe('BackgroundImagesPanel', () => {
 
     expect(screen.getByRole('button', { name: /open local video folder/i })).toBeInTheDocument();
   });
+
+  test('renders a featured preview and thumbnail gallery for background images', async () => {
+    const props = createProps({
+      getAllBackgroundImages: jest.fn(() => [
+        { id: 'None', name: 'None' },
+        { id: 'image-1', name: 'Focus Background', isBuiltIn: false },
+        { id: 'image-2', name: 'Scenic Wallpaper', isBuiltIn: false },
+      ]),
+      getBackgroundImageUrl: jest.fn(async (id) => `https://example.com/${id}.jpg`),
+    });
+
+    render(<BackgroundImagesPanel {...props} />);
+
+    expect(await screen.findByAltText('Focus Background preview')).toBeInTheDocument();
+    expect(screen.getByAltText('Focus Background')).toBeInTheDocument();
+    expect(screen.getByAltText('Scenic Wallpaper')).toBeInTheDocument();
+  });
 });
