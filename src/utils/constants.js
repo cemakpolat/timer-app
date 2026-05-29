@@ -255,6 +255,5 @@ export const BUILT_IN_BACKGROUND_IMAGES = [
   { id: 'mountain-sunset', name: 'Mountain Sunset', path: '/background-images/mountain-sunset.jpg' },
   { id: 'ocean-waves', name: 'Ocean Waves', path: '/background-images/ocean-waves.jpg' },
   { id: 'forest-trees', name: 'Forest Trees', path: '/background-images/forest-trees.jpg' },
-  { id: 'night-stars', name: 'Night Stars', path: '/background-images/night-stars.jpg' },
   { id: 'city-lights', name: 'City Lights', path: '/background-images/city-lights.jpg' },
 ];

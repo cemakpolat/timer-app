@@ -109,6 +109,8 @@ const Header = ({
   addRemoteBackgroundVideoSource,
   deleteRemoteBackgroundVideoSource,
   refreshRemoteBackgroundVideos,
+  videoLoopFade,
+  setVideoLoopFade,
   // Break reminders
   breakReminderSettings,
   updateBreakReminderSettings,
@@ -177,6 +179,44 @@ const Header = ({
   const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
   const currentPlayingEntryRef = useRef(null);
   const musicUpdateIntervalRef = useRef(null); // Timer for updating music progress
+
+  const syncMusicProgress = useCallback(() => {
+    const customAudio = audioRef.current;
+    if (customAudio && customAudio.src) {
+      const nextCurrentTime = Number.isFinite(customAudio.currentTime) ? customAudio.currentTime : 0;
+      const nextDuration = Number.isFinite(customAudio.duration) ? customAudio.duration : 0;
+      setMusicCurrentTime(nextCurrentTime);
+      setMusicDuration(nextDuration);
+      return;
+    }
+
+    const ambientAudio = ambientAudioRef?.current;
+    if (ambientAudio && ambientAudio.src) {
+      const nextCurrentTime = Number.isFinite(ambientAudio.currentTime) ? ambientAudio.currentTime : 0;
+      const nextDuration = Number.isFinite(ambientAudio.duration) ? ambientAudio.duration : 0;
+      setMusicCurrentTime(nextCurrentTime);
+      setMusicDuration(nextDuration);
+      return;
+    }
+
+    setMusicCurrentTime(0);
+    setMusicDuration(0);
+  }, [ambientAudioRef]);
+
+  const seekMusicToPercent = useCallback((percent) => {
+    const clampedPercent = Math.min(1, Math.max(0, percent));
+
+    if (audioRef.current && audioRef.current.src && Number.isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
+      audioRef.current.currentTime = clampedPercent * audioRef.current.duration;
+      syncMusicProgress();
+      return;
+    }
+
+    if (ambientAudioRef?.current && ambientAudioRef.current.src && Number.isFinite(ambientAudioRef.current.duration) && ambientAudioRef.current.duration > 0) {
+      ambientAudioRef.current.currentTime = clampedPercent * ambientAudioRef.current.duration;
+      syncMusicProgress();
+    }
+  }, [ambientAudioRef, syncMusicProgress]);
 
   const customAmountValue = Number(customAmount);
   const resolvedSupportAmount = Number.isFinite(customAmountValue) && customAmountValue > 0
@@ -585,28 +625,19 @@ const Header = ({
     }
   }, [handleSongEnd, ambientAudioRef]);
 
-  // Update music progress for both custom and built-in sounds
+  // Keep progress in sync while a track is selected, even if paused.
   useEffect(() => {
-    if (!isHeaderMusicPlaying) {
+    if (!ambientSound || ambientSound === 'None') {
       if (musicUpdateIntervalRef.current) {
         clearInterval(musicUpdateIntervalRef.current);
         musicUpdateIntervalRef.current = null;
       }
+      syncMusicProgress();
       return;
     }
 
-    musicUpdateIntervalRef.current = setInterval(() => {
-      // Check custom music on audioRef
-      if (audioRef.current && audioRef.current.src) {
-        setMusicCurrentTime(audioRef.current.currentTime);
-        setMusicDuration(audioRef.current.duration || 0);
-      }
-      // Check built-in sounds on ambientAudioRef
-      else if (ambientAudioRef?.current && ambientAudioRef.current.src) {
-        setMusicCurrentTime(ambientAudioRef.current.currentTime);
-        setMusicDuration(ambientAudioRef.current.duration || 0);
-      }
-    }, 500); // Update every 500ms
+    syncMusicProgress();
+    musicUpdateIntervalRef.current = setInterval(syncMusicProgress, 400);
 
     return () => {
       if (musicUpdateIntervalRef.current) {
@@ -614,14 +645,20 @@ const Header = ({
         musicUpdateIntervalRef.current = null;
       }
     };
-  }, [isHeaderMusicPlaying, ambientAudioRef]);
+  }, [ambientSound, syncMusicProgress]);
 
   // Dispatch music state to footer via custom event whenever state changes
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('music-player-state', {
-      detail: { isPlaying: isHeaderMusicPlaying, repeatMode: headerMusicRepeatMode, currentLabel: getAmbientTrackLabel(ambientSound) }
+      detail: {
+        isPlaying: isHeaderMusicPlaying,
+        repeatMode: headerMusicRepeatMode,
+        currentLabel: getAmbientTrackLabel(ambientSound),
+        currentTime: musicCurrentTime,
+        duration: musicDuration,
+      }
     }));
-  }, [ambientSound, getAmbientTrackLabel, headerMusicRepeatMode, isHeaderMusicPlaying]);
+  }, [ambientSound, getAmbientTrackLabel, headerMusicRepeatMode, isHeaderMusicPlaying, musicCurrentTime, musicDuration]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -694,7 +731,8 @@ const Header = ({
       stop: stopCurrentPlayback,
       skipNext: skipToNextSong,
       skipPrev: skipToPreviousSong,
-      setRepeatMode: setHeaderMusicRepeatMode
+      setRepeatMode: setHeaderMusicRepeatMode,
+      seekToPercent: seekMusicToPercent,
     };
 
     return () => {
@@ -705,6 +743,7 @@ const Header = ({
     isHeaderMusicPlaying,
     pauseCurrentPlayback,
     resumeSelectedAmbient,
+    seekMusicToPercent,
     setHeaderMusicRepeatMode,
     skipToNextSong,
     skipToPreviousSong,
@@ -2163,11 +2202,7 @@ const Header = ({
                         }} onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
-                          if (audioRef.current && audioRef.current.src) {
-                            audioRef.current.currentTime = percent * audioRef.current.duration;
-                          } else if (ambientAudioRef?.current && ambientAudioRef.current.src) {
-                            ambientAudioRef.current.currentTime = percent * ambientAudioRef.current.duration;
-                          }
+                          seekMusicToPercent(percent);
                         }}>
                           <div style={{
                             height: '100%',
@@ -2366,6 +2401,8 @@ const Header = ({
                   addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
                   deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
                   refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
+                  videoLoopFade={videoLoopFade}
+                  setVideoLoopFade={setVideoLoopFade}
                 />
               )}
 
@@ -2860,8 +2897,7 @@ const Header = ({
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const percent = (e.clientX - rect.left) / rect.width;
-              if (audioRef.current) audioRef.current.currentTime = percent * audioRef.current.duration;
-              if (ambientAudioRef?.current) ambientAudioRef.current.currentTime = percent * ambientAudioRef.current.duration;
+              seekMusicToPercent(percent);
             }}
           >
             <div style={{ height: '100%', width: `${(musicCurrentTime / musicDuration) * 100}%`, background: theme.accent, borderRadius: 2, transition: 'width 0.2s ease-out' }} />
