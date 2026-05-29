@@ -114,6 +114,8 @@ export default function BackgroundImagesPanel({
   refreshRemoteBackgroundVideos,
   videoLoopFade,
   setVideoLoopFade,
+  videoAudioEnabled = false,
+  setVideoAudioEnabled,
 }) {
   const [activeTab, setActiveTab] = useState('images');
   const [allImages, setAllImages] = useState([]);
@@ -577,6 +579,8 @@ export default function BackgroundImagesPanel({
           refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
           videoLoopFade={videoLoopFade}
           setVideoLoopFade={setVideoLoopFade}
+          videoAudioEnabled={videoAudioEnabled}
+          setVideoAudioEnabled={setVideoAudioEnabled}
         />
       )}
 

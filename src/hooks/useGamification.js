@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useLocalStorage } from './useLocalStorage';
 import { STORAGE_KEYS, ACHIEVEMENTS, LIMITS } from '../utils/constants';

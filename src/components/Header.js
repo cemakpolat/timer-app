@@ -5,7 +5,7 @@ import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import MusicLibraryModal from './MusicLibraryModal';
 import TimerVisualizationSelector from './TimerVisualizationSelector';
-import { buildMusicPlaylist, CUSTOM_MUSIC_SOURCE, getNextPlaylistEntry, getPlaylistEntry, getPreviousPlaylistEntry, LIBRARY_MUSIC_SOURCE } from '../utils/musicPlaylist';
+import { buildMusicPlaylist, CUSTOM_MUSIC_SOURCE, BUILTIN_MUSIC_SOURCE, getNextPlaylistEntry, getPlaylistEntry, getPreviousPlaylistEntry, LIBRARY_MUSIC_SOURCE } from '../utils/musicPlaylist';
 import {
   buildSupportCheckoutUrl,
   buildSupportPaymentOptions,
@@ -13,6 +13,7 @@ import {
   SUPPORT_DEFAULT_AMOUNTS,
   SUPPORT_PREFERENCES_KEY,
 } from '../config/supportPayments.config';
+import { WEATHER_EFFECT_OPTIONS } from '../utils/weatherEffects';
 
 const Header = ({
   theme,
@@ -111,6 +112,8 @@ const Header = ({
   refreshRemoteBackgroundVideos,
   videoLoopFade,
   setVideoLoopFade,
+  videoAudioEnabled,
+  setVideoAudioEnabled,
   // Break reminders
   breakReminderSettings,
   updateBreakReminderSettings,
@@ -174,34 +177,96 @@ const Header = ({
   );
   const [selectedAmount, setSelectedAmount] = useState(SUPPORT_DEFAULT_AMOUNTS[0]);
   const [customAmount, setCustomAmount] = useState('');
-  const [savedPlaybackPositions, setSavedPlaybackPositions] = useState({}); // Track playback position for each song
   const audioRef = useRef(null);
   const currentPlayingIdRef = useRef(null); // Track currently playing ID for auto-advance
   const currentPlayingEntryRef = useRef(null);
   const musicUpdateIntervalRef = useRef(null); // Timer for updating music progress
 
-  const syncMusicProgress = useCallback(() => {
-    const customAudio = audioRef.current;
-    if (customAudio && customAudio.src) {
-      const nextCurrentTime = Number.isFinite(customAudio.currentTime) ? customAudio.currentTime : 0;
-      const nextDuration = Number.isFinite(customAudio.duration) ? customAudio.duration : 0;
-      setMusicCurrentTime(nextCurrentTime);
-      setMusicDuration(nextDuration);
+  const normalizedThemeOpacity = Number.isFinite(Number(themeOpacity))
+    ? Math.min(1, Math.max(0, Number(themeOpacity)))
+    : 1;
+
+  const handleThemeOpacityChange = useCallback((rawValue) => {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) {
+      setThemeOpacity(1);
       return;
     }
 
-    const ambientAudio = ambientAudioRef?.current;
-    if (ambientAudio && ambientAudio.src) {
-      const nextCurrentTime = Number.isFinite(ambientAudio.currentTime) ? ambientAudio.currentTime : 0;
-      const nextDuration = Number.isFinite(ambientAudio.duration) ? ambientAudio.duration : 0;
-      setMusicCurrentTime(nextCurrentTime);
-      setMusicDuration(nextDuration);
+    const normalized = parsed > 1 ? parsed / 100 : parsed;
+    setThemeOpacity(Math.min(1, Math.max(0, normalized)));
+  }, [setThemeOpacity]);
+
+  const resolveAudioDuration = useCallback((audioElement) => {
+    if (!audioElement) {
+      return 0;
+    }
+
+    if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+      return audioElement.duration;
+    }
+
+    if (audioElement.seekable && audioElement.seekable.length > 0) {
+      const seekableEnd = audioElement.seekable.end(audioElement.seekable.length - 1);
+      if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
+        return seekableEnd;
+      }
+    }
+
+    return 0;
+  }, []);
+
+  const getRepeatModeMeta = useCallback((mode) => {
+    if (mode === 'random') {
+      return { icon: <Shuffle size={16} />, label: 'Shuffle', title: 'Mode: Shuffle' };
+    }
+
+    if (mode === 'repeat-one') {
+      return { icon: <Repeat2 size={16} />, label: 'Repeat one', title: 'Mode: Repeat one' };
+    }
+
+    return { icon: <Repeat2 size={16} />, label: 'Next track', title: 'Mode: Next track' };
+  }, []);
+
+  const syncMusicProgress = useCallback(() => {
+    const currentEntry = currentPlayingEntryRef.current;
+    if (!currentEntry) {
+      setMusicCurrentTime(0);
+      setMusicDuration(0);
+      return;
+    }
+
+    if (currentEntry.type === CUSTOM_MUSIC_SOURCE || currentEntry.type === LIBRARY_MUSIC_SOURCE) {
+      const customAudio = audioRef.current;
+      if (customAudio && customAudio.src) {
+        const nextCurrentTime = Number.isFinite(customAudio.currentTime) ? customAudio.currentTime : 0;
+        const nextDuration = resolveAudioDuration(customAudio);
+        setMusicCurrentTime(nextCurrentTime);
+        setMusicDuration(nextDuration);
+      } else {
+        setMusicCurrentTime(0);
+        setMusicDuration(0);
+      }
+      return;
+    }
+
+    if (currentEntry.type === BUILTIN_MUSIC_SOURCE) {
+      const ambientAudio = ambientAudioRef?.current;
+      if (ambientAudio && ambientAudio.src) {
+        const nextCurrentTime = Number.isFinite(ambientAudio.currentTime) ? ambientAudio.currentTime : 0;
+        const nextDuration = resolveAudioDuration(ambientAudio);
+        setMusicCurrentTime(nextCurrentTime);
+        setMusicDuration(nextDuration);
+      } else {
+        setMusicCurrentTime(0);
+        setMusicDuration(0);
+      }
       return;
     }
 
     setMusicCurrentTime(0);
     setMusicDuration(0);
-  }, [ambientAudioRef]);
+  }, [ambientAudioRef, resolveAudioDuration]);
 
   const seekMusicToPercent = useCallback((percent) => {
     const clampedPercent = Math.min(1, Math.max(0, percent));
@@ -417,6 +482,20 @@ const Header = ({
     const startTime = options.startTime ?? 0;
     const currentEntry = currentPlayingEntryRef.current;
 
+    // Synchronously pause and zero BOTH audio elements before any await so that
+    // the syncMusicProgress interval cannot read a stale position during the
+    // async URL-fetch gap and overwrite the 0 we set below.
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (ambientAudioRef?.current) {
+      ambientAudioRef.current.pause();
+      ambientAudioRef.current.currentTime = 0;
+    }
+    setMusicCurrentTime(0);
+    setMusicDuration(0);
+
     if (currentEntry?.type === LIBRARY_MUSIC_SOURCE && currentEntry.selectionId !== entry.selectionId) {
       releaseMusicSelectionUrl(currentEntry.selectionId);
     }
@@ -504,7 +583,7 @@ const Header = ({
 
     stopAmbient();
     setAmbientSound(entry.ambientValue);
-    startAmbient(soundFile);
+    startAmbient(soundFile, { loop: false });
     currentPlayingIdRef.current = null;
     currentPlayingEntryRef.current = entry;
     setIsHeaderMusicPlaying(true);
@@ -513,13 +592,6 @@ const Header = ({
 
   const pauseCurrentPlayback = useCallback(() => {
     if (audioRef.current) {
-      const id = currentPlayingIdRef.current;
-      if (id) {
-        setSavedPlaybackPositions((prev) => ({
-          ...prev,
-          [id]: audioRef.current.currentTime,
-        }));
-      }
       audioRef.current.pause();
     }
 
@@ -560,11 +632,9 @@ const Header = ({
     }
 
     return playMusicEntry(entry, {
-      startTime: entry.type === CUSTOM_MUSIC_SOURCE || entry.type === LIBRARY_MUSIC_SOURCE
-        ? (savedPlaybackPositions[entry.id] || 0)
-        : 0,
+      startTime: 0,
     });
-  }, [getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
+  }, [getMusicPlaylist, playMusicEntry]);
 
   // Handle song end - auto-advance based on repeat mode
   const handleSongEnd = useCallback(async () => {
@@ -595,6 +665,28 @@ const Header = ({
       setIsHeaderMusicPlaying(false);
     }
   }, [ambientSound, getMusicPlaylist, headerMusicRepeatMode, playMusicEntry]);
+
+  const hasKnownMusicDuration = Number.isFinite(musicDuration) && musicDuration > 0;
+  const musicProgressPercent = hasKnownMusicDuration
+    ? Math.min(100, Math.max(0, (musicCurrentTime / musicDuration) * 100))
+    : 0;
+  const musicProgressWidth = musicProgressPercent > 0 ? `${Math.max(musicProgressPercent, 1)}%` : '0%';
+  const showIndeterminateMusicProgress = isHeaderMusicPlaying && !hasKnownMusicDuration && musicCurrentTime > 0.5;
+  const indeterminateProgressLeft = musicCurrentTime < 0.15
+    ? '0%'
+    : `${(Math.max(0, musicCurrentTime) * 18) % 78}%`;
+  const repeatModeMeta = getRepeatModeMeta(headerMusicRepeatMode);
+
+  const formatMusicTime = useCallback((value, options = {}) => {
+    const allowUnknown = options.allowUnknown || false;
+    if (!Number.isFinite(value) || value < 0) {
+      return allowUnknown ? '--:--' : '0:00';
+    }
+
+    const mins = Math.floor(value / 60);
+    const secs = String(Math.floor(value % 60)).padStart(2, '0');
+    return `${mins}:${secs}`;
+  }, []);
 
   const selectAndPlayAmbientValue = useCallback(async (ambientValue) => {
     if (!ambientValue || ambientValue === 'None') {
@@ -685,16 +777,12 @@ const Header = ({
     }
 
     const nextEntry = getNextPlaylistEntry(playlist, ambientSound);
-    const didPlay = await playMusicEntry(nextEntry, {
-      startTime: nextEntry?.type === CUSTOM_MUSIC_SOURCE || nextEntry?.type === LIBRARY_MUSIC_SOURCE
-        ? (savedPlaybackPositions[nextEntry.id] || 0)
-        : 0,
-    });
+    const didPlay = await playMusicEntry(nextEntry, { startTime: 0 });
 
     if (!didPlay) {
       console.log('[SKIP NEXT] Failed to play next entry');
     }
-  }, [ambientSound, getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
+  }, [ambientSound, getMusicPlaylist, playMusicEntry]);
 
   // Skip to previous song in the combined playlist
   const skipToPreviousSong = useCallback(async () => {
@@ -705,16 +793,12 @@ const Header = ({
     }
 
     const previousEntry = getPreviousPlaylistEntry(playlist, ambientSound);
-    const didPlay = await playMusicEntry(previousEntry, {
-      startTime: previousEntry?.type === CUSTOM_MUSIC_SOURCE || previousEntry?.type === LIBRARY_MUSIC_SOURCE
-        ? (savedPlaybackPositions[previousEntry.id] || 0)
-        : 0,
-    });
+    const didPlay = await playMusicEntry(previousEntry, { startTime: 0 });
 
     if (!didPlay) {
       console.log('[SKIP PREV] Failed to play previous entry');
     }
-  }, [ambientSound, getMusicPlaylist, playMusicEntry, savedPlaybackPositions]);
+  }, [ambientSound, getMusicPlaylist, playMusicEntry]);
 
   // Register global music player controls so MusicPlayerFooter can call them
   useEffect(() => {
@@ -723,6 +807,28 @@ const Header = ({
         pauseCurrentPlayback();
         return;
       }
+      
+      const currentEntry = currentPlayingEntryRef.current;
+      const playlist = getMusicPlaylist();
+      const targetEntry = getPlaylistEntry(playlist, ambientSound);
+
+      if (currentEntry && targetEntry && currentEntry.id === targetEntry.id) {
+        // Just resume the exact same track
+        if (targetEntry.type === CUSTOM_MUSIC_SOURCE || targetEntry.type === LIBRARY_MUSIC_SOURCE) {
+          if (audioRef.current && audioRef.current.src) {
+            audioRef.current.play().catch(console.error);
+            setIsHeaderMusicPlaying(true);
+            return;
+          }
+        } else if (targetEntry.type === BUILTIN_MUSIC_SOURCE) {
+          if (ambientAudioRef?.current && ambientAudioRef.current.src) {
+            ambientAudioRef.current.play().catch(console.error);
+            setIsHeaderMusicPlaying(true);
+            return;
+          }
+        }
+      }
+
       await resumeSelectedAmbient(ambientSound);
     };
 
@@ -739,7 +845,9 @@ const Header = ({
       window.__musicPlayerControls = null;
     };
   }, [
+    ambientAudioRef,
     ambientSound,
+    getMusicPlaylist,
     isHeaderMusicPlaying,
     pauseCurrentPlayback,
     resumeSelectedAmbient,
@@ -1909,24 +2017,7 @@ const Header = ({
                       overflowY: 'auto',
                       padding: 4
                     }}>
-                      {[
-                        { id: 'none', name: 'None', icon: '🚫' },
-                        { id: 'rain', name: 'Rain', icon: '🌧️' },
-                        { id: 'cloudy', name: 'Cloudy', icon: '☁️' },
-                        { id: 'sunny', name: 'Sunny', icon: '☀️' },
-                        { id: 'winter', name: 'Winter', icon: '❄️' },
-                        { id: 'autumn', name: 'Autumn', icon: '🍂' },
-                        { id: 'spring', name: 'Spring', icon: '🌸' },
-                        { id: 'sakura', name: 'Cherry Blossoms', icon: '🌸' },
-                        { id: 'fireflies', name: 'Fireflies', icon: '✨' },
-                        { id: 'butterflies', name: 'Butterflies', icon: '🦋' },
-                        { id: 'lanterns', name: 'Lanterns', icon: '🏮' },
-                        { id: 'aurora', name: 'Aurora', icon: '🌌' },
-                        { id: 'desert', name: 'Desert', icon: '🏜️' },
-                        { id: 'tropical', name: 'Tropical', icon: '🌴' },
-                        { id: 'coffee', name: 'Coffee Shop', icon: '☕' },
-                        { id: 'fireplace', name: 'Fireplace', icon: '🔥' }
-                      ].map(effect => (
+                      {WEATHER_EFFECT_OPTIONS.map(effect => (
                         <button
                           key={effect.id}
                           onClick={() => setWeatherEffect(effect.id)}
@@ -1941,25 +2032,35 @@ const Header = ({
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            justifyContent: 'flex-start',
                             gap: 4,
                             transition: 'all 0.2s',
-                            minHeight: '70px',
+                            minHeight: '92px',
                             position: 'relative'
                           }}
                           onMouseEnter={(e) => {
                             if (weatherEffect !== effect.id) {
-                              e.target.style.background = 'rgba(255,255,255,0.1)';
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (weatherEffect !== effect.id) {
-                              e.target.style.background = 'rgba(255,255,255,0.05)';
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
                             }
                           }}
                         >
                           <span style={{ fontSize: 20 }}>{effect.icon}</span>
-                          <span style={{ textAlign: 'center', lineHeight: 1.2 }}>{effect.name}</span>
+                          <span style={{ textAlign: 'center', lineHeight: 1.2, fontWeight: 600 }}>{effect.name}</span>
+                          <span style={{ 
+                            textAlign: 'center',
+                            lineHeight: 1.25,
+                            fontSize: 10,
+                            opacity: weatherEffect === effect.id ? 0.82 : 0.6,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>{effect.description}</span>
                           {weatherEffect === effect.id && (
                             <div style={{
                               position: 'absolute',
@@ -1973,7 +2074,7 @@ const Header = ({
                       ))}
                     </div>
                     <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
-                      Choose a scene for your timer sessions
+                      Choose a motion language for your timer sessions
                     </p>
                   </div>
                 </>
@@ -2204,16 +2305,28 @@ const Header = ({
                           const percent = (e.clientX - rect.left) / rect.width;
                           seekMusicToPercent(percent);
                         }}>
-                          <div style={{
-                            height: '100%',
-                            width: musicDuration > 0 ? `${(musicCurrentTime / musicDuration) * 100}%` : '0%',
-                            background: theme.accent,
-                            transition: 'width 0.2s ease-out'
-                          }} />
+                          {hasKnownMusicDuration ? (
+                            <div style={{
+                              height: '100%',
+                              width: musicProgressWidth,
+                              background: theme.accent,
+                              transition: 'width 0.2s ease-out'
+                            }} />
+                          ) : showIndeterminateMusicProgress ? (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: indeterminateProgressLeft,
+                              height: '100%',
+                              width: '22%',
+                              background: `${theme.accent}cc`,
+                              transition: 'left 0.35s linear'
+                            }} />
+                          ) : null}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: getTextOpacity(theme, 0.6) }}>
-                          <span>{Math.floor(musicCurrentTime / 60)}:{String(Math.floor(musicCurrentTime % 60)).padStart(2, '0')}</span>
-                          <span>{Math.floor(musicDuration / 60)}:{String(Math.floor(musicDuration % 60)).padStart(2, '0')}</span>
+                          <span>{formatMusicTime(musicCurrentTime)}</span>
+                          <span>{formatMusicTime(musicDuration, { allowUnknown: true })}</span>
                         </div>
                       </div>
                       
@@ -2306,7 +2419,7 @@ const Header = ({
                             setHeaderMusicRepeatMode(nextMode);
                           }}
                           disabled={false}
-                          title={`Repeat mode: ${headerMusicRepeatMode}`}
+                          title={repeatModeMeta.title}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -2325,7 +2438,7 @@ const Header = ({
                           onMouseEnter={(e) => { e.target.style.background = headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.1)'; }}
                           onMouseLeave={(e) => { e.target.style.background = headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.05)'; }}
                         >
-                          {headerMusicRepeatMode === 'random' ? <Shuffle size={16} /> : <Repeat2 size={16} />}
+                          {repeatModeMeta.icon}
                         </button>
 
                         <button
@@ -2353,6 +2466,17 @@ const Header = ({
                         >
                           <SkipForward size={16} />
                         </button>
+                      </div>
+
+                      <div style={{
+                        textAlign: 'center',
+                        marginTop: 6,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
+                        color: headerMusicRepeatMode === 'sequential' ? getTextOpacity(theme, 0.55) : theme.accent,
+                      }}>
+                        Mode: {repeatModeMeta.label}
                       </div>
                     </div>
                   )}
@@ -2403,6 +2527,8 @@ const Header = ({
                   refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
                   videoLoopFade={videoLoopFade}
                   setVideoLoopFade={setVideoLoopFade}
+                  videoAudioEnabled={videoAudioEnabled}
+                  setVideoAudioEnabled={setVideoAudioEnabled}
                 />
               )}
 
@@ -2638,7 +2764,7 @@ const Header = ({
             </h2>
 
             <p style={{ fontSize: 13, color: getTextOpacity(theme, 0.6), marginBottom: 16 }}>
-              Adjust the opacity of theme elements. Current: {Math.round(themeOpacity * 100)}%
+              Adjust element visibility. 100% means fully visible. Current: {Math.round(normalizedThemeOpacity * 100)}%
             </p>
 
             {/* Opacity Slider */}
@@ -2648,8 +2774,8 @@ const Header = ({
                 min="0"
                 max="100"
                 step="5"
-                value={Number.isFinite(themeOpacity) ? themeOpacity * 100 : 100}
-                onChange={(e) => setThemeOpacity(e.target.value / 100)}
+                value={Math.round(normalizedThemeOpacity * 100)}
+                onChange={(e) => handleThemeOpacityChange(e.target.value)}
                 style={{
                   width: '100%',
                   height: 6,
@@ -2661,9 +2787,9 @@ const Header = ({
                 }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: getTextOpacity(theme, 0.5) }}>
-                <span>0%</span>
+                <span>Hidden</span>
                 <span>50%</span>
-                <span>100%</span>
+                <span>Visible</span>
               </div>
             </div>
 
@@ -2678,23 +2804,23 @@ const Header = ({
                   key={preset.label}
                   onClick={() => setThemeOpacity(Math.min(1, Math.max(0, preset.value)))}
                   style={{
-                    background: Math.abs(themeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
+                    background: Math.abs(normalizedThemeOpacity - preset.value) < 0.01 ? theme.accent : 'rgba(255,255,255,0.05)',
                     border: `1px solid ${getTextOpacity(theme, 0.1)}`,
                     borderRadius: theme.borderRadius,
                     padding: '10px 12px',
-                    color: Math.abs(themeOpacity - preset.value) < 0.01 ? getTextOpacity(theme, 1) : theme.text,
+                    color: Math.abs(normalizedThemeOpacity - preset.value) < 0.01 ? getTextOpacity(theme, 1) : theme.text,
                     cursor: 'pointer',
                     fontSize: 12,
                     fontWeight: 500,
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    if (Math.abs(themeOpacity - preset.value) >= 0.01) {
+                    if (Math.abs(normalizedThemeOpacity - preset.value) >= 0.01) {
                       e.target.style.background = 'rgba(255,255,255,0.1)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (Math.abs(themeOpacity - preset.value) >= 0.01) {
+                    if (Math.abs(normalizedThemeOpacity - preset.value) >= 0.01) {
                       e.target.style.background = 'rgba(255,255,255,0.05)';
                     }
                   }}
@@ -2855,6 +2981,7 @@ const Header = ({
 
     <audio
       ref={audioRef}
+      data-testid="header-audio-player"
       onEnded={handleSongEnd}
       preload="auto"
       playsInline
@@ -2883,26 +3010,29 @@ const Header = ({
           <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {getAmbientTrackLabel(ambientSound)}
           </div>
-          {musicDuration > 0 && (
-            <div style={{ fontSize: 10, color: `${theme.text}80`, marginTop: 1 }}>
-              {Math.floor(musicCurrentTime / 60)}:{String(Math.floor(musicCurrentTime % 60)).padStart(2, '0')} / {Math.floor(musicDuration / 60)}:{String(Math.floor(musicDuration % 60)).padStart(2, '0')}
-            </div>
-          )}
+          <div style={{ fontSize: 10, color: `${theme.text}80`, marginTop: 1 }}>
+            {formatMusicTime(musicCurrentTime)} / {formatMusicTime(musicDuration, { allowUnknown: true })}
+          </div>
         </div>
 
         {/* Progress bar */}
-        {musicDuration > 0 && (
-          <div
-            style={{ width: 80, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, cursor: 'pointer', flexShrink: 0 }}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const percent = (e.clientX - rect.left) / rect.width;
-              seekMusicToPercent(percent);
-            }}
-          >
-            <div style={{ height: '100%', width: `${(musicCurrentTime / musicDuration) * 100}%`, background: theme.accent, borderRadius: 2, transition: 'width 0.2s ease-out' }} />
-          </div>
-        )}
+        <div
+          style={{ width: 80, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, cursor: hasKnownMusicDuration ? 'pointer' : 'default', flexShrink: 0, position: 'relative', overflow: 'hidden' }}
+          onClick={(e) => {
+            if (!hasKnownMusicDuration) {
+              return;
+            }
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            seekMusicToPercent(percent);
+          }}
+        >
+          {hasKnownMusicDuration ? (
+            <div style={{ height: '100%', width: musicProgressWidth, background: theme.accent, borderRadius: 2, transition: 'width 0.2s ease-out' }} />
+          ) : showIndeterminateMusicProgress ? (
+            <div style={{ position: 'absolute', top: 0, left: indeterminateProgressLeft, height: '100%', width: '22%', background: `${theme.accent}cc`, transition: 'left 0.35s linear' }} />
+          ) : null}
+        </div>
 
         {/* Previous */}
         <button
@@ -3070,7 +3200,7 @@ const Header = ({
             const next = modes[(modes.indexOf(headerMusicRepeatMode) + 1) % modes.length];
             setHeaderMusicRepeatMode(next);
           }}
-          title={`Mode: ${headerMusicRepeatMode}`}
+          title={repeatModeMeta.title}
           style={{
             background: headerMusicRepeatMode !== 'sequential' ? `${theme.accent}30` : 'rgba(255,255,255,0.06)',
             border: 'none',

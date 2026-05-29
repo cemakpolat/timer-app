@@ -101,12 +101,14 @@ export const useSound = ({
   }, [countdownEnabled, alarmVolume]);
 
   // Start ambient sound
-  const startAmbient = useCallback((soundFile) => {
+  const startAmbient = useCallback((soundFile, options = {}) => {
     if (!soundFile) return;
 
     try {
       // Handle regular audio files (including our new jazz files)
       if (!ambientAudioRef.current) return;
+      const shouldLoop = options.loop !== false;
+      ambientAudioRef.current.loop = shouldLoop;
       ambientAudioRef.current.src = soundFile;
       ambientAudioRef.current.volume = ambientVolume;
       ambientAudioRef.current.play().catch(e => {

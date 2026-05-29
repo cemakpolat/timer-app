@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Film, Play, Trash2, Upload } from 'lucide-react';
+import { Database, Film, Play, Trash2, Upload, Volume2, VolumeX } from 'lucide-react';
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
@@ -31,13 +31,13 @@ export default function BackgroundVideosPanel({
   selectedVideoId,
   setSelectedVideoId,
   getAllBackgroundVideos,
-  getBackgroundVideoUrl,
-  uploadBackgroundVideo,
   deleteBackgroundVideo,
   onOpenUploadModal,
   onOpenLocalFolder,
   videoLoopFade,
   setVideoLoopFade,
+  videoAudioEnabled = false,
+  setVideoAudioEnabled,
 }) {
   const [loopFadeOpen, setLoopFadeOpen] = useState(false);
   const videos = getAllBackgroundVideos ? getAllBackgroundVideos() : [];
@@ -218,6 +218,77 @@ export default function BackgroundVideosPanel({
         <div style={{ textAlign: 'center', padding: '20px 0', color: getTextOpacity(theme, 0.35), fontSize: 12 }}>
           No videos available yet.
           <br />Upload a local file or connect a remote source.
+        </div>
+      )}
+
+      {selectedVideoId && selectedVideoId !== 'None' && typeof setVideoAudioEnabled === 'function' && (
+        <div style={{
+          marginTop: 16,
+          borderRadius: theme.borderRadius,
+          border: '1px solid rgba(255,255,255,0.07)',
+          padding: '10px 12px',
+          background: 'rgba(255,255,255,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: videoAudioEnabled ? `${theme.accent}25` : 'rgba(255,255,255,0.08)',
+              color: videoAudioEnabled ? theme.accent : getTextOpacity(theme, 0.55),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              {videoAudioEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: theme.text }}>
+                Video Audio
+              </div>
+              <div style={{ fontSize: 10, color: getTextOpacity(theme, 0.45), lineHeight: 1.5 }}>
+                Play the video's original sound, or keep it muted so the app's own music stays in control.
+              </div>
+            </div>
+
+            <div
+              role="switch"
+              aria-checked={videoAudioEnabled}
+              aria-label="Background video audio"
+              onClick={() => setVideoAudioEnabled(!videoAudioEnabled)}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  setVideoAudioEnabled(!videoAudioEnabled);
+                }
+              }}
+              tabIndex={0}
+              title={videoAudioEnabled ? 'Video audio on' : 'Video audio off'}
+              style={{
+                width: 36,
+                height: 20,
+                borderRadius: 10,
+                background: videoAudioEnabled ? theme.accent : 'rgba(255,255,255,0.15)',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute',
+                top: 3,
+                left: videoAudioEnabled ? 18 : 3,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </div>
+          </div>
         </div>
       )}
 

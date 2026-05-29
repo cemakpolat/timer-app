@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useModal } from '../../context/ModalContext';
 import { Play, Pause, X, Repeat2, Shuffle } from 'lucide-react';
 
@@ -12,9 +12,10 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedMusicId, setSelectedMusicId] = useState(null);
-  const [repeatMode, setRepeatMode] = useState('orderly'); // orderly, random, repeat-one
+  const [repeatMode, setRepeatMode] = useState('sequential'); // sequential, random, repeat-one
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const objectUrlRef = useRef(null);
 
   const getTextOpacity = (opacity = 0.7) => {
     const baseColor = theme.text;
@@ -25,8 +26,6 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
-  const selectedMusic = customMusicFiles.find(f => f.id === selectedMusicId);
-  
   // Combine custom music files and built-in ambient sounds
   const allAvailableMusic = [
     ...customMusicFiles.map(file => ({ ...file, type: 'custom' })),
@@ -37,13 +36,114 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
       type: 'builtin'
     }))
   ];
-  
+
   const firstAvailableMusic = allAvailableMusic.length > 0 ? allAvailableMusic[0] : null;
+
+  const selectedTrack = allAvailableMusic.find((track) => track.id === selectedMusicId) || null;
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  const resolveTrackUrl = (track) => {
+    if (!track) {
+      return '';
+    }
+
+    if (track.url) {
+      return track.url;
+    }
+
+    if (track.blob) {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+      objectUrlRef.current = URL.createObjectURL(track.blob);
+      return objectUrlRef.current;
+    }
+
+    return track.file || '';
+  };
+
+  const getResolvedDuration = (audioElement) => {
+    if (!audioElement) {
+      return 0;
+    }
+
+    if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+      return audioElement.duration;
+    }
+
+    if (audioElement.seekable && audioElement.seekable.length > 0) {
+      const seekableEnd = audioElement.seekable.end(audioElement.seekable.length - 1);
+      if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
+        return seekableEnd;
+      }
+    }
+
+    return 0;
+  };
+
+  const playTrack = async (track, startTime = 0) => {
+    if (!audioRef.current || !track) {
+      return false;
+    }
+
+    const nextSrc = resolveTrackUrl(track);
+    if (!nextSrc) {
+      return false;
+    }
+
+    try {
+      if (audioRef.current.src !== nextSrc) {
+        audioRef.current.src = nextSrc;
+      }
+      audioRef.current.currentTime = startTime;
+      await audioRef.current.play();
+      setSelectedMusicId(track.id);
+      setIsPlaying(true);
+      return true;
+    } catch (_error) {
+      setIsPlaying(false);
+      return false;
+    }
+  };
+
+  const getNextTrack = () => {
+    if (allAvailableMusic.length === 0) {
+      return null;
+    }
+
+    if (repeatMode === 'random') {
+      if (allAvailableMusic.length === 1) {
+        return allAvailableMusic[0];
+      }
+
+      const currentIndex = allAvailableMusic.findIndex((track) => track.id === selectedMusicId);
+      let randomIndex = Math.floor(Math.random() * allAvailableMusic.length);
+      if (randomIndex === currentIndex) {
+        randomIndex = (randomIndex + 1) % allAvailableMusic.length;
+      }
+      return allAvailableMusic[randomIndex];
+    }
+
+    const currentIndex = allAvailableMusic.findIndex((track) => track.id === selectedMusicId);
+    if (currentIndex === -1) {
+      return allAvailableMusic[0];
+    }
+
+    return allAvailableMusic[(currentIndex + 1) % allAvailableMusic.length];
+  };
 
   const handlePlayClick = () => {
     if (!audioRef.current) return;
 
-    const music = selectedMusic || firstAvailableMusic;
+    const music = selectedTrack || firstAvailableMusic;
     if (!music) {
       alert('No music files available');
       return;
@@ -54,15 +154,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      // Play the selected (or first) track
-      if (!selectedMusicId || selectedMusicId !== music.id) {
-        setSelectedMusicId(music.id);
-        // Handle both custom music (with url/blob) and built-in sounds (with file)
-        const url = music.url || (music.blob ? URL.createObjectURL(music.blob) : music.file);
-        audioRef.current.src = url;
-      }
-      audioRef.current.play();
-      setIsPlaying(true);
+      playTrack(music, selectedMusicId === music.id ? currentTime : 0);
     }
   };
 
@@ -72,11 +164,12 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
       setCurrentTime(0);
+      setDuration(getResolvedDuration(audioRef.current));
     }
   };
 
   const handleRepeatClick = () => {
-    const modes = ['orderly', 'random', 'repeat-one'];
+    const modes = ['sequential', 'random', 'repeat-one'];
     const currentIndex = modes.indexOf(repeatMode);
     const nextMode = modes[(currentIndex + 1) % modes.length];
     setRepeatMode(nextMode);
@@ -84,17 +177,32 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
 
   const handleTimeUpdate = (e) => {
     setCurrentTime(e.currentTarget.currentTime);
+    const nextDuration = getResolvedDuration(e.currentTarget);
+    if (nextDuration > 0 && nextDuration !== duration) {
+      setDuration(nextDuration);
+    }
   };
 
   const handleLoadedMetadata = (e) => {
-    setDuration(e.currentTarget.duration);
+    setDuration(getResolvedDuration(e.currentTarget));
   };
 
-  const handleAudioEnd = () => {
+  const handleAudioEnd = async () => {
     if (repeatMode === 'repeat-one') {
       audioRef.current.currentTime = 0;
-      audioRef.current.play();
-    } else {
+      await audioRef.current.play();
+      return;
+    }
+
+    const nextTrack = getNextTrack();
+    if (!nextTrack) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      return;
+    }
+
+    const didPlay = await playTrack(nextTrack, 0);
+    if (!didPlay) {
       setIsPlaying(false);
       setCurrentTime(0);
     }
@@ -110,10 +218,21 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
     switch (repeatMode) {
       case 'repeat-one': return '🔁 Repeat';
       case 'random': return '🔀 Random';
-      case 'orderly': return '▶️ Orderly';
+      case 'sequential': return '▶️ Next';
       default: return 'Repeat';
     }
   };
+
+  const getRepeatIcon = () => {
+    if (repeatMode === 'random') {
+      return <Shuffle size={16} />;
+    }
+
+    return <Repeat2 size={16} />;
+  };
+
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const progressPercent = hasDuration ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -229,7 +348,19 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
               <div style={{ marginBottom: 12 }}>
                 <select
                   value={selectedMusicId || ''}
-                  onChange={(e) => setSelectedMusicId(e.target.value || null)}
+                  onChange={async (e) => {
+                    const nextId = e.target.value || null;
+                    setSelectedMusicId(nextId);
+
+                    if (!nextId || !isPlaying) {
+                      return;
+                    }
+
+                    const nextTrack = allAvailableMusic.find((track) => track.id === nextId);
+                    if (nextTrack) {
+                      await playTrack(nextTrack, 0);
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: 10,
@@ -266,7 +397,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                 </select>
                 
                 {/* Progress Bar */}
-                {isPlaying && duration > 0 && (
+                {hasDuration && (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ fontSize: 11, color: getTextOpacity(0.6), minWidth: 30 }}>
                       {formatTime(currentTime)}
@@ -284,11 +415,13 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                         }
                       }}
                       style={{
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
                         flex: 1,
                         cursor: 'pointer',
                         height: 4,
                         borderRadius: 2,
-                        background: `linear-gradient(to right, ${theme.accent} 0%, ${theme.accent} ${(currentTime/duration)*100}%, rgba(255,255,255,0.1) ${(currentTime/duration)*100}%, rgba(255,255,255,0.1) 100%)`
+                        background: `linear-gradient(to right, ${theme.accent} 0%, ${theme.accent} ${progressPercent}%, rgba(255,255,255,0.1) ${progressPercent}%, rgba(255,255,255,0.1) 100%)`
                       }}
                     />
                     <div style={{ fontSize: 11, color: getTextOpacity(0.6), minWidth: 30, textAlign: 'right' }}>
@@ -377,7 +510,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
                     transition: 'all 0.2s'
                   }}
                 >
-                  {repeatMode === 'random' ? <Shuffle size={16} /> : <Repeat2 size={16} />}
+                  {getRepeatIcon()}
                   {getRepeatLabel()}
                 </button>
               </div>
@@ -385,7 +518,7 @@ const RoomSettingsModal = ({ theme, room, onClose, onSave, customMusicFiles = []
               <div style={{ fontSize: 11, color: getTextOpacity(0.5), marginTop: 8 }}>
                 {repeatMode === 'repeat-one' && '🔁 Repeat: Play same song again'}
                 {repeatMode === 'random' && '🔀 Random: Play songs in random order'}
-                {repeatMode === 'orderly' && '▶️ Orderly: Play songs one after another'}
+                {repeatMode === 'sequential' && '▶️ Next: Move to the next song automatically'}
               </div>
               </>
             )}
