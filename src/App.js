@@ -36,6 +36,7 @@ import EditTimerModal from './components/EditTimerModal';
 import { downloadICSFile, generateGoogleCalendarURL } from './services/calendar/calendarService';
 import { formatDate } from './utils/formatters';
 import { AMBIENT_SOUNDS, THEMES as IMPORTED_THEMES } from './utils/constants';
+import { getWeatherEffectLabel } from './utils/weatherEffects';
 import { useSound } from './hooks/useSound';
 import shareService from './services/shareService';
 import useSettings from './hooks/useSettings';
@@ -800,6 +801,19 @@ export default function TimerApp() {
   // Resolve video URL whenever selectedVideoId changes
   const [videoBackgroundUrl, setVideoBackgroundUrl] = useState(null);
   const [videoBackgroundAssetId, setVideoBackgroundAssetId] = useState(null);
+  const [videoAudioEnabled, setVideoAudioEnabled] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('timer-app-video-audio-enabled') || 'false') === true;
+    } catch (_) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('timer-app-video-audio-enabled', JSON.stringify(videoAudioEnabled));
+    } catch (_) {}
+  }, [videoAudioEnabled]);
 
   // Loop-fade settings for background videos (persisted to localStorage).
   // enabled: whether the loop-point fade is active.
@@ -858,14 +872,14 @@ export default function TimerApp() {
     };
   }, [getBackgroundVideoUrl, releaseBackgroundVideoUrl, selectedVideoId]);
 
-  const ensureBackgroundVideoLoop = useCallback((videoElement, shouldLoop = true) => {
+  const ensureBackgroundVideoLoop = useCallback((videoElement, shouldLoop = true, shouldMute = true) => {
     if (!videoElement) {
       return;
     }
 
     videoElement.loop = shouldLoop;
-    videoElement.defaultMuted = true;
-    videoElement.muted = true;
+    videoElement.defaultMuted = shouldMute;
+    videoElement.muted = shouldMute;
     videoElement.playsInline = true;
 
     if (videoElement.ended) {
@@ -873,7 +887,14 @@ export default function TimerApp() {
     }
 
     if (videoElement.paused) {
-      videoElement.play().catch(() => {});
+      videoElement.play().catch(() => {
+        if (!shouldMute) {
+          // Unmuted autoplay can be blocked; retry muted so the background still plays.
+          videoElement.defaultMuted = true;
+          videoElement.muted = true;
+          videoElement.play().catch(() => {});
+        }
+      });
     }
   }, []);
 
@@ -1824,6 +1845,7 @@ export default function TimerApp() {
     // the two animation systems fighting over the same CSS property.
     // The wrapper's backgroundColor shows through when the inner video fades out.
     const loopFadeSettings = videoLoopFadeRef.current;
+    const shouldMuteVideoLayer = isIncoming || !videoAudioEnabled;
     const wrapperBg = (!isSlideSetVideoLayer && loopFadeSettings.enabled)
       ? loopFadeSettings.color
       : undefined;
@@ -1843,15 +1865,16 @@ export default function TimerApp() {
       >
         <video
           autoPlay
-          muted
+          muted={shouldMuteVideoLayer}
+          defaultMuted={shouldMuteVideoLayer}
           loop={!isSlideSetVideoLayer}
           playsInline
           preload="auto"
           onLoadedMetadata={(e) => {
-            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer, shouldMuteVideoLayer);
           }}
           onCanPlay={(e) => {
-            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer, shouldMuteVideoLayer);
 
             if (
               isIncoming
@@ -1898,8 +1921,13 @@ export default function TimerApp() {
     incomingBackgroundLayerRef,
     setIncomingBackgroundReady,
     slideshowVideoUrl,
+    videoAudioEnabled,
     activeTransitionProfile,
   ]);
+
+  const normalizedThemeVisibility = Number.isFinite(Number(themeOpacity))
+    ? Math.min(1, Math.max(0, Number(themeOpacity)))
+    : 1;
 
   return (
     <div
@@ -1914,7 +1942,6 @@ export default function TimerApp() {
         transition: 'color 0.3s ease-in-out',
         position: 'relative',
         zIndex: 1,
-        '--theme-opacity': themeOpacity
       }}
     >
       {renderBackgroundLayer(currentBackgroundLayer, 'background-current')}
@@ -1941,12 +1968,6 @@ export default function TimerApp() {
         }
         .app-container { padding: 20px; }
         @media (max-width: 600px) { .app-container { padding: 10px; } }
-        
-        /* Apply opacity to cards and elements */
-        .app-container > div:not(.app-background-layer) {
-          opacity: var(--theme-opacity, 1);
-          transition: opacity 0.3s ease-in-out;
-        }
         
         .confetti {
           position: fixed;
@@ -2988,7 +3009,7 @@ export default function TimerApp() {
       )}
 
       {/* Main Container with Header and Content */}
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px' }}>
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 12px', position: 'relative', zIndex: 2, opacity: normalizedThemeVisibility, transition: 'opacity 0.3s ease-in-out' }}>
         
         <Header
           theme={effectiveTheme}
@@ -3089,6 +3110,8 @@ export default function TimerApp() {
           deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
           videoLoopFade={videoLoopFade}
           setVideoLoopFade={setVideoLoopFade}
+          videoAudioEnabled={videoAudioEnabled}
+          setVideoAudioEnabled={setVideoAudioEnabled}
           refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
           breakReminderSettings={breakReminderSettings}
           updateBreakReminderSettings={updateBreakReminderSettings}
@@ -4062,7 +4085,7 @@ export default function TimerApp() {
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: theme.text }}>
-                Customize {editingWeather.charAt(0).toUpperCase() + editingWeather.slice(1)}
+                Customize {getWeatherEffectLabel(editingWeather)}
               </h3>
               <button
                 onClick={() => setEditingWeather(null)}

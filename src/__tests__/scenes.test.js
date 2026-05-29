@@ -36,10 +36,7 @@ describe('scenes', () => {
       Object.values(SCENES).forEach(scene => {
         expect(scene).toHaveProperty('name');
         expect(scene).toHaveProperty('emoji');
-        // none scene may not have bg
-        if (scene.name !== 'None') {
-          expect(scene.bg).toBeDefined();
-        }
+        expect(scene.name === 'None' || scene.bg !== undefined).toBe(true);
       });
     });
 
@@ -159,27 +156,20 @@ describe('scenes', () => {
   describe('Scene structure consistency', () => {
     test('all scenes except none have card property', () => {
       Object.entries(SCENES).forEach(([key, scene]) => {
-        if (key !== 'none') {
-          expect(scene.card).toBeDefined();
-          expect(typeof scene.card).toBe('string');
-        }
+        expect(key === 'none' || typeof scene.card === 'string').toBe(true);
       });
     });
 
     test('all scenes except none have accent property', () => {
       Object.entries(SCENES).forEach(([key, scene]) => {
-        if (key !== 'none') {
-          expect(scene.accent).toBeDefined();
-          expect(scene.accent).toMatch(/^#[0-9A-F]{6}$/i);
-        }
+        expect(key === 'none' || scene.accent !== undefined).toBe(true);
+        expect(key === 'none' || /^#[0-9A-F]{6}$/i.test(scene.accent)).toBe(true);
       });
     });
 
     test('background gradients follow expected format', () => {
       Object.entries(SCENES).forEach(([key, scene]) => {
-        if (key !== 'none' && scene.bg) {
-          expect(scene.bg).toContain('linear-gradient');
-        }
+        expect(key === 'none' || !scene.bg || scene.bg.includes('linear-gradient')).toBe(true);
       });
     });
   });

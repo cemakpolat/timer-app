@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const DEFAULT_THEME_DRAFT = {
   name: '',
@@ -10,6 +10,16 @@ const DEFAULT_THEME_DRAFT = {
 
 function dispatchThemeToast(message, type = 'info', ttl = 3000) {
   window.dispatchEvent(new CustomEvent('app-toast', { detail: { message, type, ttl } }));
+}
+
+function normalizeThemeOpacityValue(value) {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  const normalized = parsed > 1 ? parsed / 100 : parsed;
+  return Math.min(1, Math.max(0, normalized));
 }
 
 export default function useThemeManager(defaultThemes) {
@@ -55,14 +65,11 @@ export default function useThemeManager(defaultThemes) {
     }
   });
 
-  const [themeOpacity, setThemeOpacity] = useState(() => {
+  const [themeOpacity, setThemeOpacityState] = useState(() => {
     try {
       const stored = localStorage.getItem('themeOpacity');
       if (stored !== null) {
-        const parsed = parseFloat(stored);
-        if (!Number.isNaN(parsed)) {
-          return Math.min(1, Math.max(0, parsed));
-        }
+        return normalizeThemeOpacityValue(stored);
       }
     } catch (error) {
       console.error('Failed to load themeOpacity:', error);
@@ -70,6 +77,15 @@ export default function useThemeManager(defaultThemes) {
 
     return 1;
   });
+
+  const setThemeOpacity = useCallback((valueOrUpdater) => {
+    if (typeof valueOrUpdater === 'function') {
+      setThemeOpacityState((prev) => normalizeThemeOpacityValue(valueOrUpdater(prev)));
+      return;
+    }
+
+    setThemeOpacityState(normalizeThemeOpacityValue(valueOrUpdater));
+  }, []);
 
   const [showThemes, setShowThemes] = useState(false);
   const [previewTheme] = useState(null);
@@ -120,13 +136,13 @@ export default function useThemeManager(defaultThemes) {
   }, [customBorderRadius, theme?.name, themes]);
 
   useEffect(() => {
-    localStorage.setItem('themeOpacity', themeOpacity.toString());
-  }, [themeOpacity]);
-
-  useEffect(() => {
-    if (typeof themeOpacity === 'number' && Number.isFinite(themeOpacity) && themeOpacity > 1) {
-      setThemeOpacity(1);
+    const normalizedThemeOpacity = normalizeThemeOpacityValue(themeOpacity);
+    if (normalizedThemeOpacity !== themeOpacity) {
+      setThemeOpacityState(normalizedThemeOpacity);
+      return;
     }
+
+    localStorage.setItem('themeOpacity', normalizedThemeOpacity.toString());
   }, [themeOpacity]);
 
   const effectiveTheme = useMemo(() => ({

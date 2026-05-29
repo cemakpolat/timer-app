@@ -267,40 +267,31 @@ describe('toastUtils', () => {
     test('events are CustomEvent instances', () => {
       dispatchEventSpy.mockClear();
       showToast('Test');
-      
-      if (dispatchEventSpy.mock.calls.length > 0) {
-        const event = dispatchEventSpy.mock.calls[0][0];
-        expect(event).toBeInstanceOf(CustomEvent);
-      } else {
-        expect(dispatchEventSpy).toHaveBeenCalled();
-      }
+
+      expect(dispatchEventSpy).toHaveBeenCalled();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event).toBeInstanceOf(CustomEvent);
     });
 
     test('events have detail property', () => {
       dispatchEventSpy.mockClear();
       showSuccess('Success');
-      
-      if (dispatchEventSpy.mock.calls.length > 0) {
-        const event = dispatchEventSpy.mock.calls[0][0];
-        expect(event.detail).toBeDefined();
-        expect(typeof event.detail).toBe('object');
-      } else {
-        expect(dispatchEventSpy).toHaveBeenCalled();
-      }
+
+      expect(dispatchEventSpy).toHaveBeenCalled();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail).toBeDefined();
+      expect(typeof event.detail).toBe('object');
     });
 
     test('detail contains required fields', () => {
       dispatchEventSpy.mockClear();
       showInfo('Info', 4000);
-      
-      if (dispatchEventSpy.mock.calls.length > 0) {
-        const event = dispatchEventSpy.mock.calls[0][0];
-        expect(event.detail).toHaveProperty('message');
-        expect(event.detail).toHaveProperty('type');
-        expect(event.detail).toHaveProperty('ttl');
-      } else {
-        expect(dispatchEventSpy).toHaveBeenCalled();
-      }
+
+      expect(dispatchEventSpy).toHaveBeenCalled();
+      const event = dispatchEventSpy.mock.calls[0][0];
+      expect(event.detail).toHaveProperty('message');
+      expect(event.detail).toHaveProperty('type');
+      expect(event.detail).toHaveProperty('ttl');
     });
   });
 });
