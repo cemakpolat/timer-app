@@ -27,11 +27,7 @@ function getOriginCopy(item = {}) {
     };
   }
 
-  return {
-    label: 'Browser',
-    background: 'rgba(34,197,94,0.88)',
-    color: '#052e16',
-  };
+  return null;
 }
 
 function getStorageCopy(item = {}) {
@@ -116,11 +112,12 @@ export default function BackgroundImagesPanel({
   addLocalVideoSource,
   deleteRemoteBackgroundVideoSource,
   refreshRemoteBackgroundVideos,
+  videoLoopFade,
+  setVideoLoopFade,
 }) {
   const [activeTab, setActiveTab] = useState('images');
   const [allImages, setAllImages] = useState([]);
   const [imageUrls, setImageUrls] = useState({});
-  const [selectedName, setSelectedName] = useState('');
   const [uploadModalAssetType, setUploadModalAssetType] = useState(null);
   const localFoldersSupported = supportsLocalMediaLibrary();
 
@@ -161,10 +158,6 @@ export default function BackgroundImagesPanel({
 
       setAllImages(images);
       setImageUrls(urls);
-
-      // Get selected image name
-      const selected = images.find(img => img.id === selectedBackgroundId);
-      setSelectedName(selected ? selected.name : 'None');
     };
 
     loadImages();
@@ -448,6 +441,9 @@ export default function BackgroundImagesPanel({
 
   const isDeleteDisabled = selectedBackgroundId === 'None' || 
                           !allImages.find(img => img.id === selectedBackgroundId && !img.isBuiltIn && !img.isRemote);
+  const featuredImage = allImages.find((image) => image.id === selectedBackgroundId && image.id !== 'None' && imageUrls[image.id])
+    || allImages.find((image) => image.id !== 'None' && imageUrls[image.id])
+    || null;
   const storedImages = allImages
     .filter((image) => image.id !== 'None' && !image.isBuiltIn && !image.isRemote && !image.isLocal)
     .map((image) => ({ ...image, isStored: true }));
@@ -579,6 +575,8 @@ export default function BackgroundImagesPanel({
           addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
           deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
           refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
+          videoLoopFade={videoLoopFade}
+          setVideoLoopFade={setVideoLoopFade}
         />
       )}
 
@@ -689,8 +687,8 @@ export default function BackgroundImagesPanel({
         </div>
       </div>
 
-      {/* Selected Image Preview */}
-      {selectedBackgroundId !== 'None' && imageUrls[selectedBackgroundId] && (
+      {/* Featured Image Preview */}
+      {featuredImage ? (
         <div style={{
           marginBottom: 12,
           borderRadius: theme.borderRadius,
@@ -699,35 +697,50 @@ export default function BackgroundImagesPanel({
           background: 'rgba(0,0,0,0.2)'
         }}>
           <img
-            src={imageUrls[selectedBackgroundId]}
-            alt={selectedName}
+            src={imageUrls[featuredImage.id]}
+            alt={`${featuredImage.name} preview`}
             style={{
               width: '100%',
-              height: '120px',
+              height: '112px',
               objectFit: 'cover'
             }}
           />
           <div style={{
-            padding: '8px 12px',
+            padding: '8px 10px',
             background: 'rgba(0,0,0,0.3)',
             color: theme.text,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 500,
             textAlign: 'center'
           }}>
-            {selectedName}
+            {featuredImage.name}
           </div>
+        </div>
+      ) : (
+        <div style={{
+          marginBottom: 12,
+          borderRadius: theme.borderRadius,
+          border: `1px dashed ${getTextOpacity(theme, 0.2)}`,
+          background: 'rgba(0,0,0,0.12)',
+          padding: '22px 16px',
+          color: getTextOpacity(theme, 0.55),
+          textAlign: 'center',
+          fontSize: 12,
+          lineHeight: 1.5,
+        }}>
+          Select an image to feature it here.
         </div>
       )}
 
-      {/* Images Grid */}
+      {/* Scrollable thumbnails */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 8,
-        maxHeight: '260px',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(68px, 1fr))',
+        gap: 6,
+        maxHeight: '176px',
         overflowY: 'auto',
-        paddingRight: 4
+        paddingRight: 4,
+        alignContent: 'start'
       }}>
         {allImages.map(img => {
           const originCopy = getOriginCopy(img);
@@ -764,11 +777,11 @@ export default function BackgroundImagesPanel({
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexDirection: 'column',
-                  gap: 6
+                  gap: 3
                 }}>
-                  <ImageIcon size={24} color={getTextOpacity(theme, 0.4)} />
+                  <ImageIcon size={16} color={getTextOpacity(theme, 0.4)} />
                   <div style={{
-                    fontSize: 11,
+                    fontSize: 9,
                     color: getTextOpacity(theme, 0.4),
                     fontWeight: 500,
                     textAlign: 'center'
@@ -781,14 +794,14 @@ export default function BackgroundImagesPanel({
                   {originCopy && (
                     <div style={{
                       position: 'absolute',
-                      top: 8,
-                      left: 8,
+                      top: 4,
+                      left: 4,
                       zIndex: 1,
-                      padding: '3px 6px',
+                      padding: '1px 4px',
                       borderRadius: 999,
                       background: originCopy.background,
                       color: originCopy.color,
-                      fontSize: 10,
+                      fontSize: 8,
                       fontWeight: 700,
                       textTransform: 'uppercase'
                     }}>
@@ -798,11 +811,11 @@ export default function BackgroundImagesPanel({
                   {storageCopy && (
                     <div style={{
                       position: 'absolute',
-                      top: 8,
-                      right: 8,
+                      top: 4,
+                      right: 4,
                       zIndex: 1,
-                      width: 26,
-                      height: 26,
+                      width: 18,
+                      height: 18,
                       borderRadius: '50%',
                       background: storageCopy.stored ? 'rgba(34,197,94,0.92)' : 'rgba(15,23,42,0.82)',
                       color: storageCopy.stored ? '#052e16' : '#cbd5e1',
@@ -810,7 +823,7 @@ export default function BackgroundImagesPanel({
                       alignItems: 'center',
                       justifyContent: 'center',
                     }} title={storageCopy.title}>
-                      <Database size={13} />
+                      <Database size={9} />
                     </div>
                   )}
                   <img
@@ -828,9 +841,9 @@ export default function BackgroundImagesPanel({
                     left: 0,
                     right: 0,
                     background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-                    padding: '12px 8px 8px 8px',
+                    padding: '8px 5px 5px 5px',
                     color: '#fff',
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: 500,
                     textAlign: 'center',
                     textOverflow: 'ellipsis',

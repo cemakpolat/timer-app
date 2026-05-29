@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { DEFAULT_SLIDE_TRANSITION, normalizeSlideTransition } from '../utils/slideTransitions';
 
 const createMediaItem = (type, assetId) => ({
   id: `${type}:${assetId}`,
@@ -39,7 +40,7 @@ const normalizeSlideSet = (slideSet) => {
     mediaItems,
     imageIds: mediaItems.filter((item) => item.type === 'image').map((item) => item.assetId),
     intervalSec: Math.max(1, Math.min(60, parseInt(slideSet?.intervalSec, 10) || 5)),
-    transition: slideSet?.transition === 'instant' ? 'instant' : 'fade',
+    transition: normalizeSlideTransition(slideSet?.transition),
   };
 };
 
@@ -50,7 +51,7 @@ const mapSlideSets = (slideSets, transform) => slideSets.map((slideSet) => norma
  * A slide set is an ordered collection of image and video items that plays as a slideshow.
  *
  * Data shape:
- *   slideSets: Array<{ id, name, mediaItems: Array<{ id, type, assetId }>, imageIds: string[], intervalSec: number, transition: 'fade'|'instant' }>
+ *   slideSets: Array<{ id, name, mediaItems: Array<{ id, type, assetId }>, imageIds: string[], intervalSec: number, transition: string }>
  *   activeSlideSetId: string | null   -- which set is selected for playback
  */
 const useSlideSets = () => {
@@ -89,7 +90,13 @@ const useSlideSets = () => {
   /** Create a new empty slide set, returns the new id */
   const createSlideSet = useCallback((name) => {
     const id = `set_${Date.now()}`;
-    const newSet = normalizeSlideSet({ id, name: name.trim() || 'Untitled Set', mediaItems: [], intervalSec: 5, transition: 'fade' });
+    const newSet = normalizeSlideSet({
+      id,
+      name: name.trim() || 'Untitled Set',
+      mediaItems: [],
+      intervalSec: 5,
+      transition: DEFAULT_SLIDE_TRANSITION,
+    });
     setSlideSets(prev => [...prev, newSet]);
     return id;
   }, []);
@@ -117,8 +124,9 @@ const useSlideSets = () => {
 
   /** Set transition style for a slide set */
   const setSlideTransition = useCallback((id, transition) => {
+    const normalizedTransition = normalizeSlideTransition(transition);
     setSlideSets(prev =>
-      mapSlideSets(prev, s => (s.id === id ? { ...s, transition } : s))
+      mapSlideSets(prev, s => (s.id === id ? { ...s, transition: normalizedTransition } : s))
     );
   }, []);
 

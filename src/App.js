@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { Play, Pause, RotateCcw, Clock, Zap, Plus, X, Save, ChevronRight, Trash2, Share, Repeat, ChevronUp, ChevronDown, Users, ListChecks } from 'lucide-react';
 import './styles/global.css';
 import { ModalProvider } from './context/ModalContext';
@@ -46,8 +46,204 @@ import {
   CardStackTimerVisualization,
   TimelineTimerVisualization
 } from './components/TimerVisualizations';
+import { DEFAULT_SLIDE_TRANSITION, normalizeSlideTransition } from './utils/slideTransitions';
 
-const BACKGROUND_CROSSFADE_MS = 480;
+const REDUCED_MOTION_PROFILE = {
+  key: 'reduced-fade',
+  durationMs: 420,
+  easing: 'ease-out',
+  incomingHiddenTransform: 'none',
+  outgoingHiddenTransform: 'none',
+  incomingHiddenFilter: 'none',
+  outgoingHiddenFilter: 'none',
+  incomingHiddenClipPath: 'inset(0% round 0px)',
+  outgoingHiddenClipPath: 'inset(0% round 0px)',
+  visibleTransform: 'none',
+  visibleFilter: 'none',
+  visibleClipPath: 'inset(0% round 0px)',
+};
+
+const SLIDE_TRANSITION_PROFILES = {
+  fade: {
+    key: 'fade',
+    durationMs: 1600,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  dissolve: {
+    key: 'dissolve',
+    durationMs: 2200,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'dip-neutral': {
+    key: 'dip-neutral',
+    durationMs: 1900,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'brightness(0.9) contrast(0.95)',
+    outgoingHiddenFilter: 'brightness(0.9) contrast(0.95)',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'luma-fade': {
+    key: 'luma-fade',
+    durationMs: 2000,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'brightness(0.95)',
+    outgoingHiddenFilter: 'brightness(0.95)',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'blur-blend': {
+    key: 'blur-blend',
+    durationMs: 1900,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'blur(6px)',
+    outgoingHiddenFilter: 'blur(4px)',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'zoom-in-soft': {
+    key: 'zoom-in-soft',
+    durationMs: 1700,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1.04)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'zoom-out-soft': {
+    key: 'zoom-out-soft',
+    durationMs: 1700,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(0.96)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'drift-up-soft': {
+    key: 'drift-up-soft',
+    durationMs: 1650,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 18px, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, -10px, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'drift-side-soft': {
+    key: 'drift-side-soft',
+    durationMs: 1650,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(18px, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(-10px, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'contrast-soft': {
+    key: 'contrast-soft',
+    durationMs: 1700,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'contrast(0.82) saturate(0.82)',
+    outgoingHiddenFilter: 'contrast(0.88) saturate(0.88)',
+    incomingHiddenClipPath: 'inset(0% round 0px)',
+    outgoingHiddenClipPath: 'inset(0% round 0px)',
+  },
+  'mask-soft': {
+    key: 'mask-soft',
+    durationMs: 2200,
+    easing: 'ease-out',
+    incomingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    outgoingHiddenTransform: 'translate3d(0, 0, 0) scale(1)',
+    incomingHiddenFilter: 'none',
+    outgoingHiddenFilter: 'none',
+    incomingHiddenClipPath: 'inset(16% round 28px)',
+    outgoingHiddenClipPath: 'inset(8% round 18px)',
+  },
+};
+
+const withVisibleState = (profile) => ({
+  ...profile,
+  visibleTransform: 'translate3d(0, 0, 0) scale(1)',
+  visibleFilter: 'none',
+  visibleClipPath: 'inset(0% round 0px)',
+});
+
+const getSlideTransitionProfile = (transition, prefersReducedMotion, currentLayerType = 'none', incomingLayerType = 'none') => {
+  if (prefersReducedMotion) {
+    return REDUCED_MOTION_PROFILE;
+  }
+
+  const normalized = normalizeSlideTransition(transition);
+  if (normalized === 'adaptive-soft') {
+    if (currentLayerType === 'image' && incomingLayerType === 'video') {
+      return withVisibleState(SLIDE_TRANSITION_PROFILES['dip-neutral']);
+    }
+
+    if (currentLayerType === 'video' && incomingLayerType === 'image') {
+      return withVisibleState(SLIDE_TRANSITION_PROFILES['luma-fade']);
+    }
+
+    if (currentLayerType === 'video' && incomingLayerType === 'video') {
+      return withVisibleState(SLIDE_TRANSITION_PROFILES.fade);
+    }
+
+    return withVisibleState(SLIDE_TRANSITION_PROFILES.dissolve);
+  }
+
+  return withVisibleState(SLIDE_TRANSITION_PROFILES[normalized] || SLIDE_TRANSITION_PROFILES[DEFAULT_SLIDE_TRANSITION]);
+};
+
+const getBackgroundLayerTransitionStyle = ({ layerVisible, isIncoming, profile, noTransition = false }) => {
+  // noTransition suppresses CSS animation for the atomic slot-swap at the end
+  // of a crossfade so the current-layer div doesn't re-animate 0→1.
+  const transition = noTransition ? 'none' : [
+    `opacity ${profile.durationMs}ms ${profile.easing}`,
+    `transform ${profile.durationMs}ms ${profile.easing}`,
+    `filter ${profile.durationMs}ms ${profile.easing}`,
+    `clip-path ${profile.durationMs}ms ${profile.easing}`,
+  ].join(', ');
+
+  return {
+    opacity: layerVisible ? 1 : 0,
+    transform: layerVisible
+      ? profile.visibleTransform
+      : (isIncoming ? profile.incomingHiddenTransform : profile.outgoingHiddenTransform),
+    filter: layerVisible
+      ? profile.visibleFilter
+      : (isIncoming ? profile.incomingHiddenFilter : profile.outgoingHiddenFilter),
+    clipPath: layerVisible
+      ? profile.visibleClipPath
+      : (isIncoming ? profile.incomingHiddenClipPath : profile.outgoingHiddenClipPath),
+    transition,
+    willChange: 'opacity, transform, filter, clip-path',
+  };
+};
 
 // Lazy-loaded components
 const FocusRoomsPanel = lazy(() => import('./components/panels/FocusRoomsPanel'));
@@ -604,6 +800,31 @@ export default function TimerApp() {
   // Resolve video URL whenever selectedVideoId changes
   const [videoBackgroundUrl, setVideoBackgroundUrl] = useState(null);
   const [videoBackgroundAssetId, setVideoBackgroundAssetId] = useState(null);
+
+  // Loop-fade settings for background videos (persisted to localStorage).
+  // enabled: whether the loop-point fade is active.
+  // color:   the color that shows through when the video fades out.
+  // opacity: how deep the fade goes (0 = no fade, 1 = fully transparent → solid color).
+  const [videoLoopFade, setVideoLoopFade] = useState(() => {
+    try {
+      const stored = localStorage.getItem('timer-app-video-loop-fade');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          enabled: parsed.enabled !== false,
+          color: typeof parsed.color === 'string' ? parsed.color : '#000000',
+          opacity: typeof parsed.opacity === 'number' ? Math.max(0, Math.min(1, parsed.opacity)) : 0.85,
+          duration: typeof parsed.duration === 'number' ? Math.max(100, Math.min(3000, parsed.duration)) : 800,
+        };
+      }
+    } catch (_) { /* ignore parse errors */ }
+    return { enabled: true, color: '#000000', opacity: 0.85, duration: 800 };
+  });
+  const videoLoopFadeRef = useRef(videoLoopFade);
+  useEffect(() => {
+    videoLoopFadeRef.current = videoLoopFade;
+    try { localStorage.setItem('timer-app-video-loop-fade', JSON.stringify(videoLoopFade)); } catch (_) {}
+  }, [videoLoopFade]);
   useEffect(() => {
     let cancelled = false;
 
@@ -701,6 +922,32 @@ export default function TimerApp() {
   const slideshowTimerRef = useRef(null);
   const activeSlideSetRef = useRef(null);
   const advanceSlideRef = useRef(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const applyPreference = () => {
+      setPrefersReducedMotion(mediaQuery.matches);
+    };
+
+    applyPreference();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', applyPreference);
+      return () => {
+        mediaQuery.removeEventListener('change', applyPreference);
+      };
+    }
+
+    mediaQuery.addListener(applyPreference);
+    return () => {
+      mediaQuery.removeListener(applyPreference);
+    };
+  }, []);
 
   // Slideshow effect: advance slides on interval whenever a slide set is active
   useEffect(() => {
@@ -871,6 +1118,19 @@ export default function TimerApp() {
     };
   }, [getBackgroundImageUrl, releaseBackgroundImageUrl, selectedBackgroundId]);
 
+  const activeSlideTransition = useMemo(() => {
+    if (!activeSlideSetId) {
+      return DEFAULT_SLIDE_TRANSITION;
+    }
+
+    const set = slideSets.find((item) => item.id === activeSlideSetId);
+    return normalizeSlideTransition(set?.transition);
+  }, [activeSlideSetId, slideSets]);
+
+  const activeTransitionTimingProfile = useMemo(() => (
+    getSlideTransitionProfile(activeSlideTransition, prefersReducedMotion)
+  ), [activeSlideTransition, prefersReducedMotion]);
+
   const {
     currentBackgroundLayer,
     incomingBackgroundLayer,
@@ -888,8 +1148,22 @@ export default function TimerApp() {
     slideshowVideoAssetId,
     releaseBackgroundImageUrl,
     releaseBackgroundVideoUrl,
-    crossfadeMs: BACKGROUND_CROSSFADE_MS,
+    crossfadeMs: activeTransitionTimingProfile.durationMs,
   });
+
+  const activeTransitionProfile = useMemo(() => (
+    getSlideTransitionProfile(
+      activeSlideTransition,
+      prefersReducedMotion,
+      currentBackgroundLayer?.type,
+      incomingBackgroundLayer?.type,
+    )
+  ), [
+    activeSlideTransition,
+    currentBackgroundLayer?.type,
+    incomingBackgroundLayer?.type,
+    prefersReducedMotion,
+  ]);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -1470,10 +1744,52 @@ export default function TimerApp() {
   const baseBackground = shouldShowScene ? SCENES[activeScene].bg : (previewTheme || theme).bg;
   const activeBackground = baseBackground;
 
+  // Per-video loop-fade state tracked without React re-renders.
+  // Each looping background video fades to transparent briefly at its loop point
+  // so the cut from end→start is invisible rather than a hard jump.
+  const videoLoopStateMap = useRef(new WeakMap());
+  const handleVideoLoopFade = useCallback((e) => {
+    const settings = videoLoopFadeRef.current;
+    if (!settings.enabled) {
+      return;
+    }
+
+    const video = e.currentTarget;
+    if (!video.duration || isNaN(video.duration) || video.duration < 2.0) {
+      return;
+    }
+
+    let state = videoLoopStateMap.current.get(video);
+    if (!state) {
+      state = { isFading: false };
+      videoLoopStateMap.current.set(video, state);
+    }
+
+    const timeLeft = video.duration - video.currentTime;
+    // minOpacity: how transparent the video gets at the loop point.
+    // settings.opacity=1 → fully transparent; settings.opacity=0 → no change.
+    const minOpacity = (1 - settings.opacity).toString();
+
+    if (timeLeft < 0.9 && !state.isFading) {
+      state.isFading = true;
+      video.style.opacity = minOpacity;
+    } else if (video.currentTime < 0.5 && state.isFading) {
+      state.isFading = false;
+      video.style.opacity = '1';
+    }
+  }, []);  // videoLoopFadeRef is a stable ref — no dep needed
+
   const renderBackgroundLayer = useCallback((layer, key, isIncoming = false) => {
     if (!layer || layer.type === 'none' || !layer.src) {
       return null;
     }
+
+    const transitionStyle = getBackgroundLayerTransitionStyle({
+      layerVisible: Boolean(layer.visible),
+      isIncoming,
+      profile: activeTransitionProfile,
+      noTransition: Boolean(layer.noTransition),
+    });
 
     const isSlideSetVideoLayer = Boolean(
       activeSlideSetId
@@ -1494,8 +1810,7 @@ export default function TimerApp() {
             backgroundPosition: 'center',
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
-            opacity: layer.visible ? 1 : 0,
-            transition: `opacity ${BACKGROUND_CROSSFADE_MS}ms ease-in-out`,
+            ...transitionStyle,
             zIndex: 0,
             pointerEvents: 'none',
           }}
@@ -1503,63 +1818,87 @@ export default function TimerApp() {
       );
     }
 
+    // Wrap the video in a div so the crossfade transitionStyle (opacity, transform,
+    // filter, clip-path) lives on the wrapper, and the inner video element can
+    // independently manage its own opacity for the smooth loop-point fade — without
+    // the two animation systems fighting over the same CSS property.
+    // The wrapper's backgroundColor shows through when the inner video fades out.
+    const loopFadeSettings = videoLoopFadeRef.current;
+    const wrapperBg = (!isSlideSetVideoLayer && loopFadeSettings.enabled)
+      ? loopFadeSettings.color
+      : undefined;
     return (
-      <video
+      <div
         key={key}
         className="app-background-layer"
-        autoPlay
-        muted
-        loop={!isSlideSetVideoLayer}
-        playsInline
-        preload="auto"
-        onLoadedMetadata={(e) => {
-          ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
-        }}
-        onCanPlay={(e) => {
-          ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
-
-          if (
-            isIncoming
-            && incomingBackgroundLayerRef.current
-            && incomingBackgroundLayerRef.current.type === 'video'
-            && incomingBackgroundLayerRef.current.src === layer.src
-          ) {
-            setIncomingBackgroundReady(true);
-          }
-        }}
-        onEnded={() => {
-          if (
-            isSlideSetVideoLayer
-            && layer.visible
-            && currentBackgroundLayerRef.current
-            && currentBackgroundLayerRef.current.type === 'video'
-            && currentBackgroundLayerRef.current.src === layer.src
-          ) {
-            advanceSlideRef.current?.();
-          }
-        }}
         style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: layer.visible ? 1 : 0,
-          transition: `opacity ${BACKGROUND_CROSSFADE_MS}ms ease-in-out`,
+          inset: 0,
+          overflow: 'hidden',
+          backgroundColor: wrapperBg,
+          ...transitionStyle,
           zIndex: 0,
           pointerEvents: 'none',
         }}
-        src={layer.src}
-      />
+      >
+        <video
+          autoPlay
+          muted
+          loop={!isSlideSetVideoLayer}
+          playsInline
+          preload="auto"
+          onLoadedMetadata={(e) => {
+            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+          }}
+          onCanPlay={(e) => {
+            ensureBackgroundVideoLoop(e.currentTarget, !isSlideSetVideoLayer);
+
+            if (
+              isIncoming
+              && incomingBackgroundLayerRef.current
+              && incomingBackgroundLayerRef.current.type === 'video'
+              && incomingBackgroundLayerRef.current.src === layer.src
+            ) {
+              setIncomingBackgroundReady(true);
+            }
+          }}
+          onEnded={() => {
+            if (
+              isSlideSetVideoLayer
+              && layer.visible
+              && currentBackgroundLayerRef.current
+              && currentBackgroundLayerRef.current.type === 'video'
+              && currentBackgroundLayerRef.current.src === layer.src
+            ) {
+              advanceSlideRef.current?.();
+            }
+          }}
+          onTimeUpdate={!isSlideSetVideoLayer ? handleVideoLoopFade : undefined}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            // Separate from the crossfade opacity on the parent div.
+            // handleVideoLoopFade drives this directly via DOM to avoid re-renders.
+            opacity: 1,
+            transition: `opacity ${videoLoopFadeRef.current.duration}ms ease-in-out`,
+          }}
+          src={layer.src}
+        />
+      </div>
     );
   }, [
     activeSlideSetId,
     currentBackgroundLayerRef,
     ensureBackgroundVideoLoop,
+    handleVideoLoopFade,
     incomingBackgroundLayerRef,
     setIncomingBackgroundReady,
     slideshowVideoUrl,
+    activeTransitionProfile,
   ]);
 
   return (
@@ -2748,8 +3087,9 @@ export default function TimerApp() {
           remoteBackgroundVideoSourceStatuses={remoteBackgroundVideoSourceStatuses}
           addRemoteBackgroundVideoSource={addRemoteBackgroundVideoSource}
           deleteRemoteBackgroundVideoSource={deleteRemoteBackgroundVideoSource}
+          videoLoopFade={videoLoopFade}
+          setVideoLoopFade={setVideoLoopFade}
           refreshRemoteBackgroundVideos={refreshRemoteBackgroundVideos}
-          // Break reminder props
           breakReminderSettings={breakReminderSettings}
           updateBreakReminderSettings={updateBreakReminderSettings}
           toggleBreakReminders={toggleBreakReminders}

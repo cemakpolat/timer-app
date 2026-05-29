@@ -358,6 +358,11 @@ input[type='number'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  .app-background-layer {
+    transition-duration: 220ms !important;
+    animation-duration: 220ms !important;
+  }
 }
 
 /* High contrast mode support */
