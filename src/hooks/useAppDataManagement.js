@@ -33,11 +33,13 @@ export default function useAppDataManagement({
   setTimeCapsules,
   setTotalCompletions,
   setWeatherEffect,
+  setWeatherEffectFavorites,
   themeName,
   themes,
   timeCapsules,
   totalCompletions,
   weatherEffect,
+  weatherEffectFavorites,
 }) {
   const exportData = useCallback(() => {
     const allData = {
@@ -58,6 +60,7 @@ export default function useAppDataManagement({
         alarmVolume,
         repeatEnabled,
         weatherEffect,
+        weatherEffectFavorites,
         ambientSoundType,
         ambientVolume,
       },
@@ -90,6 +93,7 @@ export default function useAppDataManagement({
     timeCapsules,
     totalCompletions,
     weatherEffect,
+    weatherEffectFavorites,
   ]);
 
   const importData = useCallback((event) => {
@@ -129,6 +133,9 @@ export default function useAppDataManagement({
           if (imported.settings.alarmVolume !== undefined) setAlarmVolume(imported.settings.alarmVolume);
           if (imported.settings.repeatEnabled !== undefined) setRepeatEnabled(imported.settings.repeatEnabled);
           if (imported.settings.weatherEffect) setWeatherEffect(imported.settings.weatherEffect);
+          if (Array.isArray(imported.settings.weatherEffectFavorites)) {
+            setWeatherEffectFavorites(imported.settings.weatherEffectFavorites.filter((item) => typeof item === 'string'));
+          }
           if (imported.settings.ambientSoundType) setAmbientSoundType(imported.settings.ambientSoundType);
           if (imported.settings.ambientVolume !== undefined) setAmbientVolume(imported.settings.ambientVolume);
         }
@@ -158,6 +165,7 @@ export default function useAppDataManagement({
     setTimeCapsules,
     setTotalCompletions,
     setWeatherEffect,
+    setWeatherEffectFavorites,
     themes,
   ]);
 
