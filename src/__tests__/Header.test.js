@@ -41,6 +41,8 @@ function createProps(overrides = {}) {
     getTextOpacity: (_theme, opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
     weatherEffect: 'none',
     setWeatherEffect: jest.fn(),
+    weatherEffectFavorites: [],
+    setWeatherEffectFavorites: jest.fn(),
     SCENES: [],
     AMBIENT_SOUNDS: [{ name: 'None' }],
     ambientSound: 'None',
@@ -271,4 +273,45 @@ test('reveals and updates the bottom player volume control on hover', async () =
 
   playSpy.mockRestore();
   pauseSpy.mockRestore();
+});
+
+test('shows favorite scenes first and toggles favorites from the weather picker', () => {
+  const setWeatherEffectFavorites = jest.fn();
+
+  renderHeader({
+    settingsView: 'weather',
+    weatherEffectFavorites: ['matrix'],
+    setWeatherEffectFavorites,
+  });
+
+  expect(screen.getByText('Favorites')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /remove matrix from favorite scenes/i }));
+
+  expect(setWeatherEffectFavorites).toHaveBeenCalledTimes(1);
+  const updateFavorites = setWeatherEffectFavorites.mock.calls[0][0];
+  expect(updateFavorites(['matrix', 'mist'])).toEqual(['mist']);
+});
+
+test('filters weather scenes with search and exposes a no-results state', () => {
+  renderHeader({ settingsView: 'weather' });
+
+  fireEvent.change(screen.getByLabelText('Search scenes'), { target: { value: 'neon grid' } });
+
+  expect(screen.getByText('Neon Grid')).toBeInTheDocument();
+  expect(screen.queryByText('Matrix')).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText('Search scenes'), { target: { value: 'zzzz' } });
+
+  expect(screen.getByText('No scenes match this search.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  expect(screen.getByLabelText('Search scenes')).toHaveValue('');
+});
+
+test('filters weather scenes by art direction chips', () => {
+  renderHeader({ settingsView: 'weather' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Filter scenes by Gallery' }));
+
+  expect(screen.getByText('Watercolor Bloom')).toBeInTheDocument();
+  expect(screen.queryByText('Rain')).not.toBeInTheDocument();
 });

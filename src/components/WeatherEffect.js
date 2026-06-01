@@ -174,6 +174,7 @@ const WeatherEffect = ({ type, config, width, height, paused = false }) => {
       {renderer === 'canvas' && getCanvasEffect(type) && (
         <canvas
           ref={canvasRef}
+          data-testid="weather-effect-canvas"
           style={{
             ...canvasStyle,
             opacity: getCanvasOpacity(type),

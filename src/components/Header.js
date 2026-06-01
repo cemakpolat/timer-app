@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, Search, Star, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import MusicLibraryModal from './MusicLibraryModal';
@@ -13,7 +13,7 @@ import {
   SUPPORT_DEFAULT_AMOUNTS,
   SUPPORT_PREFERENCES_KEY,
 } from '../config/supportPayments.config';
-import { WEATHER_EFFECT_OPTIONS } from '../utils/weatherEffects';
+import { WEATHER_ART_DIRECTIONS, getWeatherArtDirectionLabel, getWeatherEffectsByCategory } from '../utils/weatherEffects';
 
 const Header = ({
   theme,
@@ -41,6 +41,8 @@ const Header = ({
   getTextOpacity,
   weatherEffect,
   setWeatherEffect,
+  weatherEffectFavorites,
+  setWeatherEffectFavorites,
   SCENES,
   AMBIENT_SOUNDS,
   ambientSound,
@@ -165,12 +167,92 @@ const Header = ({
   const [showBorderRadiusModal, setShowBorderRadiusModal] = useState(false);
   const [showMusicLibraryModal, setShowMusicLibraryModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [weatherSceneSearch, setWeatherSceneSearch] = useState('');
+  const [activeWeatherArtDirection, setActiveWeatherArtDirection] = useState('all');
   const [isHeaderMusicPlaying, setIsHeaderMusicPlaying] = useState(false);
   const [headerMusicRepeatMode, setHeaderMusicRepeatMode] = useState('sequential'); // sequential, random, repeat-one
   const [musicCurrentTime, setMusicCurrentTime] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
   const [isFooterVolumeVisible, setIsFooterVolumeVisible] = useState(false);
   const supportPaymentOptions = useMemo(() => buildSupportPaymentOptions(), []);
+  const weatherEffectGroups = useMemo(() => getWeatherEffectsByCategory(), []);
+  const weatherEffectArtDirectionCounts = useMemo(() => {
+    const counts = {
+      all: weatherEffectGroups.reduce((total, group) => total + group.effects.length, 0),
+    };
+
+    weatherEffectGroups.forEach((group) => {
+      group.effects.forEach((effect) => {
+        counts[effect.artDirection] = (counts[effect.artDirection] || 0) + 1;
+      });
+    });
+
+    return counts;
+  }, [weatherEffectGroups]);
+  const favoriteWeatherEffectIds = useMemo(
+    () => new Set(Array.isArray(weatherEffectFavorites) ? weatherEffectFavorites : []),
+    [weatherEffectFavorites]
+  );
+  const filteredWeatherSceneData = useMemo(() => {
+    const normalizedSearch = weatherSceneSearch.trim().toLowerCase();
+    const favoriteEffects = [];
+    const groupedEffects = [];
+
+    weatherEffectGroups.forEach((group) => {
+      const matchingEffects = group.effects.filter((effect) => {
+        if (activeWeatherArtDirection !== 'all' && effect.artDirection !== activeWeatherArtDirection) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return [
+          effect.id,
+          effect.name,
+          effect.description,
+          group.label,
+          effect.artDirection,
+          getWeatherArtDirectionLabel(effect.artDirection),
+        ]
+          .some((value) => value.toLowerCase().includes(normalizedSearch));
+      });
+
+      if (matchingEffects.length === 0) {
+        return;
+      }
+
+      const groupFavorites = [];
+      const groupRemainder = [];
+
+      matchingEffects.forEach((effect) => {
+        if (effect.id !== 'none' && favoriteWeatherEffectIds.has(effect.id)) {
+          groupFavorites.push(effect);
+        } else {
+          groupRemainder.push(effect);
+        }
+      });
+
+      favoriteEffects.push(...groupFavorites);
+
+      if (groupRemainder.length > 0) {
+        groupedEffects.push({
+          ...group,
+          effects: groupRemainder,
+        });
+      }
+    });
+
+    const resultCount = favoriteEffects.length + groupedEffects.reduce((total, group) => total + group.effects.length, 0);
+
+    return {
+      favoriteEffects,
+      groupedEffects,
+      hasResults: resultCount > 0,
+      resultCount,
+    };
+  }, [activeWeatherArtDirection, favoriteWeatherEffectIds, weatherEffectGroups, weatherSceneSearch]);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [selectedPaymentOptionId, setSelectedPaymentOptionId] = useState(
     supportPaymentOptions.find((option) => option.checkoutUrl)?.id || supportPaymentOptions[0]?.id || ''
@@ -185,6 +267,17 @@ const Header = ({
   const normalizedThemeOpacity = Number.isFinite(Number(themeOpacity))
     ? Math.min(1, Math.max(0, Number(themeOpacity)))
     : 1;
+
+  useEffect(() => {
+    if (settingsView !== 'weather') {
+      if (weatherSceneSearch) {
+        setWeatherSceneSearch('');
+      }
+      if (activeWeatherArtDirection !== 'all') {
+        setActiveWeatherArtDirection('all');
+      }
+    }
+  }, [activeWeatherArtDirection, settingsView, weatherSceneSearch]);
 
   const handleThemeOpacityChange = useCallback((rawValue) => {
     const parsed = Number(rawValue);
@@ -227,6 +320,124 @@ const Header = ({
 
     return { icon: <Repeat2 size={16} />, label: 'Next track', title: 'Mode: Next track' };
   }, []);
+
+  const handleToggleWeatherEffectFavorite = useCallback((effectId) => {
+    if (!setWeatherEffectFavorites || effectId === 'none') {
+      return;
+    }
+
+    setWeatherEffectFavorites((currentFavorites) => {
+      const safeFavorites = Array.isArray(currentFavorites) ? currentFavorites : [];
+      if (safeFavorites.includes(effectId)) {
+        return safeFavorites.filter((favoriteId) => favoriteId !== effectId);
+      }
+
+      return [...safeFavorites, effectId];
+    });
+  }, [setWeatherEffectFavorites]);
+
+  const renderWeatherEffectCard = useCallback((effect) => {
+    const isFavorite = favoriteWeatherEffectIds.has(effect.id);
+    const artDirectionLabel = getWeatherArtDirectionLabel(effect.artDirection);
+
+    return (
+      <div key={effect.id} style={{ position: 'relative' }}>
+        <button
+          type="button"
+          onClick={() => setWeatherEffect(effect.id)}
+          style={{
+            background: weatherEffect === effect.id ? theme.accent : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+            borderRadius: theme.borderRadius,
+            padding: '12px 8px',
+            color: weatherEffect === effect.id ? '#fff' : theme.text,
+            cursor: 'pointer',
+            fontSize: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: 4,
+            transition: 'all 0.2s',
+            minHeight: '104px',
+            position: 'relative',
+            width: '100%'
+          }}
+          onMouseEnter={(e) => {
+            if (weatherEffect !== effect.id) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (weatherEffect !== effect.id) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+            }
+          }}
+        >
+          <span style={{ fontSize: 20 }}>{effect.icon}</span>
+          <span style={{ textAlign: 'center', lineHeight: 1.2, fontWeight: 600 }}>{effect.name}</span>
+          <span style={{
+            fontSize: 9,
+            lineHeight: 1,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            padding: '4px 6px',
+            borderRadius: 999,
+            background: weatherEffect === effect.id ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
+            color: weatherEffect === effect.id ? 'rgba(255,255,255,0.94)' : getTextOpacity(theme, 0.65)
+          }}>{artDirectionLabel}</span>
+          <span style={{
+            textAlign: 'center',
+            lineHeight: 1.25,
+            fontSize: 10,
+            opacity: weatherEffect === effect.id ? 0.82 : 0.6,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}>{effect.description}</span>
+          {weatherEffect === effect.id && (
+            <div style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              color: '#fff',
+              fontSize: 14
+            }}>✓</div>
+          )}
+        </button>
+        {effect.id !== 'none' && (
+          <button
+            type="button"
+            aria-label={`${isFavorite ? 'Remove' : 'Add'} ${effect.name} ${isFavorite ? 'from' : 'to'} favorite scenes`}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleToggleWeatherEffectFavorite(effect.id);
+            }}
+            style={{
+              position: 'absolute',
+              top: 4,
+              left: 4,
+              border: 'none',
+              borderRadius: 999,
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: weatherEffect === effect.id ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)',
+              color: isFavorite ? '#FFD166' : getTextOpacity(theme, 0.55),
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Star size={12} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+        )}
+      </div>
+    );
+  }, [favoriteWeatherEffectIds, getTextOpacity, handleToggleWeatherEffectFavorite, setWeatherEffect, theme, weatherEffect]);
 
   const syncMusicProgress = useCallback(() => {
     const currentEntry = currentPlayingEntryRef.current;
@@ -2009,69 +2220,196 @@ const Header = ({
 
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ fontSize: 11, color: getTextOpacity(theme, 0.5), display: 'block', marginBottom: 6 }}>Scenes</label>
+                    <div style={{ position: 'relative', marginBottom: 8 }}>
+                      <Search
+                        size={14}
+                        style={{
+                          position: 'absolute',
+                          left: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: getTextOpacity(theme, 0.45)
+                        }}
+                      />
+                      <input
+                        aria-label="Search scenes"
+                        value={weatherSceneSearch}
+                        onChange={(event) => setWeatherSceneSearch(event.target.value)}
+                        placeholder="Search scenes"
+                        style={{
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${getTextOpacity(theme, 0.1)}`,
+                          borderRadius: theme.borderRadius,
+                          padding: '10px 36px 10px 36px',
+                          color: theme.text,
+                          fontSize: 13,
+                          outline: 'none'
+                        }}
+                      />
+                      {weatherSceneSearch && (
+                        <button
+                          type="button"
+                          aria-label="Clear scene search"
+                          onClick={() => setWeatherSceneSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: 8,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            border: 'none',
+                            background: 'transparent',
+                            color: getTextOpacity(theme, 0.55),
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 4
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div
+                      role="group"
+                      aria-label="Scene art directions"
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {[{ id: 'all', label: 'All' }, ...WEATHER_ART_DIRECTIONS].map((artDirection) => {
+                        const isActive = activeWeatherArtDirection === artDirection.id;
+                        const count = weatherEffectArtDirectionCounts[artDirection.id] || 0;
+
+                        return (
+                          <button
+                            key={artDirection.id}
+                            type="button"
+                            aria-label={`Filter scenes by ${artDirection.label}`}
+                            onClick={() => setActiveWeatherArtDirection(artDirection.id)}
+                            style={{
+                              border: 'none',
+                              borderRadius: 999,
+                              padding: '6px 10px',
+                              background: isActive ? theme.accent : 'rgba(255,255,255,0.06)',
+                              color: isActive ? '#fff' : theme.text,
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <span>{artDirection.label}</span>
+                            <span style={{ opacity: isActive ? 0.86 : 0.6 }}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      fontSize: 10,
+                      color: getTextOpacity(theme, 0.42),
+                      marginBottom: 8,
+                      paddingLeft: 2,
+                      paddingRight: 2
+                    }}>
+                      <span>{filteredWeatherSceneData.resultCount} scene{filteredWeatherSceneData.resultCount === 1 ? '' : 's'}</span>
+                      <span>{activeWeatherArtDirection === 'all' ? 'All directions' : getWeatherArtDirectionLabel(activeWeatherArtDirection)}</span>
+                    </div>
                     <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(2, 1fr)', 
-                      gap: 6,
-                      maxHeight: 300,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                      maxHeight: 340,
                       overflowY: 'auto',
                       padding: 4
                     }}>
-                      {WEATHER_EFFECT_OPTIONS.map(effect => (
-                        <button
-                          key={effect.id}
-                          onClick={() => setWeatherEffect(effect.id)}
-                          style={{
-                            background: weatherEffect === effect.id ? theme.accent : 'rgba(255,255,255,0.05)',
-                            border: `1px solid ${getTextOpacity(theme, 0.1)}`,
-                            borderRadius: theme.borderRadius,
-                            padding: '12px 8px',
-                            color: weatherEffect === effect.id ? '#fff' : theme.text,
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'flex-start',
-                            gap: 4,
-                            transition: 'all 0.2s',
-                            minHeight: '92px',
-                            position: 'relative'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (weatherEffect !== effect.id) {
-                              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (weatherEffect !== effect.id) {
-                              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                            }
-                          }}
-                        >
-                          <span style={{ fontSize: 20 }}>{effect.icon}</span>
-                          <span style={{ textAlign: 'center', lineHeight: 1.2, fontWeight: 600 }}>{effect.name}</span>
-                          <span style={{ 
-                            textAlign: 'center',
-                            lineHeight: 1.25,
+                      {filteredWeatherSceneData.favoriteEffects.length > 0 && (
+                        <div>
+                          <div style={{
                             fontSize: 10,
-                            opacity: weatherEffect === effect.id ? 0.82 : 0.6,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                          }}>{effect.description}</span>
-                          {weatherEffect === effect.id && (
-                            <div style={{
-                              position: 'absolute',
-                              top: 4,
-                              right: 4,
-                              color: '#fff',
-                              fontSize: 14
-                            }}>✓</div>
-                          )}
-                        </button>
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: getTextOpacity(theme, 0.42),
+                            marginBottom: 6,
+                            paddingLeft: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}>
+                            <Star size={11} fill="currentColor" />
+                            Favorites
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: 6
+                          }}>
+                            {filteredWeatherSceneData.favoriteEffects.map(renderWeatherEffectCard)}
+                          </div>
+                        </div>
+                      )}
+                      {filteredWeatherSceneData.groupedEffects.map((group) => (
+                        <div key={group.id}>
+                          <div style={{
+                            fontSize: 10,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: getTextOpacity(theme, 0.42),
+                            marginBottom: 6,
+                            paddingLeft: 2
+                          }}>
+                            {group.label}
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: 6
+                          }}>
+                            {group.effects.map(renderWeatherEffectCard)}
+                          </div>
+                        </div>
                       ))}
+                      {!filteredWeatherSceneData.hasResults && (
+                        <div style={{
+                          border: `1px dashed ${getTextOpacity(theme, 0.16)}`,
+                          borderRadius: theme.borderRadius,
+                          padding: '16px 14px',
+                          color: getTextOpacity(theme, 0.6),
+                          background: 'rgba(255,255,255,0.03)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                          alignItems: 'flex-start'
+                        }}>
+                          <span>No scenes match this search.</span>
+                          <button
+                            type="button"
+                            onClick={() => setWeatherSceneSearch('')}
+                            style={{
+                              border: 'none',
+                              borderRadius: theme.borderRadius,
+                              padding: '8px 10px',
+                              background: 'rgba(255,255,255,0.08)',
+                              color: theme.text,
+                              cursor: 'pointer',
+                              fontSize: 12,
+                              fontWeight: 500
+                            }}
+                          >
+                            Clear search
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <p style={{ fontSize: 11, color: getTextOpacity(theme, 0.4), marginTop: 6 }}>
                       Choose a motion language for your timer sessions
