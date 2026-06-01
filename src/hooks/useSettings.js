@@ -16,6 +16,11 @@ const getSafeLocalStorage = (key, defaultValue, parser = (v) => v) => {
   }
 };
 
+const parseStringArray = (value) => {
+  const parsed = JSON.parse(value);
+  return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+};
+
 /**
  * Custom hook to manage application settings
  * Optimized to reduce localStorage operations and improve performance
@@ -39,6 +44,10 @@ const useSettings = () => {
   // Scene settings
   const [weatherEffect, setWeatherEffect] = useState(() => 
     getSafeLocalStorage('weatherEffect', 'none')
+  );
+
+  const [weatherEffectFavorites, setWeatherEffectFavorites] = useState(() =>
+    getSafeLocalStorage('weatherEffectFavorites', [], parseStringArray)
   );
 
   // Scene configuration (color, opacity)
@@ -130,6 +139,10 @@ const useSettings = () => {
   useEffect(() => {
     debouncedSave('weatherEffect', weatherEffect);
   }, [weatherEffect, debouncedSave]);
+
+  useEffect(() => {
+    debouncedSave('weatherEffectFavorites', JSON.stringify(weatherEffectFavorites));
+  }, [weatherEffectFavorites, debouncedSave]);
 
   useEffect(() => {
     debouncedSave('weatherConfig', JSON.stringify(weatherConfig));
@@ -319,6 +332,7 @@ const useSettings = () => {
     setAlarmSoundType('bell');
     setAlarmVolume(0.5);
     setRepeatEnabled(false);
+    setWeatherEffectFavorites([]);
     setCustomMusicFiles([]);
     // Revoke object URLs and clear in-memory map
     for (const entry of fileStorageRef.current.values()) {
@@ -343,6 +357,8 @@ const useSettings = () => {
     setRepeatEnabled,
     weatherEffect,
     setWeatherEffect,
+    weatherEffectFavorites,
+    setWeatherEffectFavorites,
     weatherConfig,
     setWeatherConfig,
     

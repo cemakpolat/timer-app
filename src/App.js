@@ -678,6 +678,8 @@ export default function TimerApp() {
     setAlarmVolume,
     weatherEffect,
     setWeatherEffect,
+    weatherEffectFavorites,
+    setWeatherEffectFavorites,
     weatherConfig,
     setWeatherConfig,
     ambientSoundType,
@@ -724,11 +726,13 @@ export default function TimerApp() {
     setTimeCapsules,
     setTotalCompletions,
     setWeatherEffect,
+    setWeatherEffectFavorites,
     themeName: theme.name,
     themes,
     timeCapsules,
     totalCompletions,
     weatherEffect,
+    weatherEffectFavorites,
   });
 
   const {
@@ -3040,6 +3044,8 @@ export default function TimerApp() {
           getTextOpacity={getTextOpacity}
           weatherEffect={weatherEffect}
           setWeatherEffect={setWeatherEffect}
+          weatherEffectFavorites={weatherEffectFavorites}
+          setWeatherEffectFavorites={setWeatherEffectFavorites}
           SCENES={SCENES}
           AMBIENT_SOUNDS={AMBIENT_SOUNDS}
           ambientSound={ambientSoundType}

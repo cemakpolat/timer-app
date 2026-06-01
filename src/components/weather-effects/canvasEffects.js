@@ -12,6 +12,12 @@ const COFFEE_COLORS = ['#F5F5F5', '#E8E8E8', '#D3D3D3', '#B8B8B8', '#A0A0A0', '#
 const FIREPLACE_CORE_COLORS = ['#FFFF00', '#FFD700', '#FFA500', '#FFFF88'];
 const FIREPLACE_MID_COLORS = ['#FF6347', '#FF4500', '#FF8C00', '#FF7F50'];
 const FIREPLACE_OUTER_COLORS = ['#DC143C', '#B22222', '#8B0000', '#CD5C5C'];
+const MIST_COLORS = ['#D8E3EA', '#C9D7DE', '#E4EEF3'];
+const DUST_COLORS = ['#F5D9A8', '#F0C98C', '#FFE8BF'];
+const EMBER_COLORS = ['#FF6B35', '#FF8A3D', '#FFC15E', '#FFD166'];
+const CONFETTI_COLORS = ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#FF66C4', '#2EC4B6'];
+const TEMPLE_GARDEN_COLORS = ['#7BCF96', '#9AE6B4', '#CFEED6', '#F5C7D9', '#F7E27B'];
+const CABIN_EMBER_COLORS = ['#FF7A3D', '#FFAA5C', '#FFD166'];
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const randomBetween = (min, max) => Math.random() * (max - min) + min;
@@ -254,6 +260,593 @@ const resetStarfieldParticle = (particle, canvas) => {
   Object.assign(particle, next);
 };
 
+const drawSoftGlow = (ctx, radius, color, options = {}) => {
+  const {
+    stretchX = 1,
+    stretchY = 1,
+    innerAlpha = 0.72,
+    midAlpha = 0.28,
+    outerAlpha = 0,
+    haloScale = 2.4,
+  } = options;
+
+  ctx.save();
+  ctx.scale(stretchX, stretchY);
+  const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * haloScale);
+  gradient.addColorStop(0, withAlpha(color, innerAlpha));
+  gradient.addColorStop(0.45, withAlpha(color, midAlpha));
+  gradient.addColorStop(1, withAlpha(color, outerAlpha));
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * haloScale, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+};
+
+const drawRoundedRect = (ctx, x, y, width, height, radius) => {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+};
+
+const drawPetalShape = (ctx, size, color, accentColor = '#FFFFFF') => {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.bezierCurveTo(size * 0.72, -size * 0.4, size * 0.58, size * 0.92, 0, size * 1.08);
+  ctx.bezierCurveTo(-size * 0.58, size * 0.92, -size * 0.72, -size * 0.4, 0, -size);
+  ctx.fill();
+
+  ctx.strokeStyle = withAlpha(accentColor, 0.35);
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.72);
+  ctx.quadraticCurveTo(size * 0.08, size * 0.12, 0, size * 0.82);
+  ctx.stroke();
+};
+
+const drawLeafShape = (ctx, size, color) => {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 1.05);
+  ctx.quadraticCurveTo(size * 0.9, -size * 0.2, size * 0.34, size * 1.1);
+  ctx.quadraticCurveTo(-size * 0.72, size * 0.56, 0, -size * 1.05);
+  ctx.fill();
+
+  ctx.strokeStyle = withAlpha('#2B5D47', 0.45);
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.8);
+  ctx.lineTo(0, size * 0.82);
+  ctx.moveTo(0, -size * 0.2);
+  ctx.lineTo(size * 0.36, size * 0.12);
+  ctx.stroke();
+};
+
+const createSoftOrbFieldEffect = ({
+  baseParticleCount,
+  performance = 'medium',
+  canvasOpacity = 0.72,
+  colors,
+  sizeRange,
+  opacityRange,
+  driftXRange,
+  driftYRange,
+  stretchRange,
+  haloScale = 2.4,
+  wrapPadding = 140,
+  blendMode = 'screen',
+  prepareFrame,
+}) => {
+  const seedParticle = (particle, canvas, { wrapFromX = null, wrapFromY = null } = {}) => {
+    const depth = randomBetween(0.35, 1);
+    const particleSize = randomBetween(sizeRange[0], sizeRange[1]) * (0.65 + depth * 0.45);
+
+    particle.depth = depth;
+    particle.size = particleSize;
+    particle.opacity = randomBetween(opacityRange[0], opacityRange[1]);
+    particle.color = pick(colors);
+    particle.driftX = randomBetween(driftXRange[0], driftXRange[1]) * (0.5 + depth * 0.8);
+    particle.driftY = randomBetween(driftYRange[0], driftYRange[1]) * (0.5 + depth * 0.8);
+    particle.stretchX = randomBetween(stretchRange[0], stretchRange[1]);
+    particle.stretchY = randomBetween(stretchRange[0] * 0.7, stretchRange[1] * 0.95);
+    particle.pulseOffset = Math.random() * TAU;
+    particle.pulseSpeed = randomBetween(0.006, 0.02);
+    particle.swayAmplitude = randomBetween(0.05, 0.35) * particleSize;
+    particle.swaySpeed = randomBetween(0.005, 0.018);
+    particle.x = wrapFromX ?? randomBetween(-wrapPadding, canvas.width + wrapPadding);
+    particle.y = wrapFromY ?? randomBetween(-wrapPadding, canvas.height + wrapPadding);
+    return particle;
+  };
+
+  return {
+    baseParticleCount,
+    performance,
+    canvasOpacity,
+    prepareFrame,
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      particle.pulseOffset += particle.pulseSpeed;
+      particle.x += (particle.driftX + Math.sin(particle.pulseOffset + particle.swayOffset) * particle.swayAmplitude * 0.06) * velocityMultiplier;
+      particle.y += (particle.driftY + Math.cos(particle.pulseOffset * 0.8 + particle.swayOffset) * particle.swayAmplitude * 0.035) * velocityMultiplier;
+
+      const margin = particle.size * Math.max(particle.stretchX, particle.stretchY) * haloScale + wrapPadding;
+
+      if (particle.x > canvas.width + margin) seedParticle(particle, canvas, { wrapFromX: -margin });
+      if (particle.x < -margin) seedParticle(particle, canvas, { wrapFromX: canvas.width + margin });
+      if (particle.y > canvas.height + margin) seedParticle(particle, canvas, { wrapFromY: -margin });
+      if (particle.y < -margin) seedParticle(particle, canvas, { wrapFromY: canvas.height + margin });
+    },
+    drawParticle: (particle, { ctx, opacityMultiplier }) => {
+      const pulseScale = 0.84 + ((Math.sin(particle.pulseOffset) + 1) * 0.16);
+
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        ctx.globalCompositeOperation = blendMode;
+        drawSoftGlow(ctx, particle.size * pulseScale, particle.color, {
+          stretchX: particle.stretchX,
+          stretchY: particle.stretchY,
+          haloScale,
+        });
+        ctx.globalCompositeOperation = 'source-over';
+      }, { skipRotation: true });
+    },
+  };
+};
+
+const createSparkUpdraftEffect = ({
+  baseParticleCount,
+  performance = 'medium',
+  canvasOpacity = 0.76,
+  colors,
+  prepareFrame,
+}) => {
+  const seedParticle = (particle, canvas) => {
+    particle.x = randomBetween(canvas.width * 0.08, canvas.width * 0.92);
+    particle.y = canvas.height + randomBetween(0, canvas.height * 0.2);
+    particle.size = randomBetween(1.6, 4.8);
+    particle.opacity = randomBetween(0.35, 0.95);
+    particle.speed = randomBetween(0.7, 2.2);
+    particle.color = pick(colors);
+    particle.horizontalDrift = randomBetween(-0.5, 0.5);
+    particle.swayAmplitude = randomBetween(0.4, 1.6);
+    particle.glowSize = randomBetween(8, 18);
+    particle.tailLength = randomBetween(6, 20);
+    particle.flickerOffset = Math.random() * TAU;
+    particle.flickerSpeed = randomBetween(0.04, 0.12);
+    return particle;
+  };
+
+  return {
+    baseParticleCount,
+    performance,
+    canvasOpacity,
+    prepareFrame,
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      particle.flickerOffset += particle.flickerSpeed;
+      particle.y -= particle.speed * velocityMultiplier;
+      particle.x += (particle.horizontalDrift + Math.sin(particle.flickerOffset + particle.swayOffset) * particle.swayAmplitude * 0.08) * velocityMultiplier;
+      particle.opacity *= 0.996;
+
+      if (particle.y < -particle.glowSize || particle.opacity < 0.12) {
+        seedParticle(particle, canvas);
+      }
+    },
+    drawParticle: (particle, { ctx, opacityMultiplier }) => {
+      const flicker = 0.76 + ((Math.sin(particle.flickerOffset) + 1) * 0.14);
+
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = withAlpha(particle.color, 0.35);
+        ctx.lineWidth = Math.max(1, particle.size * 0.6);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, particle.tailLength * 0.5);
+        ctx.lineTo(0, -particle.tailLength);
+        ctx.stroke();
+
+        drawSoftGlow(ctx, particle.size * flicker, particle.color, {
+          stretchX: 0.9,
+          stretchY: 1.4,
+          haloScale: particle.glowSize / Math.max(1, particle.size),
+        });
+
+        ctx.fillStyle = '#FFF8E8';
+        ctx.beginPath();
+        ctx.arc(0, 0, particle.size * 0.5, 0, TAU);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }, { skipRotation: true });
+    },
+  };
+};
+
+const createRainSheetEffect = ({
+  baseParticleCount,
+  performance = 'heavy',
+  canvasOpacity = 0.72,
+  prepareFrame,
+  mode = 'sheet',
+  strokeColor = '#7CB8FF',
+  velocityScale = 1,
+}) => {
+  const seedParticle = (particle, canvas) => {
+    particle.x = randomBetween(-40, canvas.width + 40);
+    particle.y = randomBetween(-canvas.height, canvas.height);
+    particle.speed = randomBetween(mode === 'glass' ? 1.2 : 8, mode === 'glass' ? 3.4 : 14) * velocityScale;
+    particle.length = randomBetween(mode === 'glass' ? 16 : 18, mode === 'glass' ? 42 : 46);
+    particle.size = randomBetween(mode === 'glass' ? 1.4 : 0.8, mode === 'glass' ? 2.8 : 1.8);
+    particle.opacity = randomBetween(mode === 'glass' ? 0.18 : 0.28, mode === 'glass' ? 0.58 : 0.78);
+    particle.slant = randomBetween(-0.08, 0.14);
+    particle.wobble = Math.random() * TAU;
+    particle.wobbleSpeed = randomBetween(0.02, 0.08);
+    particle.highlight = Math.random() > 0.7;
+    return particle;
+  };
+
+  return {
+    baseParticleCount,
+    performance,
+    canvasOpacity,
+    prepareFrame,
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      particle.wobble += particle.wobbleSpeed;
+      particle.y += particle.speed * velocityMultiplier;
+      particle.x += (particle.slant + Math.sin(particle.wobble) * (mode === 'glass' ? 0.22 : 0.04)) * particle.speed * 0.18 * velocityMultiplier;
+
+      if (particle.y > canvas.height + particle.length) {
+        seedParticle(particle, canvas);
+        particle.y = -randomBetween(16, canvas.height * 0.2);
+      }
+
+      if (particle.x < -80) particle.x = canvas.width + 30;
+      if (particle.x > canvas.width + 80) particle.x = -30;
+    },
+    drawParticle: (particle, { ctx, config, opacityMultiplier }) => {
+      const color = config?.color || strokeColor;
+
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        if (mode === 'glass') {
+          const trailGradient = ctx.createLinearGradient(0, -particle.length, 0, particle.length * 0.35);
+          trailGradient.addColorStop(0, withAlpha(color, 0));
+          trailGradient.addColorStop(0.35, withAlpha(color, 0.08));
+          trailGradient.addColorStop(1, withAlpha(color, particle.highlight ? 0.75 : 0.45));
+          ctx.strokeStyle = trailGradient;
+          ctx.lineWidth = particle.size;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, -particle.length * 0.9);
+          ctx.lineTo(0, particle.length * 0.3);
+          ctx.stroke();
+
+          ctx.fillStyle = withAlpha('#F4FBFF', particle.highlight ? 0.85 : 0.6);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, particle.size * 1.5, particle.size * 2.4, 0, 0, TAU);
+          ctx.fill();
+
+          const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, particle.length * 0.7);
+          glow.addColorStop(0, withAlpha(color, 0.12));
+          glow.addColorStop(1, withAlpha(color, 0));
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(0, 0, particle.length * 0.7, 0, TAU);
+          ctx.fill();
+          return;
+        }
+
+        ctx.strokeStyle = withAlpha(color, particle.highlight ? 0.82 : 0.58);
+        ctx.lineWidth = particle.size;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = withAlpha(color, 0.28);
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(particle.length * particle.slant, particle.length);
+        ctx.stroke();
+      }, { skipRotation: true });
+    },
+  };
+};
+
+const createConfettiFieldEffect = ({
+  baseParticleCount,
+  performance = 'medium',
+  canvasOpacity = 0.84,
+  prepareFrame,
+}) => {
+  const seedParticle = (particle, canvas) => {
+    particle.x = randomBetween(-40, canvas.width + 40);
+    particle.y = randomBetween(-canvas.height, canvas.height * 0.2);
+    particle.size = randomBetween(8, 18);
+    particle.width = particle.size * randomBetween(0.4, 1);
+    particle.height = particle.size * randomBetween(0.8, 1.8);
+    particle.color = pick(CONFETTI_COLORS);
+    particle.speed = randomBetween(1.4, 3.8);
+    particle.opacity = randomBetween(0.45, 0.95);
+    particle.rotation = randomBetween(0, 360);
+    particle.rotationSpeed = randomBetween(-3.2, 3.2);
+    particle.swayAmplitude = randomBetween(0.4, 2.2);
+    particle.swaySpeed = randomBetween(0.02, 0.08);
+    particle.flipOffset = Math.random() * TAU;
+    particle.flipSpeed = randomBetween(0.06, 0.16);
+    particle.shape = Math.random() > 0.72 ? 'streamer' : 'card';
+    return particle;
+  };
+
+  return {
+    baseParticleCount,
+    performance,
+    canvasOpacity,
+    prepareFrame,
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      particle.flipOffset += particle.flipSpeed;
+      particle.rotation += particle.rotationSpeed * velocityMultiplier;
+      particle.y += particle.speed * velocityMultiplier;
+      particle.x += Math.sin(particle.flipOffset + particle.swayOffset) * particle.swayAmplitude * velocityMultiplier;
+
+      if (particle.y > canvas.height + particle.height * 2) {
+        seedParticle(particle, canvas);
+        particle.y = -randomBetween(12, canvas.height * 0.15);
+      }
+    },
+    drawParticle: (particle, { ctx, opacityMultiplier }) => {
+      const flipScale = Math.cos(particle.flipOffset);
+
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        ctx.shadowColor = withAlpha(particle.color, 0.25);
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = particle.color;
+
+        if (particle.shape === 'streamer') {
+          drawRoundedRect(ctx, -particle.width * 0.3, -particle.height * 0.5, particle.width * 0.6, particle.height * 1.2, particle.width * 0.22);
+          ctx.fill();
+
+          ctx.strokeStyle = withAlpha('#FFF9E8', 0.35);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, particle.height * 0.2);
+          ctx.lineTo(0, particle.height * 0.95);
+          ctx.stroke();
+          return;
+        }
+
+        ctx.scale(1, 0.25 + Math.abs(flipScale) * 0.9);
+        drawRoundedRect(ctx, -particle.width / 2, -particle.height / 2, particle.width, particle.height, particle.width * 0.28);
+        ctx.fill();
+
+        ctx.fillStyle = withAlpha('#FFFFFF', 0.22);
+        drawRoundedRect(ctx, -particle.width / 2, -particle.height / 2, particle.width, particle.height * 0.3, particle.width * 0.2);
+        ctx.fill();
+      });
+    },
+  };
+};
+
+const createTempleGardenEffect = () => {
+  const seedParticle = (particle, canvas) => {
+    const tone = Math.random();
+    particle.type = tone < 0.46 ? 'leaf' : tone < 0.8 ? 'petal' : 'glow';
+    particle.x = randomBetween(-40, canvas.width + 40);
+    particle.y = randomBetween(-canvas.height * 0.2, canvas.height + 20);
+    particle.rotation = randomBetween(0, 360);
+    particle.rotationSpeed = randomBetween(-1.4, 1.4);
+
+    if (particle.type === 'glow') {
+      particle.size = randomBetween(1.2, 3.8);
+      particle.speed = randomBetween(0.08, 0.24);
+      particle.opacity = randomBetween(0.4, 0.95);
+      particle.color = pick(['#E8FF88', '#F7E27B', '#B6FFBA']);
+      particle.driftX = randomBetween(-0.2, 0.2);
+      particle.driftY = randomBetween(-0.05, 0.15);
+      particle.twinkleOffset = Math.random() * TAU;
+      particle.twinkleSpeed = randomBetween(0.03, 0.08);
+      return particle;
+    }
+
+    particle.size = randomBetween(8, particle.type === 'leaf' ? 16 : 12);
+    particle.speed = randomBetween(0.18, 0.8);
+    particle.opacity = randomBetween(0.35, 0.85);
+    particle.color = particle.type === 'leaf'
+      ? pick(TEMPLE_GARDEN_COLORS.slice(0, 3))
+      : pick(TEMPLE_GARDEN_COLORS.slice(3));
+    particle.swayAmplitude = randomBetween(0.6, 2.2);
+    particle.swaySpeed = randomBetween(0.01, 0.03);
+    return particle;
+  };
+
+  return {
+    baseParticleCount: 60,
+    performance: 'medium',
+    canvasOpacity: 0.7,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const canopy = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      canopy.addColorStop(0, withAlpha('#173322', 0.18));
+      canopy.addColorStop(0.45, withAlpha(config?.color || '#8FD8A7', 0.06));
+      canopy.addColorStop(1, withAlpha('#0A140F', 0.12));
+      ctx.fillStyle = canopy;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const lanternGlow = ctx.createRadialGradient(canvas.width * 0.78, canvas.height * 0.18, 0, canvas.width * 0.78, canvas.height * 0.18, canvas.width * 0.22);
+      lanternGlow.addColorStop(0, withAlpha('#F5E7A4', 0.12));
+      lanternGlow.addColorStop(1, withAlpha('#F5E7A4', 0));
+      ctx.fillStyle = lanternGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      if (particle.type === 'glow') {
+        particle.twinkleOffset += particle.twinkleSpeed;
+        particle.x += (particle.driftX + Math.sin(particle.twinkleOffset + particle.swayOffset) * 0.2) * velocityMultiplier;
+        particle.y += (particle.driftY + Math.cos(particle.twinkleOffset * 0.8) * 0.12) * velocityMultiplier;
+
+        if (particle.x < -30 || particle.x > canvas.width + 30 || particle.y < -30 || particle.y > canvas.height + 30) {
+          seedParticle(particle, canvas);
+        }
+        return;
+      }
+
+      particle.y += particle.speed * velocityMultiplier;
+      particle.x += Math.sin(particle.y * particle.swaySpeed + particle.swayOffset) * particle.swayAmplitude * velocityMultiplier;
+      particle.rotation += particle.rotationSpeed * velocityMultiplier;
+
+      if (particle.y > canvas.height + 40) {
+        seedParticle(particle, canvas);
+        particle.y = -randomBetween(20, canvas.height * 0.18);
+      }
+    },
+    drawParticle: (particle, { ctx, opacityMultiplier }) => {
+      if (particle.type === 'glow') {
+        const twinkle = 0.82 + ((Math.sin(particle.twinkleOffset) + 1) * 0.12);
+        drawAtParticle(ctx, particle, opacityMultiplier, () => {
+          ctx.globalCompositeOperation = 'screen';
+          drawSoftGlow(ctx, particle.size * twinkle, particle.color, {
+            stretchX: 1,
+            stretchY: 1,
+            haloScale: 5,
+          });
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(0, 0, particle.size * 0.45, 0, TAU);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+        }, { skipRotation: true });
+        return;
+      }
+
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        if (particle.type === 'leaf') {
+          drawLeafShape(ctx, particle.size, particle.color);
+          return;
+        }
+
+        drawPetalShape(ctx, particle.size, particle.color, '#FFF7FB');
+      });
+    },
+  };
+};
+
+const createAlpineCabinEffect = () => {
+  const seedParticle = (particle, canvas) => {
+    particle.type = Math.random() > 0.28 ? 'snow' : 'ember';
+    particle.x = randomBetween(-20, canvas.width + 20);
+    particle.rotation = randomBetween(0, 360);
+    particle.rotationSpeed = randomBetween(-0.8, 0.8);
+
+    if (particle.type === 'snow') {
+      particle.y = randomBetween(-canvas.height, canvas.height * 0.4);
+      particle.size = randomBetween(1.4, 4.8);
+      particle.speed = randomBetween(0.25, 0.9);
+      particle.opacity = randomBetween(0.35, 0.88);
+      particle.color = '#F8FCFF';
+      particle.swayAmplitude = randomBetween(0.6, 1.8);
+      particle.swaySpeed = randomBetween(0.01, 0.03);
+      return particle;
+    }
+
+    particle.y = canvas.height + randomBetween(0, canvas.height * 0.12);
+    particle.size = randomBetween(1.2, 3.6);
+    particle.speed = randomBetween(0.4, 1.5);
+    particle.opacity = randomBetween(0.25, 0.8);
+    particle.color = pick(CABIN_EMBER_COLORS);
+    particle.flickerOffset = Math.random() * TAU;
+    particle.flickerSpeed = randomBetween(0.04, 0.11);
+    particle.horizontalDrift = randomBetween(-0.3, 0.3);
+    return particle;
+  };
+
+  return {
+    baseParticleCount: 76,
+    performance: 'heavy',
+    canvasOpacity: 0.74,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const night = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      night.addColorStop(0, withAlpha('#07111D', 0.18));
+      night.addColorStop(0.55, withAlpha(config?.color || '#B9D9FF', 0.06));
+      night.addColorStop(1, withAlpha('#04070D', 0.14));
+      ctx.fillStyle = night;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const hearth = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.96, 0, canvas.width * 0.5, canvas.height * 0.96, canvas.width * 0.28);
+      hearth.addColorStop(0, withAlpha('#FFB46B', 0.16));
+      hearth.addColorStop(0.45, withAlpha('#FF7A3D', 0.08));
+      hearth.addColorStop(1, withAlpha('#FF7A3D', 0));
+      ctx.fillStyle = hearth;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+    createParticle: ({ canvas, index }) => seedParticle(createBaseParticle(canvas, index), canvas),
+    updateParticle: (particle, { canvas, velocityMultiplier }) => {
+      if (particle.type === 'snow') {
+        particle.y += particle.speed * velocityMultiplier;
+        particle.x += Math.sin(particle.y * particle.swaySpeed + particle.swayOffset) * particle.swayAmplitude * velocityMultiplier;
+        particle.rotation += particle.rotationSpeed;
+
+        if (particle.y > canvas.height + particle.size) {
+          seedParticle(particle, canvas);
+          particle.type = 'snow';
+          particle.y = -randomBetween(20, canvas.height * 0.15);
+        }
+        return;
+      }
+
+      particle.flickerOffset += particle.flickerSpeed;
+      particle.y -= particle.speed * velocityMultiplier;
+      particle.x += (particle.horizontalDrift + Math.sin(particle.flickerOffset + particle.swayOffset) * 0.18) * velocityMultiplier;
+      particle.opacity *= 0.994;
+
+      if (particle.y < canvas.height * 0.35 || particle.opacity < 0.1) {
+        seedParticle(particle, canvas);
+        particle.type = 'ember';
+      }
+    },
+    drawParticle: (particle, { ctx, opacityMultiplier }) => {
+      drawAtParticle(ctx, particle, opacityMultiplier, () => {
+        if (particle.type === 'snow') {
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, particle.size * 0.5, 0, TAU);
+          ctx.fill();
+
+          const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, particle.size * 2);
+          glow.addColorStop(0, withAlpha(particle.color, 0.28));
+          glow.addColorStop(1, withAlpha(particle.color, 0));
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(0, 0, particle.size * 2, 0, TAU);
+          ctx.fill();
+          return;
+        }
+
+        ctx.globalCompositeOperation = 'screen';
+        drawSoftGlow(ctx, particle.size, particle.color, {
+          stretchX: 0.9,
+          stretchY: 1.6,
+          haloScale: 5,
+        });
+        ctx.fillStyle = '#FFF8E8';
+        ctx.beginPath();
+        ctx.arc(0, 0, particle.size * 0.35, 0, TAU);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }, { skipRotation: particle.type !== 'snow' });
+    },
+  };
+};
+
 export const CANVAS_EFFECT_REGISTRY = {
   rain: {
     baseParticleCount: 150,
@@ -288,6 +881,34 @@ export const CANVAS_EFFECT_REGISTRY = {
       }, { skipRotation: true });
     },
   },
+  mist: createSoftOrbFieldEffect({
+    baseParticleCount: 30,
+    performance: 'medium',
+    canvasOpacity: 0.64,
+    colors: MIST_COLORS,
+    sizeRange: [34, 92],
+    opacityRange: [0.12, 0.32],
+    driftXRange: [0.03, 0.14],
+    driftYRange: [-0.01, 0.04],
+    stretchRange: [1.6, 3.1],
+    haloScale: 2.8,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const haze = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      haze.addColorStop(0, withAlpha('#15222B', 0.12));
+      haze.addColorStop(0.5, withAlpha(config?.color || '#D8E3EA', 0.05));
+      haze.addColorStop(1, withAlpha('#0F161C', 0.08));
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const sideGlow = ctx.createRadialGradient(canvas.width * 0.14, canvas.height * 0.36, 0, canvas.width * 0.14, canvas.height * 0.36, canvas.width * 0.42);
+      sideGlow.addColorStop(0, withAlpha(config?.color || '#D8E3EA', 0.08));
+      sideGlow.addColorStop(1, withAlpha(config?.color || '#D8E3EA', 0));
+      ctx.fillStyle = sideGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+  }),
   winter: {
     baseParticleCount: 80,
     performance: 'medium',
@@ -768,6 +1389,64 @@ export const CANVAS_EFFECT_REGISTRY = {
       });
     },
   },
+  'rain-glass': createRainSheetEffect({
+    baseParticleCount: 82,
+    performance: 'heavy',
+    canvasOpacity: 0.68,
+    mode: 'glass',
+    strokeColor: '#8FC3FF',
+    prepareFrame: ({ ctx, canvas, config, frame }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const atmosphere = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      atmosphere.addColorStop(0, withAlpha('#07111D', 0.14));
+      atmosphere.addColorStop(0.58, withAlpha('#102130', 0.1));
+      atmosphere.addColorStop(1, withAlpha('#05080D', 0.18));
+      ctx.fillStyle = atmosphere;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const reflection = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      reflection.addColorStop(0, withAlpha(config?.color || '#8FC3FF', 0.1));
+      reflection.addColorStop(0.35, withAlpha('#FFFFFF', 0.04));
+      reflection.addColorStop(1, withAlpha('#FFFFFF', 0));
+      ctx.fillStyle = reflection;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.012)';
+      for (let x = frame % 28; x < canvas.width; x += 28) {
+        ctx.fillRect(x, 0, 1, canvas.height);
+      }
+    },
+  }),
+  'dust-motes': createSoftOrbFieldEffect({
+    baseParticleCount: 44,
+    performance: 'medium',
+    canvasOpacity: 0.58,
+    colors: DUST_COLORS,
+    sizeRange: [1.2, 4.8],
+    opacityRange: [0.18, 0.6],
+    driftXRange: [-0.05, 0.08],
+    driftYRange: [-0.02, 0.05],
+    stretchRange: [1, 1.3],
+    haloScale: 5.2,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const beam = ctx.createLinearGradient(canvas.width * 0.12, 0, canvas.width * 0.72, canvas.height);
+      beam.addColorStop(0, withAlpha(config?.color || '#F5D9A8', 0.22));
+      beam.addColorStop(0.35, withAlpha(config?.color || '#F5D9A8', 0.08));
+      beam.addColorStop(0.7, withAlpha('#FFFFFF', 0.02));
+      beam.addColorStop(1, withAlpha('#FFFFFF', 0));
+      ctx.fillStyle = beam;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const ambient = ctx.createRadialGradient(canvas.width * 0.2, canvas.height * 0.12, 0, canvas.width * 0.2, canvas.height * 0.12, canvas.width * 0.36);
+      ambient.addColorStop(0, withAlpha('#FFF0C7', 0.12));
+      ambient.addColorStop(1, withAlpha('#FFF0C7', 0));
+      ctx.fillStyle = ambient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+  }),
   fireplace: {
     baseParticleCount: 90,
     performance: 'heavy',
@@ -871,6 +1550,77 @@ export const CANVAS_EFFECT_REGISTRY = {
       });
     },
   },
+  'ember-drift': createSparkUpdraftEffect({
+    baseParticleCount: 52,
+    performance: 'medium',
+    canvasOpacity: 0.72,
+    colors: EMBER_COLORS,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const night = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      night.addColorStop(0, withAlpha('#120A08', 0.1));
+      night.addColorStop(0.6, withAlpha('#1A0F0B', 0.06));
+      night.addColorStop(1, withAlpha('#050303', 0.16));
+      ctx.fillStyle = night;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const hearthGlow = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.98, 0, canvas.width * 0.5, canvas.height * 0.98, canvas.width * 0.34);
+      hearthGlow.addColorStop(0, withAlpha(config?.color || '#FF8A3D', 0.18));
+      hearthGlow.addColorStop(0.45, withAlpha('#FF6B35', 0.08));
+      hearthGlow.addColorStop(1, withAlpha('#FF6B35', 0));
+      ctx.fillStyle = hearthGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+  }),
+  'monsoon-veranda': createRainSheetEffect({
+    baseParticleCount: 132,
+    performance: 'heavy',
+    canvasOpacity: 0.72,
+    mode: 'sheet',
+    strokeColor: '#7CB8FF',
+    velocityScale: 0.96,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const storm = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      storm.addColorStop(0, withAlpha('#0A1523', 0.16));
+      storm.addColorStop(0.5, withAlpha('#102030', 0.1));
+      storm.addColorStop(1, withAlpha('#081018', 0.18));
+      ctx.fillStyle = storm;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const verandaGlow = ctx.createRadialGradient(canvas.width * 0.82, canvas.height * 0.88, 0, canvas.width * 0.82, canvas.height * 0.88, canvas.width * 0.26);
+      verandaGlow.addColorStop(0, withAlpha('#FFC07A', 0.16));
+      verandaGlow.addColorStop(0.45, withAlpha(config?.color || '#7CB8FF', 0.08));
+      verandaGlow.addColorStop(1, withAlpha('#FFC07A', 0));
+      ctx.fillStyle = verandaGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+  }),
+  'alpine-cabin': createAlpineCabinEffect(),
+  'temple-garden': createTempleGardenEffect(),
+  'festival-confetti': createConfettiFieldEffect({
+    baseParticleCount: 68,
+    performance: 'medium',
+    canvasOpacity: 0.8,
+    prepareFrame: ({ ctx, canvas, config }) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const celebrationGlow = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.16, 0, canvas.width * 0.5, canvas.height * 0.16, canvas.width * 0.48);
+      celebrationGlow.addColorStop(0, withAlpha(config?.color || '#FF5F5F', 0.12));
+      celebrationGlow.addColorStop(0.45, withAlpha('#FFD166', 0.08));
+      celebrationGlow.addColorStop(1, withAlpha('#FFD166', 0));
+      ctx.fillStyle = celebrationGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const wash = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      wash.addColorStop(0, withAlpha('#FFFFFF', 0.03));
+      wash.addColorStop(1, withAlpha('#FFFFFF', 0));
+      ctx.fillStyle = wash;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    },
+  }),
   matrix: {
     baseParticleCount: 110,
     performance: 'heavy',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import WeatherEffect from '../components/WeatherEffect';
 import { getCanvasEffect } from '../components/weather-effects/canvasEffects';
 
@@ -53,5 +53,41 @@ describe('WeatherEffect', () => {
     });
 
     expect(particle.trail.join('')).toMatch(/^[\u30A0-\u30FF]+$/u);
+  });
+
+  test('renders new DOM overlays without allocating a canvas', () => {
+    render(
+      <WeatherEffect
+        type="neon-grid"
+        config={{ color: '#35F0FF', opacity: 0.78, velocity: 1 }}
+      />
+    );
+
+    expect(screen.queryByTestId('weather-effect-canvas')).not.toBeInTheDocument();
+    expect(getContextSpy).not.toHaveBeenCalled();
+  });
+
+  test('renders artistic DOM overlays through the DOM registry without allocating a canvas', () => {
+    render(
+      <WeatherEffect
+        type="stained-glass"
+        config={{ color: '#F6B73C', opacity: 0.72, velocity: 0.76 }}
+      />
+    );
+
+    expect(screen.queryByTestId('weather-effect-canvas')).not.toBeInTheDocument();
+    expect(getContextSpy).not.toHaveBeenCalled();
+  });
+
+  test('renders new canvas scenes through the shared canvas runtime', () => {
+    render(
+      <WeatherEffect
+        type="rain-glass"
+        config={{ color: '#8FC3FF', opacity: 0.74, velocity: 1 }}
+      />
+    );
+
+    expect(screen.getByTestId('weather-effect-canvas')).toBeInTheDocument();
+    expect(getContextSpy).toHaveBeenCalled();
   });
 });
