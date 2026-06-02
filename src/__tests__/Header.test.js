@@ -244,6 +244,73 @@ test('starts playback immediately when selecting a different uploaded track', as
   pauseSpy.mockRestore();
 });
 
+test('resumes the current track from the paused position instead of restarting', async () => {
+  const playSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+  const pauseSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+  const ensureCustomMusicUrl = jest.fn().mockResolvedValue('blob:resume-track');
+
+  renderHeader({
+    ambientSound: 'custom_custom-1',
+    customMusicFiles: [{ id: 'custom-1', name: 'Resume Track' }],
+    ensureCustomMusicUrl,
+  });
+
+  fireEvent.click(screen.getByTitle('Play music'));
+
+  await waitFor(() => expect(playSpy).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.getByTitle('Pause music')).toBeInTheDocument());
+
+  const audioElement = screen.getByTestId('header-audio-player');
+  audioElement.currentTime = 37;
+
+  fireEvent.click(screen.getByTitle('Pause music'));
+  expect(pauseSpy).toHaveBeenCalled();
+
+  fireEvent.click(screen.getByTitle('Play music'));
+
+  await waitFor(() => expect(playSpy).toHaveBeenCalledTimes(2));
+  expect(audioElement.currentTime).toBe(37);
+  expect(ensureCustomMusicUrl).toHaveBeenCalledTimes(1);
+
+  playSpy.mockRestore();
+  pauseSpy.mockRestore();
+});
+
+test('stopping music keeps the bottom player visible until it is closed', async () => {
+  const playSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+  const pauseSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+  const ensureCustomMusicUrl = jest.fn().mockResolvedValue('blob:stop-track');
+  const setAmbientSound = jest.fn();
+
+  renderHeader({
+    ambientSound: 'custom_custom-1',
+    customMusicFiles: [{ id: 'custom-1', name: 'Stop Track' }],
+    ensureCustomMusicUrl,
+    setAmbientSound,
+  });
+
+  fireEvent.click(screen.getByTitle('Play music'));
+
+  await waitFor(() => expect(playSpy).toHaveBeenCalled());
+  setAmbientSound.mockClear();
+
+  const audioElement = screen.getByTestId('header-audio-player');
+  audioElement.currentTime = 21;
+
+  fireEvent.click(screen.getAllByTitle('Stop music')[0]);
+
+  expect(audioElement.currentTime).toBe(0);
+  expect(screen.getByTitle('Close player')).toBeInTheDocument();
+  expect(setAmbientSound).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByTitle('Close player'));
+
+  expect(setAmbientSound).toHaveBeenCalledWith('None');
+
+  playSpy.mockRestore();
+  pauseSpy.mockRestore();
+});
+
 test('reveals and updates the bottom player volume control on hover', async () => {
   const playSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
   const pauseSpy = jest.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
