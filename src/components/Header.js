@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useModal } from '../context/ModalContext';
-import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, Search, Star, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward } from 'lucide-react';
+import { Info, Award, Lightbulb, Settings, Globe, Palette, Volume2, VolumeX, Trash, ChevronLeft, Edit, Trash2, Plus, Cloud, Download, Upload, Check, Pencil, Image as ImageIcon, Eye, EyeOff, Maximize, Minimize, Clock, Play, Pause, Search, Star, X, Repeat2, Shuffle, Bell, BellOff, BellRing, SkipBack, SkipForward, Square } from 'lucide-react';
 import BackgroundImagesPanel from './panels/BackgroundImagesPanel';
 import DataBackupPanel from './panels/DataBackupPanel';
 import MusicLibraryModal from './MusicLibraryModal';
@@ -813,7 +813,7 @@ const Header = ({
     setIsHeaderMusicPlaying(false);
   }, [ambientAudioRef]);
 
-  const stopCurrentPlayback = useCallback(() => {
+  const clearCurrentPlaybackSelection = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -826,10 +826,68 @@ const Header = ({
 
     releaseCurrentLibraryEntry();
     currentPlayingIdRef.current = null;
+    currentPlayingEntryRef.current = null;
     setIsHeaderMusicPlaying(false);
+    setMusicCurrentTime(0);
+    setMusicDuration(0);
     setAmbientSound('None');
     stopAmbient();
   }, [ambientAudioRef, releaseCurrentLibraryEntry, setAmbientSound, stopAmbient]);
+
+  const stopCurrentPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (ambientAudioRef?.current) {
+      ambientAudioRef.current.pause();
+      ambientAudioRef.current.currentTime = 0;
+    }
+
+    setIsHeaderMusicPlaying(false);
+    setMusicCurrentTime(0);
+    stopAmbient();
+  }, [ambientAudioRef, stopAmbient]);
+
+  const resumeCurrentEntryIfPossible = useCallback(async (entry) => {
+    const currentEntry = currentPlayingEntryRef.current;
+    if (!currentEntry || !entry || currentEntry.id !== entry.id || currentEntry.type !== entry.type) {
+      return false;
+    }
+
+    if (entry.type === CUSTOM_MUSIC_SOURCE || entry.type === LIBRARY_MUSIC_SOURCE) {
+      if (!audioRef.current?.src) {
+        return false;
+      }
+
+      try {
+        audioRef.current.volume = ambientVolume ?? 0.3;
+        await audioRef.current.play();
+        setIsHeaderMusicPlaying(true);
+        return true;
+      } catch (error) {
+        console.error('Resume error:', error);
+        return false;
+      }
+    }
+
+    if (entry.type === BUILTIN_MUSIC_SOURCE) {
+      if (!ambientAudioRef?.current?.src) {
+        return false;
+      }
+
+      try {
+        await ambientAudioRef.current.play();
+        setIsHeaderMusicPlaying(true);
+        return true;
+      } catch (error) {
+        console.error('Resume error:', error);
+        return false;
+      }
+    }
+
+    return false;
+  }, [ambientAudioRef, ambientVolume]);
 
   const resumeSelectedAmbient = useCallback(async (ambientValue) => {
     if (!ambientValue || ambientValue === 'None') {
@@ -842,10 +900,15 @@ const Header = ({
       return false;
     }
 
+    const didResume = await resumeCurrentEntryIfPossible(entry);
+    if (didResume) {
+      return true;
+    }
+
     return playMusicEntry(entry, {
       startTime: 0,
     });
-  }, [getMusicPlaylist, playMusicEntry]);
+  }, [getMusicPlaylist, playMusicEntry, resumeCurrentEntryIfPossible]);
 
   // Handle song end - auto-advance based on repeat mode
   const handleSongEnd = useCallback(async () => {
@@ -901,7 +964,7 @@ const Header = ({
 
   const selectAndPlayAmbientValue = useCallback(async (ambientValue) => {
     if (!ambientValue || ambientValue === 'None') {
-      stopCurrentPlayback();
+      clearCurrentPlaybackSelection();
       return false;
     }
 
@@ -912,7 +975,7 @@ const Header = ({
     }
 
     return playMusicEntry(entry, { startTime: 0 });
-  }, [getMusicPlaylist, playMusicEntry, stopCurrentPlayback]);
+  }, [clearCurrentPlaybackSelection, getMusicPlaylist, playMusicEntry]);
 
   // Attach onEnded handler to ambientAudioRef for built-in sounds
   useEffect(() => {
@@ -1017,27 +1080,6 @@ const Header = ({
       if (isHeaderMusicPlaying) {
         pauseCurrentPlayback();
         return;
-      }
-      
-      const currentEntry = currentPlayingEntryRef.current;
-      const playlist = getMusicPlaylist();
-      const targetEntry = getPlaylistEntry(playlist, ambientSound);
-
-      if (currentEntry && targetEntry && currentEntry.id === targetEntry.id) {
-        // Just resume the exact same track
-        if (targetEntry.type === CUSTOM_MUSIC_SOURCE || targetEntry.type === LIBRARY_MUSIC_SOURCE) {
-          if (audioRef.current && audioRef.current.src) {
-            audioRef.current.play().catch(console.error);
-            setIsHeaderMusicPlaying(true);
-            return;
-          }
-        } else if (targetEntry.type === BUILTIN_MUSIC_SOURCE) {
-          if (ambientAudioRef?.current && ambientAudioRef.current.src) {
-            ambientAudioRef.current.play().catch(console.error);
-            setIsHeaderMusicPlaying(true);
-            return;
-          }
-        }
       }
 
       await resumeSelectedAmbient(ambientSound);
@@ -1211,12 +1253,12 @@ const Header = ({
     const selection = musicSelections.find((item) => item.selectionId === selectionId);
     removeMusicSelection(selectionId);
     if (ambientSound === `library_${selectionId}`) {
-      stopCurrentPlayback();
+      clearCurrentPlaybackSelection();
     }
     window.dispatchEvent(new CustomEvent('app-toast', {
       detail: { message: selection ? `Removed from queue: ${selection.name}` : 'Track removed from queue', type: 'success', ttl: 2200 }
     }));
-  }, [ambientSound, musicSelections, removeMusicSelection, stopCurrentPlayback]);
+  }, [ambientSound, clearCurrentPlaybackSelection, musicSelections, removeMusicSelection]);
 
   const handleMoveMusicLibrarySelection = useCallback((fromIndex, toIndex) => {
     reorderMusicSelection(fromIndex, toIndex);
@@ -3326,8 +3368,8 @@ const Header = ({
       style={{ display: 'none' }}
     />
 
-    {/* Music Mini-Player — floating bar at bottom, visible only when actively playing */}
-    {ambientSound && ambientSound !== 'None' && isHeaderMusicPlaying && (
+    {/* Music Mini-Player — floating bar at bottom while a track remains selected */}
+    {ambientSound && ambientSound !== 'None' && (
       <div style={{
         position: 'fixed',
         bottom: 0,
@@ -3525,6 +3567,26 @@ const Header = ({
             justifyContent: 'center',
             cursor: 'pointer',
             color: '#ef4444',
+            flexShrink: 0,
+          }}
+        >
+          <Square size={14} fill="currentColor" />
+        </button>
+
+        <button
+          onClick={clearCurrentPlaybackSelection}
+          title="Close player"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: `${theme.text}80`,
             flexShrink: 0,
           }}
         >

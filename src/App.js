@@ -382,7 +382,8 @@ const inputStyle = (accentColor, textColor = '#ffffff', borderColor = 'rgba(255,
 export default function TimerApp() {
   // Track realtime service readiness and music footer visibility via shared hooks.
   const serviceReady = useRealtimeServiceReady();
-  const { isPlaying: isMusicFooterVisible } = useMusicPlayerState();
+  const { currentLabel: currentMusicLabel } = useMusicPlayerState();
+  const isMusicFooterVisible = Boolean(currentMusicLabel);
 
   // Use real presence hook (only when service is ready)
   const { activeUsers: realActiveUsers } = usePresence({
